@@ -23,7 +23,6 @@ import pickle
 from collections import defaultdict
 from pathlib import Path
 
-
 def sanitize_filename(name):
     if not name:
         return 'conversation'
@@ -197,6 +196,52 @@ def fetch_contacts(address_book_db_path):
             if phone_number and contact_name:
                 contacts.setdefault(phone_number, contact_name)
         return contacts
+    finally:
+        conn.close()
+
+
+def fetch_group_participants(sms_db_path, contacts):
+    conn = connect_db(sms_db_path)
+    try:
+        tables = get_table_names(conn)
+        chat_table = choose_column(['chat', 'zchat'], tables)
+        handle_table = choose_column(['handle', 'zhandle'], tables)
+        chat_handle_table = choose_column(['chat_handle_join', 'zchathandlejoin'], tables)
+        if not chat_table or not handle_table or not chat_handle_table:
+            raise ValueError('SMS database is missing chat participant tables.')
+
+        chat_cols = get_columns(conn, chat_table)
+        chat_pk = choose_column(['ROWID', '_ROWID_', 'Z_PK'], chat_cols)
+        chat_identifier_col = choose_column(['chat_identifier'], chat_cols)
+        handle_cols = get_columns(conn, handle_table)
+        handle_pk = choose_column(['ROWID', '_ROWID_', 'Z_PK'], handle_cols)
+        handle_name_col = choose_column(['id', 'address', 'username', 'phone_number'], handle_cols)
+        join_cols = get_columns(conn, chat_handle_table)
+        join_chat_col = choose_column(['chat_id', 'chatid', 'ZCHAT'], join_cols)
+        join_handle_col = choose_column(['handle_id', 'handleid', 'ZHANDLE'], join_cols)
+        if not all((chat_pk, chat_identifier_col, handle_pk, handle_name_col, join_chat_col, join_handle_col)):
+            raise ValueError('SMS database chat participant tables are missing required columns.')
+
+        sql = (
+            f'SELECT c."{chat_identifier_col}" AS chat_identifier, h."{handle_name_col}" AS address '
+            f'FROM "{chat_handle_table}" j '
+            f'JOIN "{chat_table}" c ON j."{join_chat_col}" = c."{chat_pk}" '
+            f'JOIN "{handle_table}" h ON j."{join_handle_col}" = h."{handle_pk}" '
+            f'WHERE c."{chat_identifier_col}" LIKE \'chat%\''
+        )
+        participants = defaultdict(set)
+        for row in conn.execute(sql):
+            identifier = str(row['chat_identifier'] or '').strip()
+            address = str(row['address'] or '').strip()
+            if not identifier or not address:
+                continue
+            contact_name = contacts.get(normalize_phone_number(address), address)
+            if contact_name.casefold() != 'me':
+                participants[('group', identifier.casefold())].add(contact_name)
+        return {
+            key: sorted(names, key=str.casefold)
+            for key, names in participants.items()
+        }
     finally:
         conn.close()
 
@@ -738,6 +783,7 @@ def build_html(
 
     safe_name = output_filename or sanitize_filename(conversation_name)
     filename = os.path.join(output_dir, f'{safe_name}.html')
+    stats = summarize_messages(messages)
 
     html_content = [
         '<!DOCTYPE html>',
@@ -746,27 +792,44 @@ def build_html(
         '  <meta charset="UTF-8">',
         f'  <title>{html.escape(conversation_name)}</title>',
         '  <style>',
-        '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; background: #f2f2f7; }',
-        '    .wrapper { max-width: 780px; margin: 0 auto; padding: 24px; }',
-        '    h1 { font-size: 24px; margin-bottom: 16px; color: #111; }',
+        '    body { min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; background: #f2f2f7; }',
+        '    .wrapper { width: calc(100% - 48px); max-width: 1100px; margin: 0 auto; padding: 28px 0 48px; }',
+        '    .site-nav { display: flex; gap: 10px; margin-bottom: 22px; }',
+        '    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #ffffff; transition: background .15s, color .15s, border-color .15s; }',
+        '    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }',
+        '    .page-header { padding: clamp(24px, 4vw, 42px); margin-bottom: 26px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }',
+        '    .eyebrow { margin: 0 0 10px; color: #bfdbfe; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }',
+        '    h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); letter-spacing: -.03em; overflow-wrap: anywhere; }',
+        '    .conversation-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }',
+        '    .conversation-summary span { padding: 7px 11px; border: 1px solid #ffffff4d; border-radius: 999px; background: #ffffff1c; color: #eff6ff; font-size: 13px; }',
+        '    .message-list { padding: 20px; border: 1px solid #e2e8f0; border-radius: 18px; background: #ffffffb8; box-shadow: 0 4px 18px #0f172a0d; }',
         '    .message { display: flex; margin-bottom: 14px; }',
         '    .message.me { justify-content: flex-end; }',
-        '    .bubble { max-width: 70%; padding: 12px 14px; border-radius: 20px; line-height: 1.5; position: relative; }',
-        '    .bubble.me { background: #007aff; color: white; border-bottom-right-radius: 6px; border-bottom-left-radius: 20px; }',
-        '    .bubble.other { background: #e5e5ea; color: black; border-bottom-left-radius: 6px; border-bottom-right-radius: 20px; }',
-        '    .meta { font-size: 12px; color: #555; margin-top: 6px; }',
-        '    .attachment { margin-top: 8px; font-size: 13px; color: #333; }',
+        '    .bubble { max-width: min(78%, 760px); padding: 12px 15px; border-radius: 20px; line-height: 1.5; position: relative; overflow-wrap: anywhere; box-shadow: 0 1px 3px #0f172a12; }',
+        '    .bubble.me { background: #2563eb; color: white; border-bottom-right-radius: 6px; border-bottom-left-radius: 20px; }',
+        '    .bubble.other { background: #e2e8f0; color: #172033; border-bottom-left-radius: 6px; border-bottom-right-radius: 20px; }',
+        '    .meta { font-size: 12px; color: #64748b; margin-top: 6px; }',
+        '    .bubble.me .meta { color: #dbeafe; }',
+        '    .attachment { margin-top: 8px; font-size: 13px; color: #334155; }',
         '    .attachment img { max-width: 100%; border-radius: 12px; margin-top: 4px; }',
         '    .attachment video { max-width: 100%; max-height: 480px; border-radius: 12px; margin-top: 4px; }',
         '    .attachment-meta { font-size: 11px; color: #666; margin-top: 4px; }',
-        '    .site-nav { display: flex; gap: 18px; margin-bottom: 20px; }',
-        '    .site-nav a { color: #007aff; text-decoration: none; }',
+        '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } .message-list { padding: 12px 8px; border-radius: 14px; } .bubble { max-width: 88%; padding: 10px 12px; } }',
         '  </style>',
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="__search.html">← Back to search</a><a href="index.html">Index</a></nav>',
-        f'    <h1>{html.escape(conversation_name)}</h1>',
+        '    <nav class="site-nav"><a href="search.html">← Back to search</a><a href="index.html">Index</a></nav>',
+        '    <header class="page-header">',
+        '      <p class="eyebrow">iMessage conversation</p>',
+        f'      <h1>{html.escape(conversation_name)}</h1>',
+        '      <div class="conversation-summary">',
+        f'        <span>{stats["messages"]:,} messages</span>',
+        f'        <span>{stats["attachments"]:,} attachments</span>',
+        f'        <span>{html.escape(stats["first_date"])} – {html.escape(stats["last_date"])}</span>',
+        '      </div>',
+        '    </header>',
+        '    <main class="message-list">',
     ]
 
     for msg in messages:
@@ -790,6 +853,7 @@ def build_html(
         html_content.append('    </div>')
 
     html_content.extend([
+        '    </main>',
         '  </div>',
         '</body>',
         '</html>'
@@ -851,10 +915,6 @@ def summarize_messages(messages):
 
 def build_index(conversations, output_dir, overall_stats):
     index_path = os.path.join(output_dir, 'index.html')
-    items = []
-    for display_name, filename, _ in sorted(conversations, key=lambda entry: entry[0].lower()):
-        items.append(f'      <li><a href="{filename}.html">{html.escape(display_name)}</a></li>')
-
     content = [
         '<!DOCTYPE html>',
         '<html lang="en">',
@@ -863,35 +923,41 @@ def build_index(conversations, output_dir, overall_stats):
         '  <title>iMessage Conversations</title>',
         '  <style>',
         '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; padding: 0; }',
-        '    .wrapper { max-width: 780px; margin: 0 auto; padding: 24px; }',
-        '    .site-nav { display: flex; gap: 18px; margin-bottom: 20px; }',
-        '    .site-nav a { color: #007aff; text-decoration: none; }',
-        '    h1 { font-size: 28px; margin-bottom: 12px; }',
+        '    .wrapper { width: calc(100% - 48px); max-width: 1400px; margin: 0 auto; padding: 28px 0 48px; }',
+        '    .site-nav { display: flex; gap: 10px; margin-bottom: 22px; }',
+        '    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #ffffff; transition: background .15s, color .15s, border-color .15s; }',
+        '    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }',
+        '    .page-header { padding: clamp(24px, 4vw, 48px); margin-bottom: 26px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }',
+        '    .eyebrow { margin: 0 0 10px; color: #bfdbfe; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }',
+        '    h1 { margin: 0; font-size: clamp(30px, 4vw, 42px); letter-spacing: -.03em; }',
+        '    .page-header p:last-child { max-width: 680px; margin: 10px 0 0; color: #e0f2fe; font-size: 16px; line-height: 1.55; }',
         '    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0; }',
         '    .stat { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px #0001; }',
         '    .stat strong { display: block; font-size: 22px; color: #111; }',
         '    .stat span { color: #666; font-size: 13px; }',
-        '    ul { list-style: none; padding: 0; }',
-        '    li { margin-bottom: 10px; }',
-        '    a { color: #007aff; text-decoration: none; font-size: 18px; }',
-        '    a:hover { text-decoration: underline; }',
+        '    .search-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 12px 18px; border-radius: 12px; color: #fff; background: #2563eb; text-decoration: none; font-size: 15px; font-weight: 600; box-shadow: 0 5px 14px #2563eb33; transition: background .15s, transform .15s; }',
+        '    .search-link:hover { background: #1d4ed8; transform: translateY(-1px); }',
+        '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } }',
         '  </style>',
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="__search.html">Search conversations</a></nav>',
-        '    <h1>iMessage Conversations</h1>',
-        '    <div class="stats">',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a></nav>',
+        '    <header class="page-header">',
+        '      <p class="eyebrow">iMessage archive</p>',
+        '      <h1>Your conversations</h1>',
+        '      <p>A snapshot of your message history. Search the archive to find a specific conversation.</p>',
+        '    </header>',
+        '    <main>',
+        '    <section class="stats" aria-label="Database statistics">',
         f'      <div class="stat"><strong>{overall_stats["conversations"]:,}</strong><span>Conversations</span></div>',
         f'      <div class="stat"><strong>{overall_stats["messages"]:,}</strong><span>Messages</span></div>',
         f'      <div class="stat"><strong>{overall_stats["attachments"]:,}</strong><span>Attachments</span></div>',
         f'      <div class="stat"><strong>{html.escape(overall_stats["first_date"])}</strong><span>First message</span></div>',
         f'      <div class="stat"><strong>{html.escape(overall_stats["last_date"])}</strong><span>Last message</span></div>',
-        '    </div>',
-        '    <h2>All conversations</h2>',
-        '    <ul>',
-        *items,
-        '    </ul>',
+        '    </section>',
+        '    <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>',
+        '    </main>',
         '  </div>',
         '</body>',
         '</html>'
@@ -903,7 +969,7 @@ def build_index(conversations, output_dir, overall_stats):
 
 
 def build_search_index(conversations, output_dir):
-    search_path = os.path.join(output_dir, '__search.html')
+    search_path = os.path.join(output_dir, 'search.html')
     conv_list = sorted(conversations, key=lambda entry: entry[0].lower())
 
     content = [
@@ -914,37 +980,51 @@ def build_search_index(conversations, output_dir):
         '  <title>Search iMessage Conversations</title>',
         '  <style>',
         '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; padding: 0; }',
-        '    .wrapper { max-width: 780px; margin: 0 auto; padding: 24px; }',
-        '    .site-nav { display: flex; gap: 18px; margin-bottom: 20px; }',
-        '    .site-nav a { color: #007aff; text-decoration: none; }',
-        '    h1 { font-size: 28px; margin-bottom: 12px; }',
-        '    .search-box { margin-bottom: 24px; }',
-        '    input { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }',
-        '    .results-count { font-size: 14px; color: #666; margin-bottom: 12px; }',
-        '    table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }',
+        '    body { min-height: 100vh; }',
+        '    .wrapper { width: calc(100% - 48px); max-width: 1800px; margin: 0 auto; padding: 28px 0 48px; }',
+        '    .site-nav { display: flex; gap: 10px; margin-bottom: 22px; }',
+        '    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #ffffff; transition: background .15s, color .15s, border-color .15s; }',
+        '    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }',
+        '    .page-header { padding: clamp(24px, 4vw, 48px); margin-bottom: 26px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }',
+        '    .eyebrow { margin: 0 0 10px; color: #bfdbfe; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }',
+        '    h1 { margin: 0; font-size: clamp(30px, 4vw, 42px); letter-spacing: -.03em; }',
+        '    .page-header p:last-child { max-width: 680px; margin: 10px 0 0; color: #e0f2fe; font-size: 16px; line-height: 1.55; }',
+        '    .search-box { margin-bottom: 18px; }',
+        '    input { width: 100%; padding: 14px 16px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 12px; box-sizing: border-box; box-shadow: 0 2px 8px #0f172a0a; }',
+        '    input:focus { outline: 3px solid #93c5fd; border-color: #2563eb; }',
+        '    .results-count { font-size: 14px; color: #64748b; margin-bottom: 12px; }',
+        '    .table-wrap { overflow-x: auto; border-radius: 14px; box-shadow: 0 4px 18px #0f172a0d; }',
+        '    table { width: 100%; border-collapse: collapse; background: white; }',
         '    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5ea; }',
-        '    th { background: #f8f8fa; color: #555; font-size: 13px; }',
+        '    th { background: #f1f5f9; color: #475569; font-size: 13px; white-space: nowrap; }',
         '    th button { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }',
-        '    th button:hover { color: #007aff; }',
+        '    th button:hover { color: #2563eb; }',
         '    .sort-indicator { margin-left: 4px; }',
-        '    td { font-size: 14px; color: #333; }',
-        '    td a { color: #007aff; text-decoration: none; font-size: 16px; }',
+        '    td { font-size: 14px; color: #334155; vertical-align: top; }',
+        '    td a { color: #2563eb; text-decoration: none; font-size: 16px; font-weight: 600; }',
         '    td a:hover { text-decoration: underline; }',
+        '    td.participants { min-width: 220px; color: #64748b; line-height: 1.5; }',
+        '    tbody tr:hover { background: #f8fafc; }',
         '    tr:last-child td { border-bottom: 0; }',
         '    .hidden { display: none; }',
-        '    @media (max-width: 640px) { th, td { padding: 8px 5px; font-size: 12px; } td a { font-size: 13px; } }',
+        '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } th, td { padding: 9px 7px; font-size: 12px; } td a { font-size: 13px; } td.participants { min-width: 160px; } }',
         '  </style>',
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="__search.html">Search conversations</a></nav>',
-        '    <h1>Search Conversations</h1>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a></nav>',
+        '    <header class="page-header">',
+        '      <p class="eyebrow">iMessage archive</p>',
+        '      <h1>Find a conversation</h1>',
+        '      <p>Search, sort, and explore your conversations and message history.</p>',
+        '    </header>',
         '    <div class="search-box">',
         '      <input type="text" id="searchInput" placeholder="Search for a person or name...">',
         '    </div>',
         '    <div class="results-count"><span id="resultCount">Showing all</span> conversations</div>',
-        '    <table><thead><tr>',
+        '    <div class="table-wrap"><table><thead><tr>',
         '      <th scope="col"><button type="button" data-sort-key="name" aria-sort="none">Conversation <span class="sort-indicator"></span></button></th>',
+        '      <th scope="col"><button type="button" data-sort-key="participants" aria-sort="none">People in group <span class="sort-indicator"></span></button></th>',
         '      <th scope="col"><button type="button" data-sort-key="messages" aria-sort="none">Messages <span class="sort-indicator"></span></button></th>',
         '      <th scope="col"><button type="button" data-sort-key="attachments" aria-sort="none">Attachments <span class="sort-indicator"></span></button></th>',
         '      <th scope="col"><button type="button" data-sort-key="first-date" aria-sort="none">First message <span class="sort-indicator"></span></button></th>',
@@ -955,19 +1035,32 @@ def build_search_index(conversations, output_dir):
 
     for display_name, filename, messages in conv_list:
         stats = summarize_messages(messages)
+        is_group = any(
+            isinstance(message.get('chat_id'), tuple) and message['chat_id'][0] == 'group'
+            for message in messages
+        )
+        participant_names = sorted({
+            name
+            for message in messages
+            for name in message.get('group_participants', [])
+        }, key=str.casefold) if is_group else []
+        participants_text = ', '.join(participant_names)
+        searchable_name = f'{display_name} {participants_text}'.lower()
         content.append(
-            f'      <tr class="conv-item" data-name="{html.escape(display_name.lower())}" '
+            f'      <tr class="conv-item" data-name="{html.escape(searchable_name, quote=True)}" '
             f'data-sort-name="{html.escape(display_name.lower())}" '
+            f'data-sort-participants="{html.escape(participants_text.lower(), quote=True)}" '
             f'data-sort-messages="{stats["messages"]}" data-sort-attachments="{stats["attachments"]}" '
             f'data-sort-first-date="{html.escape(stats["first_date"])}" '
             f'data-sort-last-date="{html.escape(stats["last_date"])}">'
             f'<td><a href="{filename}.html">{html.escape(display_name)}</a></td>'
+            f'<td class="participants">{html.escape(participants_text) if participants_text else "—"}</td>'
             f'<td>{stats["messages"]:,}</td><td>{stats["attachments"]:,}</td>'
             f'<td>{html.escape(stats["first_date"])}</td><td>{html.escape(stats["last_date"])}</td></tr>'
         )
 
     content.extend([
-        '    </tbody></table>',
+        '    </tbody></table></div>',
         '    <script>',
         '      const searchInput = document.getElementById("searchInput");',
         '      const conversationList = document.getElementById("conversationList");',
@@ -1059,9 +1152,6 @@ def main():
 
     contacts = fetch_contacts(args.address_book_db)
 
-    #C:\Users\PC\Files\___Phil_iphone_convo\test2026\MediaDomain\Library\SMS\Attachments\e1\01\91891B4B-499B-4F0D-8335-B1944D308405
-    #C:\Users\PC\Files\___Phil_iphone_convo\test2026\MediaDomain\Library\SMS\Attachments\e1\01\91891B4B-499B-4F0D-8335-B1944D308405\IMG_0838.PNG
-
     output_dir = os.path.abspath(args.output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
@@ -1096,6 +1186,9 @@ def main():
     attachments = normalize_attachment_paths(attachments, args.attachment_folder)
     messages = attach_to_messages(messages, attachments)
     apply_contact_names(messages, contacts)
+    group_participants = fetch_group_participants(args.sms_db, contacts)
+    for message in messages:
+        message['group_participants'] = group_participants.get(message['chat_id'], [])
     for phone_number, contact_name in contacts.items():
         chat_names.setdefault(('phone', phone_number), contact_name)
     conversations, id_to_sender = group_messages_by_conversation(messages, chat_names)
@@ -1138,7 +1231,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# C:\Users\PC\Files\___Phil_iphone_convo\test2026\HomeDomain\Library\SMS\sms.db
-# C:\Users\PC\Files\___Phil_iphone_convo\test2026\MediaDomain\Library\SMS\Attachments\attachment.db

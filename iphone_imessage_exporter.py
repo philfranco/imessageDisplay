@@ -56,6 +56,44 @@ def row_value(row, key):
         return None
 
 
+def extract_attributed_body_text(attributed_body):
+    if not isinstance(attributed_body, (bytes, bytearray, memoryview)):
+        return None
+
+    data = bytes(attributed_body)
+    marker = re.search(rb'[\x94\x95]\x84\x01\+', data)
+    if not marker:
+        return None
+
+    offset = marker.end()
+    if offset >= len(data):
+        return None
+
+    length_marker = data[offset]
+    offset += 1
+    if length_marker == 0x81:
+        length_size = 2
+    elif length_marker == 0x82:
+        length_size = 4
+    elif length_marker < 0x80:
+        length = length_marker
+        length_size = 0
+    else:
+        return None
+
+    if length_size:
+        length_end = offset + length_size
+        if length_end > len(data):
+            return None
+        length = int.from_bytes(data[offset:length_end], 'little')
+        offset = length_end
+
+    text_end = offset + length
+    if text_end > len(data):
+        return None
+    return data[offset:text_end].decode('utf-8', errors='replace')
+
+
 def apple_timestamp_to_iso(value):
     if value is None:
         return 'Unknown'
@@ -91,6 +129,16 @@ def normalize_phone_number(number):
     if len(digits) == 11 and digits.startswith('1'):
         return digits[1:]
     return digits
+
+
+def conversation_key_for_address(address):
+    address = str(address or '').strip()
+    phone_number = normalize_phone_number(address)
+    if phone_number:
+        return ('phone', phone_number)
+    if address:
+        return ('address', address.casefold())
+    return None
 
 
 def fetch_contacts(address_book_db_path):
@@ -183,6 +231,7 @@ def fetch_sms_messages(sms_db_path):
     message_cols = get_columns(conn, message_table)
     msg_pk = choose_column(['ROWID', '_ROWID_', 'Z_PK', 'ZMESSAGE'], message_cols) or 'ROWID'
     text_col = choose_column(['text', 'body', 'message'], message_cols)
+    attributed_body_col = choose_column(['attributedBody'], message_cols)
     date_col = choose_column(['date', 'date_sent', 'timestamp'], message_cols)
     is_from_me_col = choose_column(['is_from_me', 'is_from_me', 'is_from_me', 'sender', 'is_from_me'], message_cols)
     handle_id_col = choose_column(['handle_id', 'handleid', 'ZFROMHANDLE', 'ZHANDLE'], message_cols)
@@ -194,12 +243,14 @@ def fetch_sms_messages(sms_db_path):
     query = [f'm.{msg_pk} AS msg_id']
     if text_col:
         query.append(f'm.{text_col} AS text')
+    if attributed_body_col:
+        query.append(f'm.{attributed_body_col} AS attributed_body')
     query.append(f'm.{date_col} AS date')
     query.append(f'm.{is_from_me_col} AS is_from_me')
     if handle_id_col:
         query.append(f'm.{handle_id_col} AS handle_id')
     if handle_table and handle_pk and handle_name_col and handle_id_col:
-        query.append(f'h.{handle_name_col} AS handle_name')
+        query.append(f'h.{handle_name_col} AS handle_address')
     sql = f"SELECT {', '.join(query)} FROM {message_table} m"
     if handle_table and handle_pk and handle_name_col and handle_id_col:
         sql += f" LEFT JOIN {handle_table} h ON m.{handle_id_col} = h.{handle_pk}"
@@ -208,13 +259,18 @@ def fetch_sms_messages(sms_db_path):
 
     messages = []
     for row in conn.execute(sql):
-        sender = 'Me' if bool(row['is_from_me']) else (row_value(row, 'handle_name') or row_value(row, 'handle_id') or 'Unknown')
+        handle_address = row_value(row, 'handle_address')
+        message_text = row_value(row, 'text')
+        if not message_text:
+            message_text = extract_attributed_body_text(row_value(row, 'attributed_body'))
+        sender = 'Me' if bool(row['is_from_me']) else (handle_address or row_value(row, 'handle_id') or 'Unknown')
         messages.append({
             'id': row['msg_id'],
-            'text': row['text'],
+            'text': message_text,
             'date': apple_timestamp_to_iso(row['date']),
             'is_from_me': bool(row['is_from_me']),
             'sender': sender,
+            'handle_address': handle_address,
             'handle_id': row_value(row, 'handle_id'),
             'chat_id': None,
             'attachments': []
@@ -225,19 +281,58 @@ def fetch_sms_messages(sms_db_path):
         chat_cols = get_columns(conn, join_table)
         chat_msg_col = choose_column(['message_id', 'messageid', 'ZMESSAGE'], chat_cols)
         chat_id_col = choose_column(['chat_id', 'chatid', 'ZCHAT'], chat_cols)
-        if chat_msg_col and chat_id_col:
-            for row in conn.execute(f"SELECT {chat_msg_col} AS msg_id, {chat_id_col} AS chat_id FROM {join_table}"):
-                for msg in messages:
-                    if msg['id'] == row['msg_id']:
-                        msg['chat_id'] = row['chat_id']
-                        break
-
         chat_cols = get_columns(conn, chat_table)
         chat_pk = choose_column(['ROWID', '_ROWID_', 'Z_PK'], chat_cols)
         chat_name_col = choose_column(['display_name', 'chat_identifier', 'name'], chat_cols)
-        if chat_pk and chat_name_col:
-            for row in conn.execute(f"SELECT {chat_pk} AS chat_id, {chat_name_col} AS name FROM {chat_table}"):
-                chat_names[row['chat_id']] = row['name']
+        chat_identifier_col = choose_column(['chat_identifier'], chat_cols)
+        if chat_pk:
+            chat_query = [f'"{chat_pk}" AS chat_id']
+            if chat_name_col:
+                chat_query.append(f'"{chat_name_col}" AS name')
+            if chat_identifier_col:
+                chat_query.append(f'"{chat_identifier_col}" AS identifier')
+            chat_keys = {}
+            for row in conn.execute(f'SELECT {", ".join(chat_query)} FROM "{chat_table}"'):
+                identifier = row_value(row, 'identifier')
+                if identifier and str(identifier).lower().startswith('chat'):
+                    key = ('group', str(identifier).casefold())
+                else:
+                    key = conversation_key_for_address(identifier)
+                    if key is None:
+                        key = ('chat', row['chat_id'])
+                chat_keys[row['chat_id']] = key
+                name = str(row_value(row, 'name') or '').strip()
+                if name:
+                    chat_names.setdefault(key, name)
+
+            if chat_msg_col and chat_id_col:
+                message_by_id = {msg['id']: msg for msg in messages}
+                chat_keys_by_message = defaultdict(set)
+                join_sql = (
+                    f'SELECT "{chat_msg_col}" AS msg_id, "{chat_id_col}" AS chat_id '
+                    f'FROM "{join_table}"'
+                )
+                for row in conn.execute(join_sql):
+                    if row['msg_id'] in message_by_id and row['chat_id'] in chat_keys:
+                        chat_keys_by_message[row['msg_id']].add(chat_keys[row['chat_id']])
+
+                for msg in messages:
+                    candidate_keys = chat_keys_by_message.get(msg['id'], set())
+                    group_keys = sorted(key for key in candidate_keys if key[0] == 'group')
+                    if group_keys:
+                        msg['chat_id'] = group_keys[0]
+                    elif candidate_keys:
+                        sender_key = conversation_key_for_address(msg['handle_address'])
+                        if sender_key in candidate_keys:
+                            msg['chat_id'] = sender_key
+                        else:
+                            msg['chat_id'] = sorted(candidate_keys)[0]
+                    else:
+                        msg['chat_id'] = conversation_key_for_address(msg['handle_address'])
+
+    for msg in messages:
+        if msg['chat_id'] is None:
+            msg['chat_id'] = conversation_key_for_address(msg['handle_address'])
 
     conn.close()
     return messages, chat_names
@@ -368,16 +463,19 @@ def group_messages_by_conversation(messages, chat_names):
     conversations = defaultdict(lambda: {'name': None, 'messages': []})
     id_to_sender = {}  # Map conversation ID to phone number/sender
     for msg in messages:
-        key = msg['chat_id'] if msg['chat_id'] is not None else msg['handle_id'] or 'Unknown'
-        if key is None:
-            key = 'Unknown'
+        key = msg['chat_id'] or ('message', msg['id'])
         if conversations[key]['name'] is None:
-            if msg['chat_id'] is not None:
-                conversations[key]['name'] = chat_names.get(msg['chat_id']) or f'Chat_{msg["chat_id"]}'
+            if key[0] == 'group':
+                conversations[key]['name'] = chat_names.get(key) or f'Chat_{key[1]}'
+                id_to_sender[key] = str(msg['sender'])
+            elif key[0] == 'phone':
+                conversations[key]['name'] = chat_names.get(key) or str(msg['sender'] if msg['sender'] != 'Me' else key[1])
+                id_to_sender[key] = str(msg['sender'])
+            elif key[0] == 'address':
+                conversations[key]['name'] = chat_names.get(key) or str(msg['sender'] if msg['sender'] != 'Me' else key[1])
                 id_to_sender[key] = str(msg['sender'])
             else:
                 conversations[key]['name'] = str(msg['sender'])
-                # Extract phone number from sender (handle_id is typically the phone number)
                 id_to_sender[key] = str(msg['sender'])
         conversations[key]['messages'].append(msg)
     return conversations, id_to_sender
@@ -840,8 +938,8 @@ def main():
     output_dir = os.path.abspath(args.output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
-    # Cache path for fetched messages to speed up repeated runs during testing
-    cache_path = os.path.join(output_dir, 'sms_messages.pkl')
+    # Use a new cache version because message text now falls back to attributedBody.
+    cache_path = os.path.join(output_dir, 'sms_messages_v3.pkl')
     if os.path.exists(cache_path):
         try:
             with open(cache_path, 'rb') as f:
@@ -871,6 +969,8 @@ def main():
     attachments = normalize_attachment_paths(attachments, args.attachment_folder)
     messages = attach_to_messages(messages, attachments)
     apply_contact_names(messages, contacts)
+    for phone_number, contact_name in contacts.items():
+        chat_names.setdefault(('phone', phone_number), contact_name)
     conversations, id_to_sender = group_messages_by_conversation(messages, chat_names)
 
     if not conversations:

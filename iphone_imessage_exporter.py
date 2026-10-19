@@ -725,11 +725,18 @@ def format_attachment_html(attachment, base_dir, attachment_folder=None, convers
     return f'<div class="attachment"><span>{filename}</span><div class="attachment-meta">{info_text or "Attachment"}</div></div>'
 
 
-def build_html(conversation_name, messages, output_dir, attachment_folder=None, conversion_failures=None):
+def build_html(
+    conversation_name,
+    messages,
+    output_dir,
+    attachment_folder=None,
+    conversion_failures=None,
+    output_filename=None,
+):
     if conversion_failures is None:
         conversion_failures = {}
 
-    safe_name = sanitize_filename(conversation_name)
+    safe_name = output_filename or sanitize_filename(conversation_name)
     filename = os.path.join(output_dir, f'{safe_name}.html')
 
     html_content = [
@@ -793,12 +800,45 @@ def build_html(conversation_name, messages, output_dir, attachment_folder=None, 
     return filename
 
 
+def build_conversation_entries(conversations):
+    titles = {
+        key: conv_data['name'] or str(key)
+        for key, conv_data in conversations.items()
+    }
+    base_names = {key: sanitize_filename(title) for key, title in titles.items()}
+    base_name_counts = defaultdict(int)
+    for base_name in base_names.values():
+        base_name_counts[base_name.casefold()] += 1
+
+    entries = []
+    used_filenames = set()
+    for key, title in titles.items():
+        filename = base_names[key]
+        display_name = title
+        if base_name_counts[filename.casefold()] > 1:
+            key_type, key_value = key
+            if key_type == 'phone' and len(str(key_value)) == 10:
+                phone = str(key_value)
+                display_name = f'{title} (+1 ({phone[:3]}) {phone[3:6]}-{phone[6:]})'
+            else:
+                display_name = f'{title} ({key_type})'
+            suffix = hashlib.sha256(repr(key).encode('utf-8')).hexdigest()[:8]
+            filename = f'{filename[:100]}_{suffix}'
+
+        if filename.casefold() in used_filenames:
+            suffix = hashlib.sha256(repr(key).encode('utf-8')).hexdigest()[:12]
+            filename = f'{filename[:95]}_{suffix}'
+        used_filenames.add(filename.casefold())
+        entries.append((key, display_name, filename))
+
+    return entries
+
+
 def build_index(conversations, output_dir):
     index_path = os.path.join(output_dir, 'index.html')
     items = []
-    for conv in sorted(conversations, key=lambda k: k.lower()):
-        safe_name = sanitize_filename(conv)
-        items.append(f'      <li><a href="{safe_name}.html">{html.escape(conv)}</a></li>')
+    for display_name, filename in sorted(conversations, key=lambda entry: entry[0].lower()):
+        items.append(f'      <li><a href="{filename}.html">{html.escape(display_name)}</a></li>')
 
     content = [
         '<!DOCTYPE html>',
@@ -835,7 +875,7 @@ def build_index(conversations, output_dir):
 
 def build_search_index(conversations, output_dir):
     search_path = os.path.join(output_dir, '__search.html')
-    conv_list = sorted(conversations, key=lambda k: k.lower())
+    conv_list = sorted(conversations, key=lambda entry: entry[0].lower())
 
     content = [
         '<!DOCTYPE html>',
@@ -869,9 +909,11 @@ def build_search_index(conversations, output_dir):
         '    <ul id="conversationList">',
     ]
 
-    for conv in conv_list:
-        safe_name = sanitize_filename(conv)
-        content.append(f'      <li class="conv-item" data-name="{html.escape(conv.lower())}"><a href="{safe_name}.html">{html.escape(conv)}</a></li>')
+    for display_name, filename in conv_list:
+        content.append(
+            f'      <li class="conv-item" data-name="{html.escape(display_name.lower())}">'
+            f'<a href="{filename}.html">{html.escape(display_name)}</a></li>'
+        )
 
     content.extend([
         '    </ul>',
@@ -981,21 +1023,25 @@ def main():
     print(f'Conversation ID to Sender Mapping:\n{id_to_sender}\n')
 
     conversion_failures = {}
-    for idx, (conv_key, conv_data) in enumerate(conversations.items(), 1):
-        conv_name = conv_data['name'] or str(conv_key)
+    conversation_entries = build_conversation_entries(conversations)
+    index_entries = []
+    for idx, (conv_key, conv_name, output_filename) in enumerate(conversation_entries, 1):
+        conv_data = conversations[conv_key]
         num_msgs = len(conv_data['messages'])
         sender_phone = id_to_sender.get(conv_key, 'Unknown')
-        html_file = build_html(
+        build_html(
             conv_name,
             conv_data['messages'],
             output_dir,
             args.attachment_folder,
             conversion_failures,
+            output_filename,
         )
+        index_entries.append((conv_name, output_filename))
         print(f'[{idx}/{total_convs}] Created: {conv_name} ({num_msgs} messages) - Sender: {sender_phone}')
 
-    build_index([conv_data['name'] or str(key) for key, conv_data in conversations.items()], output_dir)
-    build_search_index([conv_data['name'] or str(key) for key, conv_data in conversations.items()], output_dir)
+    build_index(index_entries, output_dir)
+    build_search_index(index_entries, output_dir)
 
     if conversion_failures:
         print(f'\nAttachment conversion failures: {len(conversion_failures)}')

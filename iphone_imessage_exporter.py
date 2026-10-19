@@ -759,12 +759,13 @@ def build_html(
         '    .attachment img { max-width: 100%; border-radius: 12px; margin-top: 4px; }',
         '    .attachment video { max-width: 100%; max-height: 480px; border-radius: 12px; margin-top: 4px; }',
         '    .attachment-meta { font-size: 11px; color: #666; margin-top: 4px; }',
-        '    .index-link { display: inline-block; margin-bottom: 16px; color: #007aff; text-decoration: none; }',
+        '    .site-nav { display: flex; gap: 18px; margin-bottom: 20px; }',
+        '    .site-nav a { color: #007aff; text-decoration: none; }',
         '  </style>',
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        f'    <a class="index-link" href="index.html">← Back to all conversations</a>',
+        '    <nav class="site-nav"><a href="__search.html">← Back to search</a><a href="index.html">Index</a></nav>',
         f'    <h1>{html.escape(conversation_name)}</h1>',
     ]
 
@@ -834,10 +835,24 @@ def build_conversation_entries(conversations):
     return entries
 
 
-def build_index(conversations, output_dir):
+def summarize_messages(messages):
+    dates = [
+        str(message.get('date'))
+        for message in messages
+        if message.get('date') and message.get('date') != 'Unknown'
+    ]
+    return {
+        'messages': len(messages),
+        'attachments': sum(len(message.get('attachments', [])) for message in messages),
+        'first_date': min(dates) if dates else '—',
+        'last_date': max(dates) if dates else '—',
+    }
+
+
+def build_index(conversations, output_dir, overall_stats):
     index_path = os.path.join(output_dir, 'index.html')
     items = []
-    for display_name, filename in sorted(conversations, key=lambda entry: entry[0].lower()):
+    for display_name, filename, _ in sorted(conversations, key=lambda entry: entry[0].lower()):
         items.append(f'      <li><a href="{filename}.html">{html.escape(display_name)}</a></li>')
 
     content = [
@@ -849,7 +864,13 @@ def build_index(conversations, output_dir):
         '  <style>',
         '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; padding: 0; }',
         '    .wrapper { max-width: 780px; margin: 0 auto; padding: 24px; }',
+        '    .site-nav { display: flex; gap: 18px; margin-bottom: 20px; }',
+        '    .site-nav a { color: #007aff; text-decoration: none; }',
         '    h1 { font-size: 28px; margin-bottom: 12px; }',
+        '    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0; }',
+        '    .stat { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px #0001; }',
+        '    .stat strong { display: block; font-size: 22px; color: #111; }',
+        '    .stat span { color: #666; font-size: 13px; }',
         '    ul { list-style: none; padding: 0; }',
         '    li { margin-bottom: 10px; }',
         '    a { color: #007aff; text-decoration: none; font-size: 18px; }',
@@ -858,8 +879,16 @@ def build_index(conversations, output_dir):
         '</head>',
         '<body>',
         '  <div class="wrapper">',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="__search.html">Search conversations</a></nav>',
         '    <h1>iMessage Conversations</h1>',
-        '    <p><a href="__search.html" style="color: #007aff; text-decoration: none;">Search conversations →</a></p>',
+        '    <div class="stats">',
+        f'      <div class="stat"><strong>{overall_stats["conversations"]:,}</strong><span>Conversations</span></div>',
+        f'      <div class="stat"><strong>{overall_stats["messages"]:,}</strong><span>Messages</span></div>',
+        f'      <div class="stat"><strong>{overall_stats["attachments"]:,}</strong><span>Attachments</span></div>',
+        f'      <div class="stat"><strong>{html.escape(overall_stats["first_date"])}</strong><span>First message</span></div>',
+        f'      <div class="stat"><strong>{html.escape(overall_stats["last_date"])}</strong><span>Last message</span></div>',
+        '    </div>',
+        '    <h2>All conversations</h2>',
         '    <ul>',
         *items,
         '    </ul>',
@@ -886,43 +915,99 @@ def build_search_index(conversations, output_dir):
         '  <style>',
         '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; padding: 0; }',
         '    .wrapper { max-width: 780px; margin: 0 auto; padding: 24px; }',
+        '    .site-nav { display: flex; gap: 18px; margin-bottom: 20px; }',
+        '    .site-nav a { color: #007aff; text-decoration: none; }',
         '    h1 { font-size: 28px; margin-bottom: 12px; }',
         '    .search-box { margin-bottom: 24px; }',
         '    input { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }',
         '    .results-count { font-size: 14px; color: #666; margin-bottom: 12px; }',
-        '    ul { list-style: none; padding: 0; }',
-        '    li { margin-bottom: 10px; }',
-        '    a { color: #007aff; text-decoration: none; font-size: 18px; }',
-        '    a:hover { text-decoration: underline; }',
+        '    table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }',
+        '    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5ea; }',
+        '    th { background: #f8f8fa; color: #555; font-size: 13px; }',
+        '    th button { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }',
+        '    th button:hover { color: #007aff; }',
+        '    .sort-indicator { margin-left: 4px; }',
+        '    td { font-size: 14px; color: #333; }',
+        '    td a { color: #007aff; text-decoration: none; font-size: 16px; }',
+        '    td a:hover { text-decoration: underline; }',
+        '    tr:last-child td { border-bottom: 0; }',
         '    .hidden { display: none; }',
-        '    .index-link { display: inline-block; margin-bottom: 16px; color: #007aff; text-decoration: none; }',
+        '    @media (max-width: 640px) { th, td { padding: 8px 5px; font-size: 12px; } td a { font-size: 13px; } }',
         '  </style>',
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <a class="index-link" href="index.html">← Back to all conversations</a>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="__search.html">Search conversations</a></nav>',
         '    <h1>Search Conversations</h1>',
         '    <div class="search-box">',
         '      <input type="text" id="searchInput" placeholder="Search for a person or name...">',
         '    </div>',
         '    <div class="results-count"><span id="resultCount">Showing all</span> conversations</div>',
-        '    <ul id="conversationList">',
+        '    <table><thead><tr>',
+        '      <th scope="col"><button type="button" data-sort-key="name" aria-sort="none">Conversation <span class="sort-indicator"></span></button></th>',
+        '      <th scope="col"><button type="button" data-sort-key="messages" aria-sort="none">Messages <span class="sort-indicator"></span></button></th>',
+        '      <th scope="col"><button type="button" data-sort-key="attachments" aria-sort="none">Attachments <span class="sort-indicator"></span></button></th>',
+        '      <th scope="col"><button type="button" data-sort-key="first-date" aria-sort="none">First message <span class="sort-indicator"></span></button></th>',
+        '      <th scope="col"><button type="button" data-sort-key="last-date" aria-sort="none">Last message <span class="sort-indicator"></span></button></th>',
+        '    </tr></thead>',
+        '    <tbody id="conversationList">',
     ]
 
-    for display_name, filename in conv_list:
+    for display_name, filename, messages in conv_list:
+        stats = summarize_messages(messages)
         content.append(
-            f'      <li class="conv-item" data-name="{html.escape(display_name.lower())}">'
-            f'<a href="{filename}.html">{html.escape(display_name)}</a></li>'
+            f'      <tr class="conv-item" data-name="{html.escape(display_name.lower())}" '
+            f'data-sort-name="{html.escape(display_name.lower())}" '
+            f'data-sort-messages="{stats["messages"]}" data-sort-attachments="{stats["attachments"]}" '
+            f'data-sort-first-date="{html.escape(stats["first_date"])}" '
+            f'data-sort-last-date="{html.escape(stats["last_date"])}">'
+            f'<td><a href="{filename}.html">{html.escape(display_name)}</a></td>'
+            f'<td>{stats["messages"]:,}</td><td>{stats["attachments"]:,}</td>'
+            f'<td>{html.escape(stats["first_date"])}</td><td>{html.escape(stats["last_date"])}</td></tr>'
         )
 
     content.extend([
-        '    </ul>',
+        '    </tbody></table>',
         '    <script>',
         '      const searchInput = document.getElementById("searchInput");',
         '      const conversationList = document.getElementById("conversationList");',
         '      const conversationItems = conversationList.querySelectorAll(".conv-item");',
         '      const resultCount = document.getElementById("resultCount");',
         '      const totalConversations = conversationItems.length;',
+        '      const sortButtons = document.querySelectorAll("th button[data-sort-key]");',
+        '      let activeSortKey = "";',
+        '      let sortAscending = true;',
+        '      ',
+        '      sortButtons.forEach(function(button) {',
+        '        button.addEventListener("click", function() {',
+        '          const sortKey = this.getAttribute("data-sort-key");',
+        '          if (activeSortKey === sortKey) {',
+        '            sortAscending = !sortAscending;',
+        '          } else {',
+        '            activeSortKey = sortKey;',
+        '            sortAscending = true;',
+        '          }',
+        '          sortButtons.forEach(function(sortButton) {',
+        '            const isActive = sortButton === button;',
+        '            sortButton.setAttribute("aria-sort", isActive ? (sortAscending ? "ascending" : "descending") : "none");',
+        '            sortButton.querySelector(".sort-indicator").textContent = isActive ? (sortAscending ? "▲" : "▼") : "";',
+        '          });',
+        '          const sortAttribute = "data-sort-" + sortKey;',
+        '          const sortedItems = Array.from(conversationItems).sort(function(left, right) {',
+        '            const leftValue = left.getAttribute(sortAttribute) || "";',
+        '            const rightValue = right.getAttribute(sortAttribute) || "";',
+        '            let comparison;',
+        '            if (sortKey === "messages" || sortKey === "attachments") {',
+        '              comparison = Number(leftValue) - Number(rightValue);',
+        '            } else {',
+        '              comparison = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: "base" });',
+        '            }',
+        '            return (sortAscending ? comparison : -comparison) ||',
+        '              left.getAttribute("data-sort-name").localeCompare(right.getAttribute("data-sort-name"));',
+        '          });',
+        '          sortedItems.forEach(function(item) { conversationList.appendChild(item); });',
+        '        });',
+        '      });',
         '      ',
         '      searchInput.addEventListener("input", function() {',
         '        const searchTerm = this.value.toLowerCase().trim();',
@@ -1037,10 +1122,12 @@ def main():
             conversion_failures,
             output_filename,
         )
-        index_entries.append((conv_name, output_filename))
+        index_entries.append((conv_name, output_filename, conv_data['messages']))
         print(f'[{idx}/{total_convs}] Created: {conv_name} ({num_msgs} messages) - Sender: {sender_phone}')
 
-    build_index(index_entries, output_dir)
+    overall_stats = summarize_messages(messages)
+    overall_stats['conversations'] = total_convs
+    build_index(index_entries, output_dir, overall_stats)
     build_search_index(index_entries, output_dir)
 
     if conversion_failures:

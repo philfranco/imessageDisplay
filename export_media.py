@@ -3,10 +3,12 @@
 import hashlib
 import html
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 
 
@@ -30,6 +32,58 @@ def is_heic_type(mime_type, filename):
         lower_mime in ('image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence', 'public.heic', 'public.heif')
         or lower_name.endswith(('.heic', '.heif', '.heics'))
     )
+
+
+def _asset_url(path):
+    return Path(os.path.abspath(path)).as_uri()
+
+
+def discover_attachment_folders(output_dir):
+    attachment_folders = {}
+    media_path_pattern = re.compile(
+        r'MediaDomain[\\/]+Library[\\/]+SMS[\\/]+Attachments[\\/]+',
+        re.IGNORECASE,
+    )
+    source_pattern = re.compile(
+        r'<(?:img|source)\b[^>]*\bsrc="([^"]+)"',
+        re.IGNORECASE,
+    )
+
+    for page_path in Path(output_dir).glob('*.html'):
+        try:
+            page_content = page_path.read_text(encoding='utf-8')
+        except (OSError, UnicodeError):
+            continue
+
+        for match in source_pattern.finditer(page_content):
+            source = html.unescape(match.group(1))
+            if re.match(r'^[A-Za-z]:[\\/]', source):
+                source_path = source
+            else:
+                parsed = urlparse(source)
+                if parsed.scheme == 'file':
+                    source_path = unquote(parsed.path.lstrip('/'))
+                elif parsed.scheme:
+                    continue
+                else:
+                    source_path = os.path.join(str(page_path.parent), unquote(source))
+
+            media_match = media_path_pattern.search(source_path)
+            if not media_match:
+                continue
+
+            media_domain_end = media_match.start() + len('MediaDomain')
+            attachment_folder = os.path.join(
+                source_path[:media_domain_end],
+                'Library',
+                'SMS',
+                'Attachments',
+            )
+            if os.path.isdir(attachment_folder):
+                absolute_folder = os.path.abspath(attachment_folder)
+                attachment_folders[os.path.normcase(absolute_folder)] = absolute_folder
+
+    return tuple(sorted(attachment_folders.values(), key=os.path.normcase))
 
 
 def convert_heic_to_jpeg(source_path, output_dir):
@@ -125,6 +179,7 @@ def format_attachment_html(
     attachment_folder=None,
     conversion_failures=None,
     conversion_dir=None,
+    fallback_attachment_folders=(),
 ):
     if conversion_failures is None:
         conversion_failures = {}
@@ -193,6 +248,30 @@ def format_attachment_html(
             if expanded != path_text and os.path.exists(expanded):
                 full_path = os.path.normpath(expanded)
 
+        if not full_path:
+            attachment_suffix = None
+            for path_value in (file_path, attachment.get('filename')):
+                if not path_value:
+                    continue
+                path_value = str(path_value).replace('\\', '/')
+                for marker in (
+                    'MediaDomain/Library/SMS/Attachments/',
+                    'Library/SMS/Attachments/',
+                ):
+                    marker_index = path_value.casefold().find(marker.casefold())
+                    if marker_index >= 0:
+                        attachment_suffix = path_value[marker_index + len(marker):]
+                        break
+                if attachment_suffix:
+                    break
+
+            if attachment_suffix:
+                for fallback_folder in fallback_attachment_folders:
+                    candidate = os.path.join(fallback_folder, *attachment_suffix.split('/'))
+                    if os.path.isfile(candidate):
+                        full_path = candidate
+                        break
+
         if full_path:
             if is_heic_type(mime_type, filename):
                 failure_key = os.path.normcase(os.path.abspath(full_path))
@@ -203,7 +282,7 @@ def format_attachment_html(
                         conversion_failures[failure_key] = str(exc)
                         print(f'Warning: Could not convert HEIC/HEIF attachment "{full_path}": {exc}')
                     else:
-                        src = os.path.relpath(preview_path, base_dir).replace('\\', '/')
+                        src = _asset_url(preview_path)
                         return f'<div class="attachment"><img src="{html.escape(src)}" alt="{filename}" /></div>'
 
                 return (
@@ -211,10 +290,7 @@ def format_attachment_html(
                     '<div class="attachment-meta">Preview unavailable (conversion failed).</div></div>'
                 )
 
-            if os.path.isabs(full_path):
-                src = full_path
-            else:
-                src = os.path.relpath(full_path, base_dir).replace('\\', '/')
+            src = _asset_url(full_path)
             if is_image_type(mime_type, filename):
                 return f'<div class="attachment"><img src="{html.escape(src)}" alt="{filename}" /></div>'
             if is_video_type(mime_type, filename):
@@ -240,10 +316,7 @@ def format_attachment_html(
                             'MP4 conversion unavailable; try opening the original MOV.</div></div>'
                         )
 
-                try:
-                    video_src = os.path.relpath(video_path, base_dir).replace('\\', '/')
-                except ValueError:
-                    video_src = Path(video_path).as_uri()
+                video_src = _asset_url(video_path)
                 source_mime_type = (
                     video_mime_type
                     if video_mime_type.lower().startswith('video/')

@@ -7,7 +7,7 @@ import unittest
 from contextlib import ExitStack
 from unittest.mock import patch
 
-from iphone_imessage_exporter import export_messages
+from iphone_imessage_exporter import export_messages, regenerate_html
 from message_archive import ARCHIVE_FILENAME, merge_messages
 from sms_database import fetch_sms_messages
 
@@ -183,8 +183,25 @@ class MessageArchiveTests(unittest.TestCase):
         with open(os.path.join(self.output_dir, 'Alex.html'), encoding='utf-8') as conversation:
             html = conversation.read()
 
-        self.assertEqual(html.count('older text'), 1)
-        self.assertEqual(html.count('newer text'), 1)
+        self.assertEqual(html.count('>older text</div>'), 1)
+        self.assertEqual(html.count('>newer text</div>'), 1)
+
+    def test_regenerate_html_reuses_archive_without_extracting_backup(self):
+        merge_messages(
+            self.output_dir,
+            [message('GUID-1', 'archived text', '2025-01-01 10:00:00')],
+            {},
+        )
+
+        with patch('iphone_imessage_exporter.extract_iphone_backup') as extract:
+            output_dir, count = regenerate_html(self.output_dir)
+
+        extract.assert_not_called()
+        self.assertEqual(output_dir, self.output_dir)
+        self.assertEqual(count, 1)
+        self.assertTrue(os.path.isfile(os.path.join(self.output_dir, 'Alex.html')))
+        with open(os.path.join(self.output_dir, 'Alex.html'), encoding='utf-8') as conversation:
+            self.assertIn('2025-01-01 05:00:00', conversation.read())
 
     def test_backup_imports_get_separate_dated_extractions_caches_and_conversions(self):
         extracted_roots = []

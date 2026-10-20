@@ -1,4 +1,4 @@
-"""Load and save non-sensitive GUI path preferences."""
+"""Load and save non-sensitive GUI preferences."""
 
 import json
 import os
@@ -12,6 +12,7 @@ PREFERENCE_KEYS = (
     'attachment_folder',
     'address_book_db',
     'output_dir',
+    'time_zone',
 )
 
 

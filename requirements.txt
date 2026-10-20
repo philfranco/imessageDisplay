@@ -6,3 +6,6 @@ Pillow
 pillow-heif
 
 # MOV conversion requires the FFmpeg executable installed separately.
+
+# IANA time zone data for time zone-aware exports on Windows.
+tzdata

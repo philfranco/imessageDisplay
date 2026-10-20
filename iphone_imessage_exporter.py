@@ -9,8 +9,10 @@ import pickle
 import queue
 import threading
 import tkinter as tk
+from tkinter import ttk
 
 from backup_extractor import extract_iphone_backup
+from export_media import discover_attachment_folders
 from html_pages import (
     build_conversation_entries,
     build_html,
@@ -30,6 +32,7 @@ from sms_database import (
     group_messages_by_conversation,
     normalize_attachment_paths,
 )
+from time_zone_utils import DEFAULT_TIME_ZONE, available_time_zones, get_time_zone
 
 
 def export_messages(
@@ -41,7 +44,10 @@ def export_messages(
     backup_dir=None,
     backup_password=None,
     progress=None,
+    time_zone=DEFAULT_TIME_ZONE,
 ):
+    get_time_zone(time_zone)
+
     def report(message):
         if progress:
             progress(message)
@@ -140,6 +146,37 @@ def export_messages(
         f'Merged {imported_count} messages from this backup; '
         f'{archived_count} messages retained in the archive.'
     )
+    return _render_html(messages, chat_names, output_dir, attachment_folder, progress, time_zone)
+
+
+def regenerate_html(output_dir, progress=None, time_zone=DEFAULT_TIME_ZONE):
+    """Rebuild HTML from the existing archive without opening or extracting a backup."""
+    get_time_zone(time_zone)
+    output_dir = os.path.abspath(output_dir)
+    if not os.path.isdir(output_dir):
+        raise FileNotFoundError(f'Archive output folder not found: {output_dir}')
+    if archive_is_empty(output_dir):
+        raise ValueError(f'No messages found in the archive at: {output_dir}')
+
+    messages, chat_names, _, _ = merge_messages(output_dir, [], {})
+    return _render_html(messages, chat_names, output_dir, None, progress, time_zone)
+
+
+def _render_html(
+    messages,
+    chat_names,
+    output_dir,
+    attachment_folder,
+    progress=None,
+    time_zone=DEFAULT_TIME_ZONE,
+):
+    def report(message):
+        if progress:
+            progress(message)
+        else:
+            print(message)
+
+    get_time_zone(time_zone)
     conversations, id_to_sender = group_messages_by_conversation(messages, chat_names)
 
     if not conversations:
@@ -150,13 +187,17 @@ def export_messages(
     print(f'Conversation ID to Sender Mapping:\n{id_to_sender}\n')
 
     conversion_failures = {}
+    fallback_attachment_folders = discover_attachment_folders(output_dir)
+    if fallback_attachment_folders:
+        report(
+            f'Found {len(fallback_attachment_folders)} previous attachment extraction '
+            'folder(s) for missing media paths.'
+        )
     conversation_entries = build_conversation_entries(conversations)
     index_entries = []
     report_interval = max(1, total_convs // 50)
     for idx, (conv_key, conv_name, output_filename) in enumerate(conversation_entries, 1):
         conv_data = conversations[conv_key]
-        num_msgs = len(conv_data['messages'])
-        sender_phone = id_to_sender.get(conv_key, 'Unknown')
         build_html(
             conv_name,
             conv_data['messages'],
@@ -164,16 +205,18 @@ def export_messages(
             attachment_folder,
             conversion_failures,
             output_filename,
+            time_zone,
+            fallback_attachment_folders,
         )
         index_entries.append((conv_name, output_filename, conv_data['messages']))
         if idx == 1 or idx % report_interval == 0 or idx == total_convs:
             report(f'Exported conversations: {idx}/{total_convs} ({conv_name})')
 
-    overall_stats = summarize_messages(messages)
+    overall_stats = summarize_messages(messages, time_zone)
     overall_stats['conversations'] = total_convs
     report('Building conversation index and search index...')
-    build_index(index_entries, output_dir, overall_stats)
-    build_search_index(index_entries, output_dir)
+    build_index(index_entries, output_dir, overall_stats, time_zone)
+    build_search_index(index_entries, output_dir, time_zone)
 
     if conversion_failures:
         report(f'Attachment conversion failures: {len(conversion_failures)}')
@@ -224,6 +267,26 @@ def launch_gui():
                 row=row, column=2, padx=(0, 12), pady=6
             )
 
+    time_zone_row = len(fields)
+    tk.Label(root, text='Time Zone (IANA; daylight-saving aware)').grid(
+        row=time_zone_row, column=0, padx=12, pady=6, sticky='w'
+    )
+    time_zone_options = available_time_zones()
+    saved_time_zone = saved_preferences.get('time_zone', DEFAULT_TIME_ZONE)
+    if saved_time_zone not in time_zone_options:
+        preference_error = (
+            f'Saved time zone "{saved_time_zone}" is unavailable; using {DEFAULT_TIME_ZONE}.'
+        )
+        saved_time_zone = DEFAULT_TIME_ZONE
+    time_zone_selector = ttk.Combobox(
+        root,
+        width=61,
+        values=time_zone_options,
+        state='readonly',
+    )
+    time_zone_selector.set(saved_time_zone)
+    time_zone_selector.grid(row=time_zone_row, column=1, padx=12, pady=6, sticky='w')
+
     status = tk.Label(
         root,
         text=preference_error or (
@@ -232,17 +295,19 @@ def launch_gui():
         fg='red' if preference_error else 'black',
         anchor='w',
     )
-    status.grid(row=len(fields), column=0, columnspan=2, padx=12, pady=8, sticky='w')
+    status.grid(row=time_zone_row + 1, column=0, columnspan=2, padx=12, pady=8, sticky='w')
 
     log_output = tk.Text(root, width=104, height=12, state='disabled', wrap='word')
     log_scrollbar = tk.Scrollbar(root, command=log_output.yview)
     log_output.config(yscrollcommand=log_scrollbar.set)
-    log_output.grid(row=len(fields) + 1, column=0, columnspan=2, padx=(12, 0), pady=6, sticky='nsew')
-    log_scrollbar.grid(row=len(fields) + 1, column=2, padx=(0, 12), pady=6, sticky='ns')
+    log_output.grid(row=time_zone_row + 2, column=0, columnspan=2, padx=(12, 0), pady=6, sticky='nsew')
+    log_scrollbar.grid(row=time_zone_row + 2, column=2, padx=(0, 12), pady=6, sticky='ns')
 
     messages = queue.Queue()
     export_button = tk.Button(root, text='Export')
-    export_button.grid(row=len(fields) + 2, column=1, padx=12, pady=12, sticky='e')
+    export_button.grid(row=time_zone_row + 3, column=1, padx=12, pady=12, sticky='e')
+    rebuild_button = tk.Button(root, text='Rebuild HTML from archive')
+    rebuild_button.grid(row=time_zone_row + 3, column=0, padx=12, pady=12, sticky='w')
 
     def append_log(lines):
         if not lines:
@@ -257,6 +322,7 @@ def launch_gui():
 
     def save_form_preferences():
         paths = {key: entry.get().strip() for key, entry in entries.items()}
+        paths['time_zone'] = time_zone_selector.get()
         try:
             save_preferences(preferences_path, paths)
         except OSError as error:
@@ -271,6 +337,7 @@ def launch_gui():
 
     def run_export():
         paths = {key: entry.get().strip() for key, entry in entries.items()}
+        time_zone = time_zone_selector.get()
         if not paths['backup_dir'] and (not paths['sms_db'] or not paths['address_book_db']):
             status.config(text='SMS Database and Address Book Database paths are required.', fg='red')
             return
@@ -281,6 +348,7 @@ def launch_gui():
         save_form_preferences()
         status.config(text='Exporting... Please wait.', fg='black')
         export_button.config(state='disabled')
+        rebuild_button.config(state='disabled')
 
         def worker():
             try:
@@ -293,6 +361,7 @@ def launch_gui():
                     paths['backup_dir'] or None,
                     paths['backup_password'] or None,
                     messages.put,
+                    time_zone,
                 )
             except Exception as error:
                 print(f'Export failed: {error}')
@@ -319,6 +388,7 @@ def launch_gui():
         append_log(log_lines)
         if result:
             export_button.config(state='normal')
+            rebuild_button.config(state='normal')
             if result[0] == 'error':
                 status.config(text=f'Export failed: {result[1]}', fg='red')
             else:
@@ -331,7 +401,31 @@ def launch_gui():
 
         root.after(150, poll_messages)
 
+    def run_rebuild():
+        output_dir = entries['output_dir'].get().strip() or 'imessage_html'
+        time_zone = time_zone_selector.get()
+        save_form_preferences()
+        while not messages.empty():
+            messages.get_nowait()
+        append_log(['Rebuilding HTML from the existing archive...'])
+        status.config(text='Rebuilding HTML... Please wait.', fg='black')
+        export_button.config(state='disabled')
+        rebuild_button.config(state='disabled')
+
+        def worker():
+            try:
+                result = regenerate_html(output_dir, messages.put, time_zone)
+            except Exception as error:
+                print(f'HTML rebuild failed: {error}')
+                messages.put(('error', str(error)))
+            else:
+                messages.put(('complete', result))
+
+        threading.Thread(target=worker, daemon=True).start()
+        poll_messages()
+
     export_button.config(command=run_export)
+    rebuild_button.config(command=run_rebuild)
     root.protocol('WM_DELETE_WINDOW', close_window)
     root.mainloop()
 
@@ -352,7 +446,21 @@ def main():
         default='imessage_html',
         help='HTML output and persistent archive directory; reuse it to merge backups',
     )
+    parser.add_argument(
+        '--rebuild-html',
+        action='store_true',
+        help='Rebuild index and conversation HTML from the existing archive without re-extracting a backup',
+    )
+    parser.add_argument(
+        '--time-zone',
+        default=DEFAULT_TIME_ZONE,
+        help='IANA time zone for displayed message timestamps (default: America/New_York)',
+    )
     args = parser.parse_args()
+
+    if args.rebuild_html:
+        regenerate_html(args.output_dir, time_zone=args.time_zone)
+        return
 
     if not args.sms_db:
         launch_gui()
@@ -366,6 +474,7 @@ def main():
         args.attachment_folder,
         args.address_book_db,
         args.output_dir,
+        time_zone=args.time_zone,
     )
 
 

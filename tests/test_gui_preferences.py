@@ -20,6 +20,7 @@ class GuiPreferencesTests(unittest.TestCase):
                 {
                     'backup_dir': 'C:\\backups\\phone',
                     'output_dir': 'C:\\exports',
+                    'time_zone': 'America/New_York',
                     'backup_password': 'must not restore',
                     'unexpected': 'ignored',
                 },
@@ -31,6 +32,7 @@ class GuiPreferencesTests(unittest.TestCase):
             {
                 'backup_dir': 'C:\\backups\\phone',
                 'output_dir': 'C:\\exports',
+                'time_zone': 'America/New_York',
             },
         )
 
@@ -40,6 +42,7 @@ class GuiPreferencesTests(unittest.TestCase):
             {
                 'backup_dir': 'C:\\backups\\phone',
                 'output_dir': 'C:\\exports',
+                'time_zone': 'America/New_York',
                 'backup_password': 'secret password',
             },
         )
@@ -51,7 +54,11 @@ class GuiPreferencesTests(unittest.TestCase):
         self.assertNotIn('secret password', saved_text)
         self.assertEqual(
             load_preferences(self.preferences_path),
-            {'backup_dir': 'C:\\backups\\phone', 'output_dir': 'C:\\exports'},
+            {
+                'backup_dir': 'C:\\backups\\phone',
+                'output_dir': 'C:\\exports',
+                'time_zone': 'America/New_York',
+            },
         )
 
     def test_missing_preferences_file_returns_empty_settings(self):

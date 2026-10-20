@@ -18,6 +18,7 @@ from html_pages import (
     build_search_index,
     summarize_messages,
 )
+from gui_preferences import load_preferences, save_preferences
 from message_archive import archive_is_empty, merge_messages
 from sms_database import (
     apply_contact_names,
@@ -185,6 +186,13 @@ def launch_gui():
     root = tk.Tk()
     root.title('iMessage HTML Exporter')
     root.resizable(False, False)
+    preferences_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.imessage_exporter')
+    preference_error = None
+    try:
+        saved_preferences = load_preferences(preferences_path)
+    except (OSError, ValueError) as error:
+        saved_preferences = {}
+        preference_error = f'Could not load saved settings: {error}'
 
     fields = (
         ('iTunes Backup Folder', 'backup_dir'),
@@ -201,8 +209,8 @@ def launch_gui():
         tk.Label(root, text=label).grid(row=row, column=0, padx=12, pady=6, sticky='w')
         entry = tk.Entry(root, width=64, show='*' if key == 'backup_password' else '')
         entry.grid(row=row, column=1, padx=12, pady=6)
-        if key == 'output_dir':
-            entry.insert(0, 'imessage_html')
+        default_value = 'imessage_html' if key == 'output_dir' else ''
+        entry.insert(0, saved_preferences.get(key, default_value))
         entries[key] = entry
 
         if key in ('backup_dir', 'output_dir'):
@@ -218,7 +226,10 @@ def launch_gui():
 
     status = tk.Label(
         root,
-        text='Each backup is extracted separately; reuse this output folder to merge HTML.',
+        text=preference_error or (
+            'Each backup is extracted separately; reuse this output folder to merge HTML.'
+        ),
+        fg='red' if preference_error else 'black',
         anchor='w',
     )
     status.grid(row=len(fields), column=0, columnspan=2, padx=12, pady=8, sticky='w')
@@ -244,6 +255,20 @@ def launch_gui():
         log_output.see('end')
         log_output.config(state='disabled')
 
+    def save_form_preferences():
+        paths = {key: entry.get().strip() for key, entry in entries.items()}
+        try:
+            save_preferences(preferences_path, paths)
+        except OSError as error:
+            status.config(text=f'Could not save GUI settings: {error}', fg='red')
+            append_log([f'Could not save GUI settings: {error}'])
+            return False
+        return True
+
+    def close_window():
+        if save_form_preferences():
+            root.destroy()
+
     def run_export():
         paths = {key: entry.get().strip() for key, entry in entries.items()}
         if not paths['backup_dir'] and (not paths['sms_db'] or not paths['address_book_db']):
@@ -253,6 +278,7 @@ def launch_gui():
         while not messages.empty():
             messages.get_nowait()
         append_log(['Starting export...'])
+        save_form_preferences()
         status.config(text='Exporting... Please wait.', fg='black')
         export_button.config(state='disabled')
 
@@ -306,6 +332,7 @@ def launch_gui():
         root.after(150, poll_messages)
 
     export_button.config(command=run_export)
+    root.protocol('WM_DELETE_WINDOW', close_window)
     root.mainloop()
 
 

@@ -76,6 +76,36 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('data-date="2024-01-01"', content)
         self.assertIn('data-time="03:30"', content)
         self.assertIn('America/New_York', content)
+        self.assertIn('id="messageCount"', content)
+        self.assertIn('id="attachmentCount"', content)
+        self.assertIn('data-attachment-count="0"', content)
+        self.assertIn('visibleAttachments += Number(item.dataset.attachmentCount || 0)', content)
+        self.assertIn('activity-card', content)
+        self.assertIn('Messages per day in this conversation', content)
+        self.assertIn('data-year="2024"', content)
+        self.assertIn('data-year="2025"', content)
+        self.assertIn('id="conversationPreviousYear"', content)
+        self.assertIn('id="conversationNextYear"', content)
+        self.assertIn('data-calendar-date="2024-01-01"', content)
+        self.assertIn('messageDateFrom").value = day.dataset.calendarDate', content)
+
+    def test_conversation_counts_and_calendar_are_scoped_to_its_messages(self):
+        messages = sample_messages()
+        messages[0]['attachments'] = [{'filename': 'one.jpg'}, {'filename': 'two.jpg'}]
+        messages[2]['attachments'] = [{'filename': 'three.jpg'}]
+        path = build_html('Alex', messages, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('<strong id="messageCount">3</strong> messages', content)
+        self.assertIn('<strong id="attachmentCount">3</strong> attachments', content)
+        self.assertIn('data-attachment-count="2"', content)
+        self.assertIn('data-attachment-count="1"', content)
+        self.assertIn('data-year="2024"', content)
+        self.assertIn('data-year="2025"', content)
+        self.assertIn('title="2024-01-01: 2 messages"', content)
+        self.assertIn('title="2025-02-03: 1 messages"', content)
 
     def test_search_page_supports_text_date_and_time_search(self):
         path = build_search_index([('Alex', 'Alex', self.messages)], self.output_dir)
@@ -92,6 +122,26 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('\\u003c/script\\u003e', content)
         self.assertIn('new URLSearchParams(window.location.search)', content)
         self.assertIn('link.href = link.dataset.conversationFile', content)
+
+    def test_search_page_applies_message_filters_to_row_counts_and_dates(self):
+        messages = sample_messages()
+        messages[0]['attachments'] = [{'filename': 'one.jpg'}, {'filename': 'two.jpg'}]
+        messages[1]['attachments'] = [{'filename': 'three.jpg'}]
+        messages[2]['attachments'] = [{'filename': 'later.jpg'}]
+        path = build_search_index([('Alex', 'Alex', messages)], self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('class="filtered-message-count">3</span>', content)
+        self.assertIn('class="filtered-attachment-count">4</span>', content)
+        self.assertIn('&quot;attachments&quot;:2', content)
+        self.assertIn('messages.filter(function(message)', content)
+        self.assertIn('item.querySelector(".filtered-message-count").textContent', content)
+        self.assertIn('item.querySelector(".filtered-attachment-count").textContent', content)
+        self.assertIn('item.querySelector(".filtered-first-date").textContent', content)
+        self.assertIn('item.setAttribute("data-sort-messages", matchingMessages.length)', content)
+        self.assertIn('item.setAttribute("data-sort-attachments", filteredAttachments)', content)
 
     def test_index_has_per_year_activity_and_overall_stats(self):
         stats = summarize_messages(self.messages)

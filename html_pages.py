@@ -48,6 +48,25 @@ def build_html(
         '    h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); letter-spacing: -.03em; overflow-wrap: anywhere; }',
         '    .conversation-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }',
         '    .conversation-summary span { padding: 7px 11px; border: 1px solid #ffffff4d; border-radius: 999px; background: #ffffff1c; color: #eff6ff; font-size: 13px; }',
+        '    .conversation-summary strong { color: #fff; }',
+        '    .activity-card { margin-bottom: 20px; padding: 18px; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }',
+        '    .activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }',
+        '    .activity-heading h2 { margin: 0; font-size: 18px; }',
+        '    .year-controls { display: flex; align-items: center; gap: 10px; }',
+        '    .year-controls button { padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; }',
+        '    .activity-year[hidden] { display: none; }',
+        '    .activity-scroll { overflow-x: auto; padding: 12px 0 4px; }',
+        '    .month-labels, .activity-grid { display: grid; grid-template-columns: repeat(53, 12px); gap: 3px; width: max-content; }',
+        '    .month-labels { grid-template-rows: 18px; margin-bottom: 4px; color: #64748b; font-size: 11px; }',
+        '    .activity-grid { grid-template-rows: repeat(7, 12px); grid-auto-flow: column; }',
+        '    .activity-day { display: block; width: 12px; height: 12px; padding: 0; border: 0; border-radius: 3px; background: #fff; box-shadow: inset 0 0 0 1px #e2e8f0; }',
+        '    button.activity-day { cursor: pointer; }',
+        '    button.activity-day:focus-visible { outline: 2px solid #111827; outline-offset: 2px; }',
+        '    .activity-day.level-1 { background: #dbeafe; box-shadow: none; }',
+        '    .activity-day.level-2 { background: #93c5fd; box-shadow: none; }',
+        '    .activity-day.level-3 { background: #3b82f6; box-shadow: none; }',
+        '    .activity-day.level-4 { background: #1e3a8a; box-shadow: none; }',
+        '    .activity-legend { margin: 10px 0 0; color: #64748b; font-size: 12px; }',
         '    .message-list { padding: 20px; border: 1px solid #e2e8f0; border-radius: 18px; background: #ffffffb8; box-shadow: 0 4px 18px #0f172a0d; }',
         '    .message-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }',
         '    .message-filters label, .search-filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }',
@@ -75,8 +94,8 @@ def build_html(
         f'      <p class="eyebrow">iMessage conversation • {html.escape(time_zone)}</p>',
         f'      <h1>{html.escape(conversation_name)}</h1>',
         '      <div class="conversation-summary">',
-        f'        <span>{stats["messages"]:,} messages</span>',
-        f'        <span>{stats["attachments"]:,} attachments</span>',
+        f'        <span><strong id="messageCount">{stats["messages"]:,}</strong> messages</span>',
+        f'        <span><strong id="attachmentCount">{stats["attachments"]:,}</strong> attachments</span>',
         f'        <span>{html.escape(stats["first_date"])} – {html.escape(stats["last_date"])}</span>',
         '      </div>',
         '    </header>',
@@ -88,8 +107,72 @@ def build_html(
         '      <label>To time<input id="messageTimeTo" type="time"></label>',
         '      <div id="messageResultCount" class="message-result-count" aria-live="polite"></div>',
         '    </section>',
-        '    <main class="message-list">',
     ]
+
+    daily_counts = stats['daily_counts']
+    years = sorted({day[:4] for day in daily_counts if len(day) >= 4})
+    if years:
+        html_content.extend([
+            '    <section class="activity-card" aria-label="Conversation daily message activity">',
+            '      <div class="activity-heading"><h2>Messages per day in this conversation</h2>',
+            '        <div class="year-controls">',
+            '          <button type="button" id="conversationPreviousYear" aria-label="Previous year">←</button>',
+            '          <strong id="conversationActivityYear"></strong>',
+            '          <button type="button" id="conversationNextYear" aria-label="Next year">→</button>',
+            '        </div>',
+            '      </div>',
+        ])
+        for year in years:
+            year_number = int(year)
+            first_day = date(year_number, 1, 1)
+            last_day = date(year_number, 12, 31)
+            grid_start = first_day - timedelta(days=first_day.weekday())
+            grid_end = last_day + timedelta(days=6 - last_day.weekday())
+            max_count = max(
+                (count for day, count in daily_counts.items() if day.startswith(year)),
+                default=0,
+            )
+            hidden = '' if year == years[-1] else ' hidden'
+            html_content.append(
+                f'      <section class="activity-year" data-year="{year}"{hidden}>'
+                f'<div class="activity-scroll"><div class="month-labels">'
+            )
+            for month in range(1, 13):
+                month_start = date(year_number, month, 1)
+                week_column = (month_start - grid_start).days // 7 + 1
+                html_content.append(
+                    f'<span style="grid-column: {week_column}">{month_start.strftime("%b")}</span>'
+                )
+            html_content.append(
+                '</div><div class="activity-grid" role="group" '
+                f'aria-label="Daily message counts for {year}">'
+            )
+            current_day = grid_start
+            while current_day <= grid_end:
+                day_key = current_day.isoformat()
+                count = daily_counts.get(day_key, 0) if current_day.year == year_number else 0
+                level = (
+                    0 if not count or not max_count
+                    else min(4, (count * 4 + max_count - 1) // max_count)
+                )
+                if current_day.year == year_number:
+                    html_content.append(
+                        f'<button type="button" class="activity-day level-{level}" '
+                        f'data-calendar-date="{day_key}" title="{day_key}: {count:,} messages" '
+                        f'aria-label="Filter this conversation to {day_key}: {count:,} messages">'
+                        '</button>'
+                    )
+                else:
+                    html_content.append(
+                        '<span class="activity-day level-0" aria-hidden="true"></span>'
+                    )
+                current_day += timedelta(days=1)
+            html_content.append('</div></div></section>')
+        html_content.extend([
+            '      <p class="activity-legend">Darker squares indicate more messages that day; select a day to filter this conversation.</p>',
+            '    </section>',
+        ])
+    html_content.append('    <main class="message-list" id="messages">')
 
     for msg in messages:
         bubble_class = 'me' if msg['is_from_me'] else 'other'
@@ -117,6 +200,7 @@ def build_html(
             f'    <div class="message {bubble_class}" '
             f'data-date="{html.escape(message_date, quote=True)}" '
             f'data-time="{html.escape(message_time, quote=True)}" '
+            f'data-attachment-count="{len(msg["attachments"])}" '
             f'data-search-text="{html.escape(searchable_text, quote=True)}">'
         )
         html_content.append(f'      <div class="bubble {bubble_class}">')
@@ -133,6 +217,8 @@ def build_html(
         '      const messageFilters = ["messageTextSearch", "messageDateFrom", "messageDateTo", "messageTimeFrom", "messageTimeTo"];',
         '      const messageItems = Array.from(document.querySelectorAll(".message"));',
         '      const messageResultCount = document.getElementById("messageResultCount");',
+        '      const messageCount = document.getElementById("messageCount");',
+        '      const attachmentCount = document.getElementById("attachmentCount");',
         '      const messageQuery = new URLSearchParams(window.location.search);',
         '      const messageQueryFields = {',
         '        text: "messageTextSearch", dateFrom: "messageDateFrom", dateTo: "messageDateTo",',
@@ -154,18 +240,45 @@ def build_html(
         '        const timeFrom = document.getElementById("messageTimeFrom").value;',
         '        const timeTo = document.getElementById("messageTimeTo").value;',
         '        let visible = 0;',
+        '        let visibleAttachments = 0;',
         '        messageItems.forEach(function(item) {',
         '          const matches = (!text || item.dataset.searchText.includes(text)) &&',
         '            (!dateFrom || item.dataset.date >= dateFrom) && (!dateTo || item.dataset.date <= dateTo) &&',
         '            (!timeFrom || item.dataset.time >= timeFrom) && (!timeTo || item.dataset.time <= timeTo);',
         '          item.classList.toggle("filtered-out", !matches);',
-        '          if (matches) visible++;',
+        '          if (matches) {',
+        '            visible++;',
+        '            visibleAttachments += Number(item.dataset.attachmentCount || 0);',
+        '          }',
         '        });',
+        '        messageCount.textContent = visible.toLocaleString();',
+        '        attachmentCount.textContent = visibleAttachments.toLocaleString();',
         '        messageResultCount.textContent = "Showing " + visible + " of " + messageItems.length + " messages";',
         '      }',
         '      messageFilters.forEach(function(id) {',
         '        document.getElementById(id).addEventListener("input", filterMessages);',
         '        document.getElementById(id).addEventListener("change", filterMessages);',
+        '      });',
+        '      const activityYears = Array.from(document.querySelectorAll(".activity-year"));',
+        '      if (activityYears.length) {',
+        '        let activeYearIndex = activityYears.length - 1;',
+        '        function showConversationActivityYear() {',
+        '          activityYears.forEach(function(section, index) { section.hidden = index !== activeYearIndex; });',
+        '          document.getElementById("conversationActivityYear").textContent = activityYears[activeYearIndex].dataset.year;',
+        '          document.getElementById("conversationPreviousYear").disabled = activeYearIndex <= 0;',
+        '          document.getElementById("conversationNextYear").disabled = activeYearIndex >= activityYears.length - 1;',
+        '        }',
+        '        document.getElementById("conversationPreviousYear").addEventListener("click", function() { if (activeYearIndex > 0) { activeYearIndex--; showConversationActivityYear(); } });',
+        '        document.getElementById("conversationNextYear").addEventListener("click", function() { if (activeYearIndex < activityYears.length - 1) { activeYearIndex++; showConversationActivityYear(); } });',
+        '        showConversationActivityYear();',
+        '      }',
+        '      document.querySelectorAll("[data-calendar-date]").forEach(function(day) {',
+        '        day.addEventListener("click", function() {',
+        '          document.getElementById("messageDateFrom").value = day.dataset.calendarDate;',
+        '          document.getElementById("messageDateTo").value = day.dataset.calendarDate;',
+        '          filterMessages();',
+        '          document.getElementById("messages").scrollIntoView({ behavior: "smooth" });',
+        '        });',
         '      });',
         '      filterMessages();',
         '    </script>',
@@ -500,6 +613,7 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
                 'text': str(message.get('text') or '').casefold(),
                 'date': local_date,
                 'time': local_time,
+                'attachments': len(message.get('attachments') or []),
             })
         serialized_messages = json.dumps(searchable_messages, ensure_ascii=False, separators=(',', ':'))
         serialized_messages = (
@@ -518,8 +632,10 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
             f'<td><a data-conversation-file="{html.escape(filename, quote=True)}.html" '
             f'href="{html.escape(filename, quote=True)}.html">{html.escape(display_name)}</a></td>'
             f'<td class="participants">{html.escape(participants_text) if participants_text else "—"}</td>'
-            f'<td>{stats["messages"]:,}</td><td>{stats["attachments"]:,}</td>'
-            f'<td>{html.escape(stats["first_date"])}</td><td>{html.escape(stats["last_date"])}</td></tr>'
+            f'<td><span class="filtered-message-count">{stats["messages"]:,}</span></td>'
+            f'<td><span class="filtered-attachment-count">{stats["attachments"]:,}</span></td>'
+            f'<td><span class="filtered-first-date">{html.escape(stats["first_date"])}</span></td>'
+            f'<td><span class="filtered-last-date">{html.escape(stats["last_date"])}</span></td></tr>'
         )
 
     content.extend([
@@ -595,11 +711,26 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '        conversationItems.forEach(function(item) {',
         '          const nameMatches = !searchTerm || item.getAttribute("data-name").includes(searchTerm);',
         '          const messages = JSON.parse(item.getAttribute("data-search-messages") || "[]");',
-        '          const messageMatches = !messageFiltersActive || messages.some(function(message) {',
+        '          const matchingMessages = messages.filter(function(message) {',
         '            return (!messageTerm || message.text.includes(messageTerm)) &&',
         '              (!dateFrom || message.date >= dateFrom) && (!dateTo || message.date <= dateTo) &&',
         '              (!timeFrom || message.time >= timeFrom) && (!timeTo || message.time <= timeTo);',
         '          });',
+        '          const messageMatches = !messageFiltersActive || matchingMessages.length > 0;',
+        '          const filteredAttachments = matchingMessages.reduce(function(total, message) {',
+        '            return total + Number(message.attachments || 0);',
+        '          }, 0);',
+        '          const matchingDates = matchingMessages.map(function(message) {',
+        '            return message.date;',
+        '          }).filter(Boolean).sort();',
+        '          item.querySelector(".filtered-message-count").textContent = matchingMessages.length.toLocaleString();',
+        '          item.querySelector(".filtered-attachment-count").textContent = filteredAttachments.toLocaleString();',
+        '          item.querySelector(".filtered-first-date").textContent = matchingDates.length ? matchingDates[0] : "—";',
+        '          item.querySelector(".filtered-last-date").textContent = matchingDates.length ? matchingDates[matchingDates.length - 1] : "—";',
+        '          item.setAttribute("data-sort-messages", matchingMessages.length);',
+        '          item.setAttribute("data-sort-attachments", filteredAttachments);',
+        '          item.setAttribute("data-sort-first-date", matchingDates.length ? matchingDates[0] : "");',
+        '          item.setAttribute("data-sort-last-date", matchingDates.length ? matchingDates[matchingDates.length - 1] : "");',
         '          if (nameMatches && messageMatches) {',
         '            item.classList.remove("hidden");',
         '            visibleCount++;',

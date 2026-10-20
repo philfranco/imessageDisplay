@@ -1,6 +1,8 @@
 """GUI and command-line entry points for the iMessage HTML exporter."""
 
 import argparse
+import datetime
+import glob
 import hashlib
 import os
 import pickle
@@ -16,6 +18,7 @@ from html_pages import (
     build_search_index,
     summarize_messages,
 )
+from message_archive import archive_is_empty, merge_messages
 from sms_database import (
     apply_contact_names,
     attach_to_messages,
@@ -46,12 +49,16 @@ def export_messages(
 
     output_dir = os.path.abspath(output_dir)
     os.makedirs(output_dir, exist_ok=True)
+    extraction_id = datetime.datetime.now().astimezone().strftime('%Y%m%d_%H%M%S_%f')
+    conversion_output_dir = output_dir
 
     if backup_dir:
         report('Starting backup extraction...')
+        extraction_dir = os.path.join(output_dir, f'extracted_backup_{extraction_id}')
+        conversion_output_dir = extraction_dir
         extracted = extract_iphone_backup(
             backup_dir,
-            os.path.join(output_dir, 'extracted_backup'),
+            extraction_dir,
             backup_password,
             progress,
         )
@@ -67,7 +74,7 @@ def export_messages(
     cache_key = hashlib.sha256(
         f'{os.path.normcase(os.path.abspath(sms_db))}:{source_stat.st_mtime_ns}:{source_stat.st_size}'.encode('utf-8')
     ).hexdigest()[:12]
-    cache_path = os.path.join(output_dir, f'sms_messages_v3_{cache_key}.pkl')
+    cache_path = os.path.join(output_dir, f'sms_messages_v4_{extraction_id}_{cache_key}.pkl')
     write_cache = True
     if os.path.exists(cache_path):
         try:
@@ -93,6 +100,10 @@ def export_messages(
     report('Reading attachments and grouping conversations...')
     attachments = fetch_attachments(attachment_db or sms_db)
     attachments = normalize_attachment_paths(attachments, attachment_folder)
+    if backup_dir:
+        for attachment_list in attachments.values():
+            for attachment in attachment_list:
+                attachment['conversion_dir'] = conversion_output_dir
     messages = attach_to_messages(messages, attachments)
     apply_contact_names(messages, contacts)
     group_participants = fetch_group_participants(sms_db, contacts)
@@ -100,6 +111,34 @@ def export_messages(
         message['group_participants'] = group_participants.get(message['chat_id'], [])
     for phone_number, contact_name in contacts.items():
         chat_names.setdefault(('phone', phone_number), contact_name)
+
+    legacy_message_batches = []
+    legacy_chat_names = {}
+    if archive_is_empty(output_dir):
+        legacy_cache_paths = sorted(
+            glob.glob(os.path.join(output_dir, 'sms_messages_v3_*.pkl'))
+        )
+        for legacy_cache_path in legacy_cache_paths:
+            try:
+                with open(legacy_cache_path, 'rb') as cache_file:
+                    cached_messages, cached_chat_names = pickle.load(cache_file)
+                if not isinstance(cached_messages, list) or not isinstance(cached_chat_names, dict):
+                    raise ValueError('The legacy message cache has an unexpected format.')
+                legacy_message_batches.append(cached_messages)
+                for key, name in cached_chat_names.items():
+                    legacy_chat_names.setdefault(key, name)
+                report(f'Migrated messages from legacy cache: {legacy_cache_path}')
+            except Exception as error:
+                report(f'Could not migrate legacy cache ({legacy_cache_path}): {error}')
+
+    legacy_chat_names.update(chat_names)
+    messages, chat_names, imported_count, archived_count = merge_messages(
+        output_dir, messages, legacy_chat_names, legacy_message_batches
+    )
+    report(
+        f'Merged {imported_count} messages from this backup; '
+        f'{archived_count} messages retained in the archive.'
+    )
     conversations, id_to_sender = group_messages_by_conversation(messages, chat_names)
 
     if not conversations:
@@ -177,7 +216,11 @@ def launch_gui():
                 row=row, column=2, padx=(0, 12), pady=6
             )
 
-    status = tk.Label(root, text='Enter paths, then select Export.', anchor='w')
+    status = tk.Label(
+        root,
+        text='Each backup is extracted separately; reuse this output folder to merge HTML.',
+        anchor='w',
+    )
     status.grid(row=len(fields), column=0, columnspan=2, padx=12, pady=8, sticky='w')
 
     log_output = tk.Text(root, width=104, height=12, state='disabled', wrap='word')
@@ -268,13 +311,20 @@ def launch_gui():
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Export iPhone SMS/attachment databases as styled iMessage HTML conversations.'
+        description=(
+            'Export iPhone SMS/attachment databases as styled iMessage HTML conversations. '
+            'Each backup is extracted separately; reuse an output folder to merge its HTML archive.'
+        )
     )
     parser.add_argument('--sms-db', help='Path to the SMS SQLite database (sms.db)')
     parser.add_argument('--attachment-db', help='Path to the attachment SQLite database (if separate)')
     parser.add_argument('--attachment-folder', help='Base folder path where attachment files are located')
     parser.add_argument('--address-book-db', help='Path to the Address Book SQLite database')
-    parser.add_argument('--output-dir', default='imessage_html', help='Directory where HTML output will be written')
+    parser.add_argument(
+        '--output-dir',
+        default='imessage_html',
+        help='HTML output and persistent archive directory; reuse it to merge backups',
+    )
     args = parser.parse_args()
 
     if not args.sms_db:

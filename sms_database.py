@@ -315,6 +315,7 @@ def fetch_sms_messages(sms_db_path):
     date_col = choose_column(['date', 'date_sent', 'timestamp'], message_cols)
     is_from_me_col = choose_column(['is_from_me', 'is_from_me', 'is_from_me', 'sender', 'is_from_me'], message_cols)
     handle_id_col = choose_column(['handle_id', 'handleid', 'ZFROMHANDLE', 'ZHANDLE'], message_cols)
+    guid_col = choose_column(['guid', 'message_guid', 'ZGUID'], message_cols)
 
     handle_cols = get_columns(conn, handle_table) if handle_table else []
     handle_pk = choose_column(['ROWID', '_ROWID_', 'Z_PK'], handle_cols)
@@ -327,6 +328,8 @@ def fetch_sms_messages(sms_db_path):
         query.append(f'm.{attributed_body_col} AS attributed_body')
     query.append(f'm.{date_col} AS date')
     query.append(f'm.{is_from_me_col} AS is_from_me')
+    if guid_col:
+        query.append(f'm."{guid_col}" AS guid')
     if handle_id_col:
         query.append(f'm.{handle_id_col} AS handle_id')
     if handle_table and handle_pk and handle_name_col and handle_id_col:
@@ -346,6 +349,7 @@ def fetch_sms_messages(sms_db_path):
         sender = 'Me' if bool(row['is_from_me']) else (handle_address or row_value(row, 'handle_id') or 'Unknown')
         messages.append({
             'id': row['msg_id'],
+            'guid': row_value(row, 'guid'),
             'text': message_text,
             'date': apple_timestamp_to_iso(row['date']),
             'is_from_me': bool(row['is_from_me']),

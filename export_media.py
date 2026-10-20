@@ -76,7 +76,7 @@ def convert_mov_to_mp4(source_path, output_dir):
         f'{source_stat.st_mtime_ns}:{source_stat.st_size}'
     )
     video_name = f'{hashlib.sha256(source_key.encode("utf-8")).hexdigest()}.mp4'
-    video_dir = os.path.join(output_dir, 'converted_video')
+    video_dir = os.path.join(output_dir, 'converted_mov')
     video_path = os.path.join(video_dir, video_name)
 
     if os.path.exists(video_path):
@@ -119,13 +119,20 @@ def convert_mov_to_mp4(source_path, output_dir):
     return video_path
 
 
-def format_attachment_html(attachment, base_dir, attachment_folder=None, conversion_failures=None):
+def format_attachment_html(
+    attachment,
+    base_dir,
+    attachment_folder=None,
+    conversion_failures=None,
+    conversion_dir=None,
+):
     if conversion_failures is None:
         conversion_failures = {}
 
     filename = html.escape(str(attachment.get('filename') or 'attachment'))
     mime_type = attachment.get('mime_type') or ''
     file_path = attachment.get('file_path')
+    conversion_dir = conversion_dir or attachment.get('conversion_dir') or base_dir
     size = attachment.get('file_size')
 
     info = []
@@ -191,7 +198,7 @@ def format_attachment_html(attachment, base_dir, attachment_folder=None, convers
                 failure_key = os.path.normcase(os.path.abspath(full_path))
                 if failure_key not in conversion_failures:
                     try:
-                        preview_path = convert_heic_to_jpeg(full_path, base_dir)
+                        preview_path = convert_heic_to_jpeg(full_path, conversion_dir)
                     except (OSError, SyntaxError, ValueError) as exc:
                         conversion_failures[failure_key] = str(exc)
                         print(f'Warning: Could not convert HEIC/HEIF attachment "{full_path}": {exc}')
@@ -217,7 +224,7 @@ def format_attachment_html(attachment, base_dir, attachment_folder=None, convers
                     failure_key = f'mov:{os.path.normcase(os.path.abspath(full_path))}'
                     if failure_key not in conversion_failures:
                         try:
-                            video_path = convert_mov_to_mp4(full_path, base_dir)
+                            video_path = convert_mov_to_mp4(full_path, conversion_dir)
                         except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
                             conversion_failures[failure_key] = str(exc)
                             print(f'Warning: Could not convert MOV attachment "{full_path}": {exc}')

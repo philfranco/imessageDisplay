@@ -122,6 +122,7 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('\\u003c/script\\u003e', content)
         self.assertIn('new URLSearchParams(window.location.search)', content)
         self.assertIn('link.href = link.dataset.conversationFile', content)
+        self.assertIn('href="calls.html">Call history</a>', content)
 
     def test_search_page_applies_message_filters_to_row_counts_and_dates(self):
         messages = sample_messages()
@@ -161,6 +162,7 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('Most messages in one day', content)
         self.assertIn('title="2024-01-01: 2 messages"', content)
         self.assertIn('href="search.html?date=2024-01-01"', content)
+        self.assertIn('href="calls.html">Call history</a>', content)
 
     def test_conversation_page_restores_incoming_search_filters(self):
         path = build_html('Alex', self.messages, self.output_dir)

@@ -89,7 +89,7 @@ def build_html(
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a id="backToSearch" href="search.html">← Back to search</a><a href="index.html">Index</a></nav>',
+        '    <nav class="site-nav"><a id="backToSearch" href="search.html">← Back to search</a><a href="index.html">Index</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         f'      <p class="eyebrow">iMessage conversation • {html.escape(time_zone)}</p>',
         f'      <h1>{html.escape(conversation_name)}</h1>',
@@ -458,7 +458,7 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Your conversations</h1>',
@@ -563,7 +563,7 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Find a conversation</h1>',
@@ -769,3 +769,197 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
     with open(search_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(content))
     return search_path
+
+
+def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
+    """Render the combined call history from all extracted backups."""
+    page_path = os.path.join(output_dir, 'calls.html')
+    contact_totals = {}
+    incoming_calls = 0
+    outgoing_calls = 0
+    for call in calls:
+        key = call.get('phone_number') or str(call.get('address') or '').casefold()
+        if not key:
+            continue
+        contact_total = contact_totals.setdefault(
+            key,
+            {
+                'name': str(call.get('contact') or call.get('address') or 'Unknown'),
+                'calls': 0,
+                'duration': 0,
+            },
+        )
+        contact_total['calls'] += 1
+        try:
+            contact_total['duration'] += max(0, int(float(call.get('duration') or 0)))
+        except (TypeError, ValueError, OverflowError):
+            pass
+        if call.get('direction') == 'Outgoing':
+            outgoing_calls += 1
+        elif call.get('direction') in ('Incoming', 'Missed'):
+            incoming_calls += 1
+
+    def format_duration(duration):
+        hours, remainder = divmod(duration, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f'{hours}:{minutes:02d}:{seconds:02d}' if hours else f'{minutes}:{seconds:02d}'
+
+    top_call_contacts = sorted(
+        contact_totals.values(),
+        key=lambda contact: (-contact['calls'], contact['name'].casefold()),
+    )[:5]
+    top_duration_contacts = sorted(
+        contact_totals.values(),
+        key=lambda contact: (-contact['duration'], contact['name'].casefold()),
+    )[:5]
+    content = [
+        '<!DOCTYPE html>',
+        '<html lang="en">',
+        '<head>',
+        '  <meta charset="UTF-8">',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+        '  <title>Call history</title>',
+        '  <style>',
+        '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; color: #172033; }',
+        '    .wrapper { width: calc(100% - 48px); max-width: 1200px; margin: 0 auto; padding: 28px 0 48px; }',
+        '    .site-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }',
+        '    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #fff; }',
+        '    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }',
+        '    .page-header { padding: clamp(24px, 4vw, 42px); margin-bottom: 20px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }',
+        '    .page-header p { margin: 10px 0 0; color: #e0f2fe; }',
+        '    h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); }',
+        '    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 20px; }',
+        '    .stat-card { padding: 18px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }',
+        '    .stat-card h2 { margin: 0 0 12px; color: #475569; font-size: 14px; }',
+        '    .stat-value { margin: 0; color: #102a56; font-size: 30px; font-weight: 700; }',
+        '    .stat-note { margin: 5px 0 0; color: #64748b; font-size: 12px; }',
+        '    .top-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }',
+        '    .top-list li { display: flex; justify-content: space-between; gap: 10px; color: #334155; font-size: 13px; }',
+        '    .top-list strong { white-space: nowrap; }',
+        '    .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }',
+        '    .filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }',
+        '    .filters input { box-sizing: border-box; width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }',
+        '    .call-count { color: #64748b; font-size: 13px; margin: 8px 2px; }',
+        '    .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }',
+        '    table { width: 100%; border-collapse: collapse; }',
+        '    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }',
+        '    th { background: #f1f5f9; color: #475569; font-size: 13px; white-space: nowrap; }',
+        '    td { color: #334155; font-size: 14px; }',
+        '    tr:last-child td { border-bottom: 0; }',
+        '    tr.filtered-out { display: none; }',
+        '    .empty-state { padding: 22px; color: #64748b; }',
+        '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } th, td { padding: 9px 7px; font-size: 12px; } }',
+        '  </style>',
+        '</head>',
+        '<body>',
+        '  <div class="wrapper">',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="calls.html">Call history</a></nav>',
+        '    <header class="page-header">',
+        '      <h1>Call history</h1>',
+        f'      <p>{len(calls):,} calls • Times shown in {html.escape(time_zone)}. Call data is included only when present in an extracted backup.</p>',
+        '    </header>',
+        '    <section class="stats" aria-label="Call statistics">',
+        '      <article class="stat-card"><h2>Incoming calls</h2>',
+        f'        <p class="stat-value">{incoming_calls:,}</p>',
+        '        <p class="stat-note">Includes missed incoming calls</p></article>',
+        '      <article class="stat-card"><h2>Outgoing calls</h2>',
+        f'        <p class="stat-value">{outgoing_calls:,}</p></article>',
+        '      <article class="stat-card"><h2>Top 5 by number of calls</h2>',
+    ]
+    if top_call_contacts:
+        content.append('        <ol class="top-list">')
+        for contact in top_call_contacts:
+            call_label = 'call' if contact['calls'] == 1 else 'calls'
+            content.append(
+                f'<li><span>{html.escape(contact["name"])}</span>'
+                f'<strong>{contact["calls"]:,} {call_label}</strong></li>'
+            )
+        content.append('        </ol>')
+    else:
+        content.append('        <p class="stat-note">No call records available.</p>')
+    content.append('      </article><article class="stat-card"><h2>Top 5 by call duration</h2>')
+    if top_duration_contacts:
+        content.append('        <ol class="top-list">')
+        for contact in top_duration_contacts:
+            content.append(
+                f'<li><span>{html.escape(contact["name"])}</span>'
+                f'<strong>{format_duration(contact["duration"])}</strong></li>'
+            )
+        content.append('        </ol>')
+    else:
+        content.append('        <p class="stat-note">No call records available.</p>')
+    content.extend([
+        '      </article>',
+        '    </section>',
+        '    <section class="filters" aria-label="Filter call history">',
+        '      <label>Search contact or number<input id="callSearch" type="search" placeholder="Name or number"></label>',
+        '      <label>From date<input id="callDateFrom" type="date"></label>',
+        '      <label>To date<input id="callDateTo" type="date"></label>',
+        '      <label>From time<input id="callTimeFrom" type="time"></label>',
+        '      <label>To time<input id="callTimeTo" type="time"></label>',
+        '    </section>',
+        f'    <div id="callCount" class="call-count" aria-live="polite">Showing {len(calls):,} calls</div>',
+    ])
+
+    if calls:
+        content.extend([
+            '    <div class="table-wrap"><table>',
+            '      <thead><tr><th>Date and time</th><th>Contact</th><th>Number</th><th>Direction</th><th>Duration</th></tr></thead>',
+            '      <tbody id="callList">',
+        ])
+        for call in calls:
+            local_date_time = localize_message_datetime(call['date'], time_zone)
+            date_text = local_date_time[:10]
+            time_text = local_date_time[11:16]
+            try:
+                duration_seconds = max(0, int(float(call.get('duration') or 0)))
+            except (TypeError, ValueError, OverflowError):
+                duration_seconds = 0
+            hours, remainder = divmod(duration_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            duration_text = f'{hours}:{minutes:02d}:{seconds:02d}' if hours else f'{minutes}:{seconds:02d}'
+            searchable = f"{call['contact']} {call['address']}".casefold()
+            content.append(
+                f'        <tr class="call-row" data-search="{html.escape(searchable, quote=True)}" '
+                f'data-date="{html.escape(date_text, quote=True)}" data-time="{html.escape(time_text, quote=True)}">'
+                f'<td>{html.escape(date_text)} {html.escape(time_text)}</td>'
+                f'<td>{html.escape(str(call["contact"]))}</td>'
+                f'<td>{html.escape(str(call["address"]))}</td>'
+                f'<td>{html.escape(str(call["direction"]))}</td>'
+                f'<td>{html.escape(duration_text)}</td></tr>'
+            )
+        content.extend([
+            '      </tbody></table></div>',
+            '    <script>',
+            '      const callRows = Array.from(document.querySelectorAll(".call-row"));',
+            '      const callSearch = document.getElementById("callSearch");',
+            '      const callFilters = ["callDateFrom", "callDateTo", "callTimeFrom", "callTimeTo"].map(function(id) { return document.getElementById(id); });',
+            '      const callCount = document.getElementById("callCount");',
+            '      function filterCalls() {',
+            '        const query = callSearch.value.trim().toLocaleLowerCase();',
+            '        let visible = 0;',
+            '        callRows.forEach(function(row) {',
+            '          const date = row.dataset.date;',
+            '          const time = row.dataset.time;',
+            '          const matches = row.dataset.search.includes(query)',
+            '            && (!callFilters[0].value || date >= callFilters[0].value)',
+            '            && (!callFilters[1].value || date <= callFilters[1].value)',
+            '            && (!callFilters[2].value || time >= callFilters[2].value)',
+            '            && (!callFilters[3].value || time <= callFilters[3].value);',
+            '          row.classList.toggle("filtered-out", !matches);',
+            '          if (matches) visible += 1;',
+            '        });',
+            '        callCount.textContent = "Showing " + visible.toLocaleString() + " of " + callRows.length.toLocaleString() + " calls";',
+            '      }',
+            '      [callSearch].concat(callFilters).forEach(function(input) { input.addEventListener("input", filterCalls); input.addEventListener("change", filterCalls); });',
+            '    </script>',
+        ])
+    else:
+        content.append(
+            '    <div class="table-wrap empty-state">No call history was found in the extracted backups.</div>'
+        )
+
+    content.extend(['  </div>', '</body>', '</html>'])
+    with open(page_path, 'w', encoding='utf-8') as page:
+        page.write('\n'.join(content))
+    return page_path

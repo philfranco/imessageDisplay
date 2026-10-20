@@ -11,10 +11,12 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
-from backup_extractor import extract_iphone_backup
+from backup_extractor import CALL_HISTORY_DB_PATH, extract_iphone_backup
+from call_history import fetch_call_history
 from export_media import discover_attachment_folders
 from html_pages import (
     build_conversation_entries,
+    build_call_history,
     build_html,
     build_index,
     build_search_index,
@@ -60,6 +62,10 @@ def export_messages(
     conversion_output_dir = output_dir
 
     if backup_dir:
+        existing_extractions = sorted(
+            path for path in glob.glob(os.path.join(output_dir, 'extracted_backup_*'))
+            if os.path.isdir(path)
+        )
         report('Starting backup extraction...')
         extraction_dir = os.path.join(output_dir, f'extracted_backup_{extraction_id}')
         conversion_output_dir = extraction_dir
@@ -68,6 +74,16 @@ def export_messages(
             extraction_dir,
             backup_password,
             progress,
+            existing_media_dirs=[
+                os.path.join(
+                    existing_dir,
+                    'MediaDomain',
+                    'Library',
+                    'SMS',
+                    'Attachments',
+                )
+                for existing_dir in existing_extractions
+            ],
         )
         sms_db = extracted['sms_db']
         attachment_db = extracted['attachment_db']
@@ -107,6 +123,16 @@ def export_messages(
     report('Reading attachments and grouping conversations...')
     attachments = fetch_attachments(attachment_db or sms_db)
     attachments = normalize_attachment_paths(attachments, attachment_folder)
+    attachment_path_map = extracted.get('attachment_path_map', {}) if backup_dir else {}
+    for attachment_list in attachments.values():
+        for attachment in attachment_list:
+            file_path = attachment.get('file_path')
+            if file_path:
+                canonical_path = attachment_path_map.get(
+                    os.path.normcase(os.path.abspath(file_path))
+                )
+                if canonical_path:
+                    attachment['file_path'] = canonical_path
     if backup_dir:
         for attachment_list in attachments.values():
             for attachment in attachment_list:
@@ -146,7 +172,15 @@ def export_messages(
         f'Merged {imported_count} messages from this backup; '
         f'{archived_count} messages retained in the archive.'
     )
-    return _render_html(messages, chat_names, output_dir, attachment_folder, progress, time_zone)
+    result = _render_html(
+        messages,
+        chat_names,
+        output_dir,
+        attachment_folder,
+        progress,
+        time_zone,
+    )
+    return result
 
 
 def regenerate_html(output_dir, progress=None, time_zone=DEFAULT_TIME_ZONE):
@@ -217,6 +251,29 @@ def _render_html(
     report('Building conversation index and search index...')
     build_index(index_entries, output_dir, overall_stats, time_zone)
     build_search_index(index_entries, output_dir, time_zone)
+
+    call_history_sources = []
+    for extraction_dir in sorted(glob.glob(os.path.join(output_dir, 'extracted_backup_*'))):
+        if not os.path.isdir(extraction_dir):
+            continue
+        call_history_db = os.path.join(
+            extraction_dir,
+            'HomeDomain',
+            *CALL_HISTORY_DB_PATH.split('/'),
+        )
+        if not os.path.isfile(call_history_db):
+            continue
+        address_book_db = os.path.join(
+            extraction_dir,
+            'HomeDomain',
+            'Library',
+            'AddressBook',
+            'AddressBook.sqlitedb',
+        )
+        contacts = fetch_contacts(address_book_db) if os.path.isfile(address_book_db) else {}
+        call_history_sources.append((call_history_db, contacts))
+    calls = fetch_call_history(call_history_sources, time_zone)
+    build_call_history(calls, output_dir, time_zone)
 
     if conversion_failures:
         report(f'Attachment conversion failures: {len(conversion_failures)}')

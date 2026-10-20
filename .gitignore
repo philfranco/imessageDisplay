@@ -62,6 +62,8 @@ db.sqlite3
 db.sqlite3-journal
 messages_archive.sqlite3
 messages_archive.sqlite3-journal
+attachment_hashes.sqlite3
+attachment_hashes.sqlite3-journal
 .imessage_exporter
 
 # Flask stuff:

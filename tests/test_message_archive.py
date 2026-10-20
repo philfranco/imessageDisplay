@@ -205,12 +205,19 @@ class MessageArchiveTests(unittest.TestCase):
 
     def test_backup_imports_get_separate_dated_extractions_caches_and_conversions(self):
         extracted_roots = []
+        extracted_media = []
         imports = [
             message('GUID-1', 'first backup', '2025-01-01 10:00:00', id=1),
             message('GUID-2', 'second backup', '2025-01-02 10:00:00', id=2),
         ]
 
-        def extract_backup(backup_dir, extraction_dir, password, progress):
+        def extract_backup(
+            backup_dir,
+            extraction_dir,
+            password,
+            progress,
+            existing_media_dirs=(),
+        ):
             self.assertIn(backup_dir, ('backup-one', 'backup-two'))
             self.assertIsNone(password)
             self.assertIsNone(progress)
@@ -222,6 +229,10 @@ class MessageArchiveTests(unittest.TestCase):
             os.makedirs(os.path.dirname(attachment_path), exist_ok=True)
             with open(attachment_path, 'wb') as attachment:
                 attachment.write(b'heic placeholder')
+            extracted_media.append(attachment_path)
+            attachment_path_map = {}
+            if existing_media_dirs:
+                attachment_path_map[os.path.normcase(attachment_path)] = extracted_media[0]
             sms_path = os.path.join(extraction_dir, 'sms.db')
             with open(sms_path, 'wb') as database:
                 database.write(b'sms placeholder')
@@ -230,6 +241,7 @@ class MessageArchiveTests(unittest.TestCase):
                 'attachment_db': None,
                 'attachment_folder': media_folder,
                 'address_book_db': None,
+                'attachment_path_map': attachment_path_map,
             }
 
         imported = iter(imports)
@@ -270,7 +282,10 @@ class MessageArchiveTests(unittest.TestCase):
             export_messages(None, None, None, None, self.output_dir, backup_dir='backup-one')
             export_messages(None, None, None, None, self.output_dir, backup_dir='backup-two')
 
+        self.assertEqual(len(extracted_media), 2)
+        self.assertEqual(convert.call_args_list[1].args[0], extracted_media[0])
         self.assertEqual(len(set(extracted_roots)), 2)
+        self.assertTrue(os.path.isfile(os.path.join(self.output_dir, 'calls.html')))
         self.assertTrue(all(
             re.fullmatch(r'extracted_backup_\d{8}_\d{6}_\d{6}', os.path.basename(root))
             for root in extracted_roots

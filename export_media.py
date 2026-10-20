@@ -1,6 +1,6 @@
 """Identify and convert media attachments for browser-friendly HTML output."""
 
-import hashlib
+import glob
 import html
 import os
 import re
@@ -9,6 +9,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+
+from attachment_dedup import hash_media_file
 
 
 
@@ -36,6 +38,46 @@ def is_heic_type(mime_type, filename):
 
 def _asset_url(path):
     return Path(os.path.abspath(path)).as_uri()
+
+
+def _reuse_conversion(source_path, output_dir, conversion_folder, converted_path):
+    if os.path.exists(converted_path):
+        return True
+
+    output_root = output_dir
+    if os.path.basename(output_dir).startswith('extracted_backup_'):
+        output_root = os.path.dirname(output_dir)
+    pattern = os.path.join(
+        output_root,
+        'extracted_backup_*',
+        conversion_folder,
+        os.path.basename(converted_path),
+    )
+    for existing_path in sorted(glob.glob(pattern)):
+        if os.path.normcase(existing_path) == os.path.normcase(converted_path):
+            return True
+        if not os.path.isfile(existing_path):
+            continue
+        os.makedirs(os.path.dirname(converted_path), exist_ok=True)
+        temp_fd, temp_path = tempfile.mkstemp(
+            prefix='.reuse_conversion_',
+            dir=os.path.dirname(converted_path),
+        )
+        os.close(temp_fd)
+        os.remove(temp_path)
+        try:
+            os.link(existing_path, temp_path)
+            os.replace(temp_path, converted_path)
+            return True
+        except OSError as error:
+            print(
+                f'Could not reuse converted media "{existing_path}" for '
+                f'"{source_path}"; converting again: {error}'
+            )
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+    return False
 
 
 def discover_attachment_folders(output_dir):
@@ -87,16 +129,12 @@ def discover_attachment_folders(output_dir):
 
 
 def convert_heic_to_jpeg(source_path, output_dir):
-    source_stat = os.stat(source_path)
-    source_key = (
-        f'{os.path.normcase(os.path.abspath(source_path))}:'
-        f'{source_stat.st_mtime_ns}:{source_stat.st_size}'
-    )
-    preview_name = f'{hashlib.sha256(source_key.encode("utf-8")).hexdigest()}.jpg'
+    source_digest = hash_media_file(source_path, output_dir)
+    preview_name = f'{source_digest}.jpg'
     preview_dir = os.path.join(output_dir, 'converted_heic')
     preview_path = os.path.join(preview_dir, preview_name)
 
-    if os.path.exists(preview_path):
+    if _reuse_conversion(source_path, output_dir, 'converted_heic', preview_path):
         return preview_path
 
     try:
@@ -117,24 +155,20 @@ def convert_heic_to_jpeg(source_path, output_dir):
 
 
 def convert_mov_to_mp4(source_path, output_dir):
+    source_digest = hash_media_file(source_path, output_dir)
+    video_name = f'{source_digest}.mp4'
+    video_dir = os.path.join(output_dir, 'converted_mov')
+    video_path = os.path.join(video_dir, video_name)
+
+    if _reuse_conversion(source_path, output_dir, 'converted_mov', video_path):
+        return video_path
+
     ffmpeg = shutil.which('ffmpeg')
     if not ffmpeg:
         raise RuntimeError(
             'MOV conversion requires FFmpeg. Install it in your Conda environment with: '
             'conda install -c conda-forge ffmpeg'
         )
-
-    source_stat = os.stat(source_path)
-    source_key = (
-        f'{os.path.normcase(os.path.abspath(source_path))}:'
-        f'{source_stat.st_mtime_ns}:{source_stat.st_size}'
-    )
-    video_name = f'{hashlib.sha256(source_key.encode("utf-8")).hexdigest()}.mp4'
-    video_dir = os.path.join(output_dir, 'converted_mov')
-    video_path = os.path.join(video_dir, video_name)
-
-    if os.path.exists(video_path):
-        return video_path
 
     os.makedirs(video_dir, exist_ok=True)
     temp_fd, temp_path = tempfile.mkstemp(suffix='.mp4', dir=video_dir)

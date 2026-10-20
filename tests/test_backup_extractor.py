@@ -15,6 +15,7 @@ from sms_database import normalize_attachment_paths, sanitize_backup_relative_pa
 
 SMS_PATH = 'Library/SMS/sms.db'
 CONTACTS_PATH = 'Library/AddressBook/AddressBook.sqlitedb'
+CALL_HISTORY_PATH = 'Library/CallHistoryDB/CallHistory.storedata'
 MEDIA_PATH = (
     'Library/SMS/Attachments/51/01/15FEA88B-D0FB-49ED-95B8-4A611168CC8A/'
     'Paula Paula its Paula @XfinityLive! You have been selected for VIP Party '
@@ -52,13 +53,25 @@ def encrypt_cbc(data, key):
     return encryptor.update(padded) + encryptor.finalize()
 
 
-def make_backup(backup_dir, encrypted, sms_metadata_size_offset=0):
+def make_backup(
+    backup_dir,
+    encrypted,
+    sms_metadata_size_offset=0,
+    include_call_history=True,
+    media_path=MEDIA_PATH,
+    media_contents=b'attachment bytes',
+):
     os.makedirs(backup_dir, exist_ok=True)
-    files = (
+    files = [
         ('HomeDomain', SMS_PATH, b'sms database'),
         ('HomeDomain', CONTACTS_PATH, b'address book database'),
-        ('MediaDomain', MEDIA_PATH, b'attachment bytes'),
-    )
+        ('MediaDomain', media_path, media_contents),
+    ]
+    if include_call_history:
+        files.insert(
+            2,
+            ('HomeDomain', CALL_HISTORY_PATH, b'call history database'),
+        )
     keybag_data = b''
     manifest_key_data = None
     keybag_class_key = None
@@ -144,6 +157,69 @@ def make_backup(backup_dir, encrypted, sms_metadata_size_offset=0):
 
 
 class BackupExtractorTests(unittest.TestCase):
+    def test_duplicate_attachment_is_not_written_and_maps_to_oldest_copy(self):
+        for encrypted in (False, True):
+            with self.subTest(encrypted=encrypted), tempfile.TemporaryDirectory() as temporary_dir:
+                new_backup = os.path.join(temporary_dir, 'new-backup')
+                old_extraction = os.path.join(temporary_dir, 'extracted_backup_old')
+                new_extraction = os.path.join(temporary_dir, 'extracted_backup_new')
+                new_media_path = (
+                    'Library/SMS/Attachments/00/00/unique-new-folder/'
+                    'same-picture.jpg'
+                )
+                old_attachment_root = os.path.join(
+                    old_extraction,
+                    'MediaDomain',
+                    'Library',
+                    'SMS',
+                    'Attachments',
+                )
+                old_attachment = os.path.join(
+                    old_attachment_root,
+                    sanitize_backup_relative_path(MEDIA_PATH, old_attachment_root),
+                )
+                os.makedirs(os.path.dirname(old_attachment), exist_ok=True)
+                with open(old_attachment, 'wb') as media_file:
+                    media_file.write(b'identical image bytes')
+
+                password = make_backup(
+                    new_backup,
+                    encrypted=encrypted,
+                    media_path=new_media_path,
+                    media_contents=b'identical image bytes',
+                )
+                progress = []
+
+                extracted = extract_iphone_backup(
+                    new_backup,
+                    new_extraction,
+                    password if encrypted else None,
+                    progress=progress.append,
+                    existing_media_dirs=[old_attachment_root],
+                )
+                requested_path = os.path.join(
+                    new_extraction,
+                    'MediaDomain',
+                    sanitize_backup_relative_path(
+                        new_media_path,
+                        os.path.join(new_extraction, 'MediaDomain'),
+                    ),
+                )
+
+                self.assertFalse(os.path.exists(requested_path))
+                self.assertEqual(
+                    extracted['attachment_path_map'][os.path.normcase(requested_path)],
+                    old_attachment,
+                )
+                self.assertEqual(read_bytes(old_attachment), b'identical image bytes')
+                self.assertEqual(
+                    sum('Skipped 1 duplicate attachment' in message for message in progress),
+                    1,
+                )
+                self.assertFalse(any(
+                    'Skipped duplicate attachment;' in message for message in progress
+                ))
+
     def test_extracts_required_files_and_attachments_from_unencrypted_backup(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             backup_dir = os.path.join(temporary_dir, 'backup')
@@ -156,6 +232,10 @@ class BackupExtractorTests(unittest.TestCase):
             self.assertEqual(
                 read_bytes(extracted['address_book_db']),
                 b'address book database',
+            )
+            self.assertEqual(
+                read_bytes(extracted['call_history_db']),
+                b'call history database',
             )
             attachment = os.path.join(
                 extracted['attachment_folder'],
@@ -170,6 +250,16 @@ class BackupExtractorTests(unittest.TestCase):
             self.assertEqual(mapped[1][0]['file_path'], attachment)
             self.assertTrue(os.path.isfile(mapped[1][0]['file_path']))
 
+    def test_call_history_database_is_optional(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            backup_dir = os.path.join(temporary_dir, 'backup')
+            output_dir = os.path.join(temporary_dir, 'output')
+            make_backup(backup_dir, encrypted=False, include_call_history=False)
+
+            extracted = extract_iphone_backup(backup_dir, output_dir)
+
+            self.assertIsNone(extracted['call_history_db'])
+
     def test_reports_extraction_stages_and_file_progress(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             backup_dir = os.path.join(temporary_dir, 'backup')
@@ -181,7 +271,7 @@ class BackupExtractorTests(unittest.TestCase):
 
             self.assertTrue(any('Checking backup folder' in line for line in progress))
             self.assertTrue(any('Reading backup manifest' in line for line in progress))
-            self.assertTrue(any('Found 3' in line for line in progress))
+            self.assertTrue(any('Found 4' in line for line in progress))
             self.assertTrue(any('extraction complete' in line.lower() for line in progress))
 
     def test_extracts_encrypted_backup_with_password(self):

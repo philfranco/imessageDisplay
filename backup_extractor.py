@@ -1,16 +1,19 @@
 """Extract iMessage databases and media from an iTunes iPhone backup."""
 
 import os
+import hashlib
 import plistlib
 import shutil
 import sqlite3
 import tempfile
 
 from sms_database import sanitize_backup_relative_path
+from attachment_dedup import index_existing_attachments, register_media_hash
 
 
 SMS_DB_PATH = 'Library/SMS/sms.db'
 ADDRESS_BOOK_DB_PATH = 'Library/AddressBook/AddressBook.sqlitedb'
+CALL_HISTORY_DB_PATH = 'Library/CallHistoryDB/CallHistory.storedata'
 ATTACHMENT_PATH = 'Library/SMS/Attachments/'
 
 
@@ -141,8 +144,17 @@ def _record_files(database_path):
         return list(connection.execute(
             'SELECT fileID, domain, relativePath, flags, file FROM Files '
             'WHERE flags = 1 AND ((domain = ? AND relativePath IN (?, ?)) '
+            'OR (domain = ? AND relativePath = ?) '
             'OR (domain = ? AND relativePath LIKE ?))',
-            ('HomeDomain', SMS_DB_PATH, ADDRESS_BOOK_DB_PATH, 'MediaDomain', ATTACHMENT_PATH + '%'),
+            (
+                'HomeDomain',
+                SMS_DB_PATH,
+                ADDRESS_BOOK_DB_PATH,
+                'HomeDomain',
+                CALL_HISTORY_DB_PATH,
+                'MediaDomain',
+                ATTACHMENT_PATH + '%',
+            ),
         ))
     finally:
         connection.close()
@@ -234,6 +246,83 @@ def _write_backup_content(backup_dir, row, keybag_keys, destination, progress=No
         )
 
 
+def _hash_backup_content(backup_dir, row, keybag_keys, progress=None):
+    """Hash the extracted plaintext without writing a temporary media file."""
+    file_id, _, _, flags, serialized = row
+    if flags != 1:
+        raise ValueError('The backup manifest marked a required file as non-regular.')
+    properties = _file_properties(serialized)
+    size = properties.get('Size')
+    if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+        raise ValueError('The backup file record has an invalid size.')
+    source_path = _backup_file_path(backup_dir, file_id)
+    wrapped_key = properties.get('EncryptionKey')
+    if wrapped_key is None:
+        if os.path.getsize(source_path) != size:
+            raise ValueError(f'Backup file size mismatch for {file_id}.')
+        digest = hashlib.sha256()
+        with open(source_path, 'rb') as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b''):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    if not isinstance(wrapped_key, bytes):
+        raise ValueError('The backup contains an unsupported file encryption key.')
+    if len(wrapped_key) == 44:
+        wrapped_key = wrapped_key[4:]
+    elif len(wrapped_key) != 40:
+        raise ValueError(
+            f'The backup file encryption key for {file_id} has an unsupported length '
+            f'({len(wrapped_key)} bytes).'
+        )
+    protection_class = properties.get('ProtectionClass')
+    if isinstance(protection_class, bool) or not isinstance(protection_class, int):
+        raise ValueError('The encrypted backup file is missing its protection class.')
+    class_key = keybag_keys.get(protection_class.to_bytes(4, 'big'))
+    if class_key is None:
+        raise ValueError(f'No decrypted backup key exists for protection class {protection_class}.')
+
+    _, padding, Cipher, algorithms, modes, aes_key_unwrap, _, InvalidUnwrap = _crypto()
+    try:
+        content_key = aes_key_unwrap(class_key, wrapped_key)
+    except InvalidUnwrap as error:
+        raise ValueError(f'Could not unlock backup file {file_id}.') from error
+
+    def hash_decrypted_content(strip_padding):
+        decryptor = Cipher(algorithms.AES(content_key), modes.CBC(bytes(16))).decryptor()
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder() if strip_padding else None
+        digest = hashlib.sha256()
+        bytes_hashed = 0
+        with open(source_path, 'rb') as source:
+            while True:
+                encrypted_chunk = source.read(1024 * 1024)
+                if not encrypted_chunk:
+                    break
+                plaintext_chunk = decryptor.update(encrypted_chunk)
+                if unpadder:
+                    plaintext_chunk = unpadder.update(plaintext_chunk)
+                digest.update(plaintext_chunk)
+                bytes_hashed += len(plaintext_chunk)
+            plaintext_chunk = decryptor.finalize()
+            if unpadder:
+                plaintext_chunk = unpadder.update(plaintext_chunk) + unpadder.finalize()
+            digest.update(plaintext_chunk)
+            bytes_hashed += len(plaintext_chunk)
+        return digest.hexdigest(), bytes_hashed
+
+    try:
+        hexdigest, actual_size = hash_decrypted_content(strip_padding=True)
+    except ValueError:
+        hexdigest, actual_size = hash_decrypted_content(strip_padding=False)
+    if actual_size != size:
+        _report(
+            progress,
+            f'Warning: Backup size metadata differs for {file_id}: '
+            f'expected {size} bytes, decrypted {actual_size} bytes.'
+        )
+    return hexdigest
+
+
 def _write_extracted_file(output_root, backup_dir, row, keybag_keys, progress=None):
     relative_path = row[2]
     parts = relative_path.replace('\\', '/').split('/')
@@ -253,7 +342,13 @@ def _write_extracted_file(output_root, backup_dir, row, keybag_keys, progress=No
     return destination
 
 
-def extract_iphone_backup(backup_dir, output_dir, password=None, progress=None):
+def extract_iphone_backup(
+    backup_dir,
+    output_dir,
+    password=None,
+    progress=None,
+    existing_media_dirs=(),
+):
     """Extract required iMessage files from an iTunes backup into output_dir."""
     backup_dir = os.path.abspath(backup_dir)
     output_dir = os.path.abspath(output_dir)
@@ -309,13 +404,28 @@ def extract_iphone_backup(backup_dir, output_dir, password=None, progress=None):
         extracted_rows = _record_files(manifest_path)
 
     total_files = len(extracted_rows)
-    _report(progress, f'Found {total_files} message database and attachment files to extract.')
+    _report(progress, f'Found {total_files} database and attachment files to extract.')
+    canonical_media_by_digest = (
+        index_existing_attachments(
+            os.path.dirname(output_dir),
+            existing_media_dirs,
+            progress,
+        )
+        if existing_media_dirs
+        else {}
+    )
     found = {}
     written_paths = {}
+    attachment_path_map = {}
+    duplicate_attachments_skipped = 0
     report_interval = max(1, total_files // 50)
     for index, row in enumerate(extracted_rows, 1):
         domain, relative_path = row[1], row[2]
-        if domain == 'HomeDomain' and relative_path in (SMS_DB_PATH, ADDRESS_BOOK_DB_PATH):
+        if domain == 'HomeDomain' and relative_path in (
+            SMS_DB_PATH,
+            ADDRESS_BOOK_DB_PATH,
+            CALL_HISTORY_DB_PATH,
+        ):
             found[relative_path] = _write_extracted_file(
                 os.path.join(output_dir, domain), backup_dir, row, keybag_keys, progress
             )
@@ -330,9 +440,24 @@ def extract_iphone_backup(backup_dir, output_dir, password=None, progress=None):
                     f'sanitization: {previous_path!r} and {relative_path!r}.'
                 )
             written_paths[path_key] = relative_path
-            _write_extracted_file(
-                attachment_root, backup_dir, row, keybag_keys, progress
-            )
+            if existing_media_dirs:
+                digest = _hash_backup_content(backup_dir, row, keybag_keys, progress)
+                canonical_path = canonical_media_by_digest.get(digest)
+                if canonical_path is not None:
+                    requested_path = os.path.abspath(os.path.join(attachment_root, safe_relative_path))
+                    attachment_path_map[os.path.normcase(requested_path)] = canonical_path
+                    duplicate_attachments_skipped += 1
+                    continue
+
+                extracted_path = _write_extracted_file(
+                    attachment_root, backup_dir, row, keybag_keys, progress
+                )
+                canonical_media_by_digest[digest] = extracted_path
+                register_media_hash(extracted_path, digest, os.path.dirname(output_dir))
+            else:
+                _write_extracted_file(
+                    attachment_root, backup_dir, row, keybag_keys, progress
+                )
         if index == 1 or index % report_interval == 0 or index == total_files:
             name = relative_path.rsplit('/', 1)[-1]
             _report(progress, f'Extracted files: {index}/{total_files} ({name})')
@@ -346,10 +471,18 @@ def extract_iphone_backup(backup_dir, output_dir, password=None, progress=None):
             'The backup is missing required file(s): ' + ', '.join(missing)
         )
 
+    if duplicate_attachments_skipped:
+        _report(
+            progress,
+            f'Skipped {duplicate_attachments_skipped:,} duplicate attachment(s); '
+            'using the oldest copies.',
+        )
     _report(progress, 'Database and attachment extraction complete.')
     return {
         'sms_db': found[SMS_DB_PATH],
         'address_book_db': found[ADDRESS_BOOK_DB_PATH],
+        'call_history_db': found.get(CALL_HISTORY_DB_PATH),
         'attachment_folder': os.path.join(output_dir, 'MediaDomain'),
+        'attachment_path_map': attachment_path_map,
         'attachment_db': None,
     }

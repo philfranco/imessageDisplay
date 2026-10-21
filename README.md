@@ -9,6 +9,7 @@ A Python tool for extracting iPhone backup data and turning SMS/iMessage convers
 - Supports searching and filtering conversations by message text, date, and time.
 - Merges messages from successive backups into a persistent SQLite archive instead of replacing earlier imports.
 - Converts HEIC/HEIF images to JPEG and MOV videos to MP4 for browser previews.
+- Extracts cached iMessage stickers and sticker-library previews from the backup. If a sticker's cached image is missing, the exporter uses its matching embedded library preview when available.
 - Reuses matching extracted attachments and media conversions across backup extractions when possible.
 - Offers both a desktop GUI and a command-line interface.
 

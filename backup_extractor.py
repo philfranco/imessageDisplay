@@ -15,6 +15,8 @@ SMS_DB_PATH = 'Library/SMS/sms.db'
 ADDRESS_BOOK_DB_PATH = 'Library/AddressBook/AddressBook.sqlitedb'
 CALL_HISTORY_DB_PATH = 'Library/CallHistoryDB/CallHistory.storedata'
 ATTACHMENT_PATH = 'Library/SMS/Attachments/'
+STICKER_CACHE_PATH = 'Library/SMS/StickerCache/'
+STICKER_DATABASE_PATH = 'Library/Stickers/stickers.stickerdb'
 
 
 def _crypto():
@@ -145,7 +147,9 @@ def _record_files(database_path):
             'SELECT fileID, domain, relativePath, flags, file FROM Files '
             'WHERE flags = 1 AND ((domain = ? AND relativePath IN (?, ?)) '
             'OR (domain = ? AND relativePath = ?) '
-            'OR (domain = ? AND relativePath LIKE ?))',
+            'OR (domain = ? AND relativePath LIKE ?) '
+            'OR (domain = ? AND relativePath LIKE ?) '
+            'OR (domain = ? AND relativePath = ?))',
             (
                 'HomeDomain',
                 SMS_DB_PATH,
@@ -154,6 +158,10 @@ def _record_files(database_path):
                 CALL_HISTORY_DB_PATH,
                 'MediaDomain',
                 ATTACHMENT_PATH + '%',
+                'HomeDomain',
+                STICKER_CACHE_PATH + '%',
+                'HomeDomain',
+                STICKER_DATABASE_PATH,
             ),
         ))
     finally:
@@ -429,6 +437,14 @@ def extract_iphone_backup(
             found[relative_path] = _write_extracted_file(
                 os.path.join(output_dir, domain), backup_dir, row, keybag_keys, progress
             )
+        elif domain == 'HomeDomain' and relative_path == STICKER_DATABASE_PATH:
+            found[relative_path] = _write_extracted_file(
+                os.path.join(output_dir, domain),
+                backup_dir,
+                row,
+                keybag_keys,
+                progress,
+            )
         elif domain == 'MediaDomain' and relative_path.startswith(ATTACHMENT_PATH):
             attachment_root = os.path.join(output_dir, domain)
             safe_relative_path = sanitize_backup_relative_path(relative_path, attachment_root)
@@ -458,6 +474,14 @@ def extract_iphone_backup(
                 _write_extracted_file(
                     attachment_root, backup_dir, row, keybag_keys, progress
                 )
+        elif domain == 'HomeDomain' and relative_path.startswith(STICKER_CACHE_PATH):
+            _write_extracted_file(
+                os.path.join(output_dir, domain),
+                backup_dir,
+                row,
+                keybag_keys,
+                progress,
+            )
         if index == 1 or index % report_interval == 0 or index == total_files:
             name = relative_path.rsplit('/', 1)[-1]
             _report(progress, f'Extracted files: {index}/{total_files} ({name})')
@@ -483,6 +507,12 @@ def extract_iphone_backup(
         'address_book_db': found[ADDRESS_BOOK_DB_PATH],
         'call_history_db': found.get(CALL_HISTORY_DB_PATH),
         'attachment_folder': os.path.join(output_dir, 'MediaDomain'),
+        'sticker_cache_folder': os.path.join(
+            output_dir,
+            'HomeDomain',
+            *STICKER_CACHE_PATH.rstrip('/').split('/'),
+        ),
+        'sticker_database': found.get(STICKER_DATABASE_PATH),
         'attachment_path_map': attachment_path_map,
         'attachment_db': None,
     }

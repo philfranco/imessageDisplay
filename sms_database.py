@@ -3,6 +3,7 @@
 import datetime
 import hashlib
 import os
+import plistlib
 import re
 import sqlite3
 from collections import defaultdict
@@ -439,6 +440,22 @@ def fetch_attachments(attachment_db_path):
     mime_col = choose_column(['mime_type', 'uti', 'uniform_type_identifier'], attach_cols)
     filepath_col = choose_column(['file_path', 'path', 'filepath', 'filename'], attach_cols)
     size_col = choose_column(['total_bytes', 'filesize', 'file_size'], attach_cols)
+    sticker_col = choose_column(['is_sticker'], attach_cols)
+    sticker_info_col = choose_column(['sticker_user_info'], attach_cols)
+
+    def attachment_from_row(row):
+        sticker_info = row_value(row, 'sticker_user_info')
+        if isinstance(sticker_info, (bytes, bytearray, memoryview)):
+            sticker_info = plistlib.loads(bytes(sticker_info))
+        return {
+            'id': row['attach_id'],
+            'filename': row_value(row, 'filename') or f'attachment_{row["attach_id"]}',
+            'mime_type': row_value(row, 'mime_type'),
+            'file_path': row_value(row, 'file_path'),
+            'file_size': row_value(row, 'file_size'),
+            'is_sticker': bool(row_value(row, 'is_sticker')),
+            'sticker_user_info': sticker_info if isinstance(sticker_info, dict) else {},
+        }
 
     attachments = defaultdict(list)
     if join_table:
@@ -455,15 +472,13 @@ def fetch_attachments(attachment_db_path):
                 sql += f", a.{filepath_col} AS file_path"
             if size_col:
                 sql += f", a.{size_col} AS file_size"
+            if sticker_col:
+                sql += f", a.{sticker_col} AS is_sticker"
+            if sticker_info_col:
+                sql += f", a.{sticker_info_col} AS sticker_user_info"
             sql += f" FROM {join_table} j JOIN {attachment_table} a ON j.{attach_id_col} = a.{attach_pk}"
             for row in conn.execute(sql):
-                attachments[row['msg_id']].append({
-                    'id': row['attach_id'],
-                    'filename': row_value(row, 'filename') or f'attachment_{row["attach_id"]}',
-                    'mime_type': row_value(row, 'mime_type'),
-                    'file_path': row_value(row, 'file_path'),
-                    'file_size': row_value(row, 'file_size')
-                })
+                attachments[row['msg_id']].append(attachment_from_row(row))
     else:
         if choose_column(['message_id', 'messageid', 'ZMESSAGE'], attach_cols):
             msg_col = choose_column(['message_id', 'messageid', 'ZMESSAGE'], attach_cols)
@@ -476,21 +491,19 @@ def fetch_attachments(attachment_db_path):
                 sql += f", {filepath_col} AS file_path"
             if size_col:
                 sql += f", {size_col} AS file_size"
+            if sticker_col:
+                sql += f", {sticker_col} AS is_sticker"
+            if sticker_info_col:
+                sql += f", {sticker_info_col} AS sticker_user_info"
             sql += f" FROM {attachment_table}"
             for row in conn.execute(sql):
-                attachments[row['msg_id']].append({
-                    'id': row['attach_id'],
-                    'filename': row_value(row, 'filename') or f'attachment_{row["attach_id"]}',
-                    'mime_type': row_value(row, 'mime_type'),
-                    'file_path': row_value(row, 'file_path'),
-                    'file_size': row_value(row, 'file_size')
-                })
+                attachments[row['msg_id']].append(attachment_from_row(row))
 
     conn.close()
     return attachments
 
 
-def normalize_attachment_paths(attachments, attachment_folder):
+def normalize_attachment_paths(attachments, attachment_folder, sticker_cache_folder=None):
     if not attachment_folder:
         return attachments
 
@@ -499,6 +512,22 @@ def normalize_attachment_paths(attachments, attachment_folder):
         normalized[msg_id] = []
         for attachment in attach_list:
             file_path = attachment.get('file_path')
+            path_value = file_path or attachment.get('filename')
+            path_text = str(path_value or '').replace('\\', '/')
+            sticker_marker = 'Library/SMS/StickerCache/'
+            sticker_index = path_text.casefold().find(sticker_marker.casefold())
+            if sticker_cache_folder and sticker_index >= 0:
+                sticker_relative_path = path_text[sticker_index + len(sticker_marker):]
+                safe_relative_path = sanitize_backup_relative_path(
+                    sticker_relative_path,
+                    sticker_cache_folder,
+                )
+                attachment['file_path'] = os.path.normpath(
+                    os.path.join(sticker_cache_folder, safe_relative_path)
+                )
+                normalized[msg_id].append(attachment)
+                continue
+
             if file_path:
                 path_text = str(file_path)
                 if path_text.startswith('file://'):

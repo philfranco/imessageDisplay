@@ -1,5 +1,7 @@
+import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from html_pages import (
     build_html,
@@ -7,6 +9,7 @@ from html_pages import (
     build_search_index,
     summarize_messages,
 )
+from sms_database import normalize_attachment_paths
 
 
 def sample_messages():
@@ -88,6 +91,39 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('id="conversationNextYear"', content)
         self.assertIn('data-calendar-date="2024-01-01"', content)
         self.assertIn('messageDateFrom").value = day.dataset.calendarDate', content)
+
+    def test_sticker_cache_attachment_is_rendered_as_conversation_image(self):
+        sticker_root = os.path.join(
+            self.output_dir,
+            'extracted_backup',
+            'HomeDomain',
+            'Library',
+            'SMS',
+            'StickerCache',
+        )
+        sticker_relative_path = os.path.join('sticker', 'sticker.png')
+        sticker_path = os.path.join(sticker_root, sticker_relative_path)
+        os.makedirs(os.path.dirname(sticker_path))
+        with open(sticker_path, 'wb') as sticker:
+            sticker.write(b'png image')
+
+        attachments = normalize_attachment_paths(
+            {
+                2: [{
+                    'filename': '~/Library/SMS/StickerCache/sticker/sticker.png',
+                    'mime_type': 'image/png',
+                }]
+            },
+            os.path.join(self.output_dir, 'extracted_backup', 'MediaDomain'),
+            sticker_root,
+        )
+        messages = [dict(self.messages[1], attachments=attachments[2])]
+
+        path = build_html('Alex', messages, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+        self.assertIn(f'<img src="{Path(sticker_path).as_uri()}"', content)
 
     def test_conversation_counts_and_calendar_are_scoped_to_its_messages(self):
         messages = sample_messages()

@@ -16,6 +16,12 @@ from sms_database import normalize_attachment_paths, sanitize_backup_relative_pa
 SMS_PATH = 'Library/SMS/sms.db'
 CONTACTS_PATH = 'Library/AddressBook/AddressBook.sqlitedb'
 CALL_HISTORY_PATH = 'Library/CallHistoryDB/CallHistory.storedata'
+STICKER_DATABASE_PATH = 'Library/Stickers/stickers.stickerdb'
+STICKER_PATH = (
+    'Library/SMS/StickerCache/'
+    'dcab29a27aa9949940adff694c7cb540-dcab29a27aa9949940adff694c7cb540-sticker/'
+    'dcab29a27aa9949940adff694c7cb540-sticker.png'
+)
 MEDIA_PATH = (
     'Library/SMS/Attachments/51/01/15FEA88B-D0FB-49ED-95B8-4A611168CC8A/'
     'Paula Paula its Paula @XfinityLive! You have been selected for VIP Party '
@@ -60,6 +66,9 @@ def make_backup(
     include_call_history=True,
     media_path=MEDIA_PATH,
     media_contents=b'attachment bytes',
+    sticker_path=None,
+    sticker_contents=b'sticker image bytes',
+    sticker_database_contents=None,
 ):
     os.makedirs(backup_dir, exist_ok=True)
     files = [
@@ -71,6 +80,12 @@ def make_backup(
         files.insert(
             2,
             ('HomeDomain', CALL_HISTORY_PATH, b'call history database'),
+        )
+    if sticker_path:
+        files.append(('HomeDomain', sticker_path, sticker_contents))
+    if sticker_database_contents is not None:
+        files.append(
+            ('HomeDomain', STICKER_DATABASE_PATH, sticker_database_contents)
         )
     keybag_data = b''
     manifest_key_data = None
@@ -157,6 +172,62 @@ def make_backup(
 
 
 class BackupExtractorTests(unittest.TestCase):
+    def test_extracts_sticker_library_database(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            backup_dir = os.path.join(temporary_dir, 'backup')
+            output_dir = os.path.join(temporary_dir, 'output')
+            database_contents = b'SQLite sticker database'
+            make_backup(
+                backup_dir,
+                encrypted=False,
+                sticker_database_contents=database_contents,
+            )
+
+            extracted = extract_iphone_backup(backup_dir, output_dir)
+
+            self.assertEqual(
+                read_bytes(extracted['sticker_database']),
+                database_contents,
+            )
+
+    def test_extracts_sticker_cache_files_from_encrypted_and_unencrypted_backups(self):
+        for encrypted in (False, True):
+            with self.subTest(encrypted=encrypted), tempfile.TemporaryDirectory() as temporary_dir:
+                backup_dir = os.path.join(temporary_dir, 'backup')
+                output_dir = os.path.join(temporary_dir, 'output')
+                password = make_backup(
+                    backup_dir,
+                    encrypted=encrypted,
+                    sticker_path=STICKER_PATH,
+                )
+
+                extracted = extract_iphone_backup(
+                    backup_dir,
+                    output_dir,
+                    password if encrypted else None,
+                )
+
+                sticker = os.path.join(
+                    extracted['sticker_cache_folder'],
+                    sanitize_backup_relative_path(
+                        STICKER_PATH[len('Library/SMS/StickerCache/'):],
+                        extracted['sticker_cache_folder'],
+                    ),
+                )
+                self.assertEqual(read_bytes(sticker), b'sticker image bytes')
+
+                normalized = normalize_attachment_paths(
+                    {
+                        1: [{
+                            'filename': f'~/{STICKER_PATH}',
+                            'mime_type': 'image/png',
+                        }]
+                    },
+                    extracted['attachment_folder'],
+                    extracted['sticker_cache_folder'],
+                )
+                self.assertEqual(normalized[1][0]['file_path'], sticker)
+
     def test_duplicate_attachment_is_not_written_and_maps_to_oldest_copy(self):
         for encrypted in (False, True):
             with self.subTest(encrypted=encrypted), tempfile.TemporaryDirectory() as temporary_dir:

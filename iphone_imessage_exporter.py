@@ -34,6 +34,7 @@ from sms_database import (
     group_messages_by_conversation,
     normalize_attachment_paths,
 )
+from sticker_database import extract_sticker_previews, resolve_missing_sticker_previews
 from time_zone_utils import DEFAULT_TIME_ZONE, available_time_zones, get_time_zone
 
 
@@ -122,7 +123,45 @@ def export_messages(
 
     report('Reading attachments and grouping conversations...')
     attachments = fetch_attachments(attachment_db or sms_db)
-    attachments = normalize_attachment_paths(attachments, attachment_folder)
+    attachments = normalize_attachment_paths(
+        attachments,
+        attachment_folder,
+        extracted.get('sticker_cache_folder') if backup_dir else None,
+    )
+    sticker_database_candidates = (
+        [extracted.get('sticker_database')]
+        + [
+            os.path.join(
+                existing_dir,
+                'HomeDomain',
+                'Library',
+                'Stickers',
+                'stickers.stickerdb',
+            )
+            for existing_dir in existing_extractions
+        ]
+        if backup_dir
+        else []
+    )
+    sticker_database = next(
+        (
+            path for path in sticker_database_candidates
+            if path and os.path.isfile(path)
+        ),
+        None,
+    )
+    if sticker_database:
+        sticker_previews = extract_sticker_previews(
+            sticker_database,
+            os.path.join(
+                conversion_output_dir,
+                'HomeDomain',
+                'Library',
+                'Stickers',
+                'extracted_previews',
+            ),
+        )
+        resolve_missing_sticker_previews(attachments, sticker_previews)
     attachment_path_map = extracted.get('attachment_path_map', {}) if backup_dir else {}
     for attachment_list in attachments.values():
         for attachment in attachment_list:

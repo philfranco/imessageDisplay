@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import unittest
@@ -154,8 +155,24 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('id="dateToInput"', content)
         self.assertIn('id="timeFromInput"', content)
         self.assertIn('id="timeToInput"', content)
-        self.assertIn('data-search-messages=', content)
+        self.assertIn('type="application/json"', content)
+        self.assertIn('data-search-index="0"', content)
+        self.assertNotIn('data-search-messages=', content)
         self.assertIn('\\u003c/script\\u003e', content)
+        payload_start = content.index('id="searchMessageData" type="application/json">') + len(
+            'id="searchMessageData" type="application/json">'
+        )
+        payload_end = content.index('</script>', payload_start)
+        search_data = json.loads(content[payload_start:payload_end])
+        self.assertEqual(search_data, [[
+            ['hello </script>', '2024-01-01', '03:30', 0],
+            ['reply', '2024-01-01', '03:45', 0],
+            ['next year', '2025-02-03', '05:15', 0],
+        ]])
+        self.assertIn(
+            'JSON.parse(document.getElementById("searchMessageData").textContent)',
+            content,
+        )
         self.assertIn('new URLSearchParams(window.location.search)', content)
         self.assertIn('link.href = link.dataset.conversationFile', content)
         self.assertIn('href="calls.html">Call history</a>', content)
@@ -172,8 +189,10 @@ class HtmlFeatureTests(unittest.TestCase):
 
         self.assertIn('class="filtered-message-count">3</span>', content)
         self.assertIn('class="filtered-attachment-count">4</span>', content)
-        self.assertIn('&quot;attachments&quot;:2', content)
+        self.assertIn('["hello \\u003c/script\\u003e","2024-01-01","03:30",2]', content)
         self.assertIn('messages.filter(function(message)', content)
+        self.assertIn('message[0].includes(messageTerm)', content)
+        self.assertIn('message[3] || 0', content)
         self.assertIn('item.querySelector(".filtered-message-count").textContent', content)
         self.assertIn('item.querySelector(".filtered-attachment-count").textContent', content)
         self.assertIn('item.querySelector(".filtered-first-date").textContent', content)
@@ -255,10 +274,7 @@ class HtmlFeatureTests(unittest.TestCase):
         search_path = build_search_index([('Alex', 'Alex', messages)], self.output_dir)
         with open(search_path, encoding='utf-8') as page:
             search_content = page.read()
-        self.assertIn(
-            '&quot;date&quot;:&quot;2024-01-01&quot;,&quot;time&quot;:&quot;21:00&quot;',
-            search_content,
-        )
+        self.assertIn('["previous local day","2024-01-01","21:00",0]', search_content)
 
 
 if __name__ == '__main__':

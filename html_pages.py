@@ -591,6 +591,7 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '    <tbody id="conversationList">',
     ]
 
+    search_data = []
     for display_name, filename, messages in conv_list:
         stats = summarize_messages(messages, time_zone)
         is_group = any(
@@ -609,21 +610,27 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
             local_date, local_time = _split_message_datetime(
                 localize_message_datetime(message.get('date'), time_zone)
             )
-            searchable_messages.append({
-                'text': str(message.get('text') or '').casefold(),
-                'date': local_date,
-                'time': local_time,
-                'attachments': len(message.get('attachments') or []),
-            })
-        serialized_messages = json.dumps(searchable_messages, ensure_ascii=False, separators=(',', ':'))
+            searchable_messages.append([
+                str(message.get('text') or '').casefold(),
+                local_date,
+                local_time,
+                len(message.get('attachments') or []),
+            ])
+        serialized_messages = json.dumps(
+            searchable_messages,
+            ensure_ascii=False,
+            separators=(',', ':'),
+        )
         serialized_messages = (
             serialized_messages.replace('&', '\\u0026')
             .replace('<', '\\u003c')
             .replace('>', '\\u003e')
         )
+        search_index = len(search_data)
+        search_data.append(serialized_messages)
         content.append(
             f'      <tr class="conv-item" data-name="{html.escape(searchable_name, quote=True)}" '
-            f'data-search-messages="{html.escape(serialized_messages, quote=True)}" '
+            f'data-search-index="{search_index}" '
             f'data-sort-name="{html.escape(display_name.lower())}" '
             f'data-sort-participants="{html.escape(participants_text.lower(), quote=True)}" '
             f'data-sort-messages="{stats["messages"]}" data-sort-attachments="{stats["attachments"]}" '
@@ -638,8 +645,12 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
             f'<td><span class="filtered-last-date">{html.escape(stats["last_date"])}</span></td></tr>'
         )
 
+    serialized_search_data = '[' + ','.join(search_data) + ']'
     content.extend([
         '    </tbody></table></div>',
+        '    <script id="searchMessageData" type="application/json">',
+        serialized_search_data,
+        '    </script>',
         '    <script>',
         '      const searchInput = document.getElementById("searchInput");',
         '      const messageSearchInput = document.getElementById("messageSearchInput");',
@@ -649,6 +660,7 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '      const timeToInput = document.getElementById("timeToInput");',
         '      const conversationList = document.getElementById("conversationList");',
         '      const conversationItems = conversationList.querySelectorAll(".conv-item");',
+        '      const searchMessages = JSON.parse(document.getElementById("searchMessageData").textContent);',
         '      const resultCount = document.getElementById("resultCount");',
         '      const totalConversations = conversationItems.length;',
         '      const pageQuery = new URLSearchParams(window.location.search);',
@@ -710,18 +722,18 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '        ',
         '        conversationItems.forEach(function(item) {',
         '          const nameMatches = !searchTerm || item.getAttribute("data-name").includes(searchTerm);',
-        '          const messages = JSON.parse(item.getAttribute("data-search-messages") || "[]");',
+        '          const messages = searchMessages[Number(item.getAttribute("data-search-index"))] || [];',
         '          const matchingMessages = messages.filter(function(message) {',
-        '            return (!messageTerm || message.text.includes(messageTerm)) &&',
-        '              (!dateFrom || message.date >= dateFrom) && (!dateTo || message.date <= dateTo) &&',
-        '              (!timeFrom || message.time >= timeFrom) && (!timeTo || message.time <= timeTo);',
+        '            return (!messageTerm || message[0].includes(messageTerm)) &&',
+        '              (!dateFrom || message[1] >= dateFrom) && (!dateTo || message[1] <= dateTo) &&',
+        '              (!timeFrom || message[2] >= timeFrom) && (!timeTo || message[2] <= timeTo);',
         '          });',
         '          const messageMatches = !messageFiltersActive || matchingMessages.length > 0;',
         '          const filteredAttachments = matchingMessages.reduce(function(total, message) {',
-        '            return total + Number(message.attachments || 0);',
+        '            return total + Number(message[3] || 0);',
         '          }, 0);',
         '          const matchingDates = matchingMessages.map(function(message) {',
-        '            return message.date;',
+        '            return message[1];',
         '          }).filter(Boolean).sort();',
         '          item.querySelector(".filtered-message-count").textContent = matchingMessages.length.toLocaleString();',
         '          item.querySelector(".filtered-attachment-count").textContent = filteredAttachments.toLocaleString();',

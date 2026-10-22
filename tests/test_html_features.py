@@ -356,7 +356,15 @@ class HtmlFeatureTests(unittest.TestCase):
     def test_index_has_per_year_activity_and_overall_stats(self):
         stats = summarize_messages(self.messages)
         stats['conversations'] = 1
-        path = build_index([('Alex', 'Alex', self.messages)], self.output_dir, stats)
+        messages = [dict(message) for message in self.messages]
+        messages[0]['attachments'] = [{'mime_type': 'image/jpeg'}]
+        messages[1]['attachments'] = [{'mime_type': 'video/mp4'}]
+        messages[2]['attachments'] = [{'mime_type': 'audio/mp4'}]
+        calls = [
+            {'date': '2024-01-01 17:00:00', 'direction': 'Incoming', 'duration': 120},
+            {'date': '2024-02-01 17:00:00', 'direction': 'Missed', 'duration': 0},
+        ]
+        path = build_index([('Alex', 'Alex', messages)], self.output_dir, stats, calls=calls)
 
         with open(path, encoding='utf-8') as page:
             content = page.read()
@@ -372,6 +380,66 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('title="2024-01-01: 2 messages"', content)
         self.assertIn('href="search.html?date=2024-01-01"', content)
         self.assertIn('href="calls.html">Call history</a>', content)
+        self.assertIn('Archive overview', content)
+        self.assertIn('Average messages per active day', content)
+        self.assertIn('Busiest month', content)
+        self.assertIn('Messages by year', content)
+        self.assertIn('Messages by month', content)
+        self.assertIn('Messages by day of week', content)
+        self.assertIn('Messages by hour of day', content)
+        self.assertEqual(content.count('class="line-chart"'), 6)
+        self.assertIn('aria-label="Messages by year"', content)
+        self.assertIn('aria-label="Messages by month"', content)
+        self.assertIn('aria-label="Messages by day of week"', content)
+        self.assertIn('aria-label="Messages by hour of day"', content)
+        self.assertIn('aria-label="Calls by year"', content)
+        self.assertIn('aria-label="Calls by month"', content)
+        self.assertIn('<polyline class="chart-line"', content)
+        self.assertIn('<circle class="chart-point"', content)
+        self.assertIn('class="chart-interaction"', content)
+        self.assertIn('class="chart-focus-point"', content)
+        self.assertIn('class="chart-tooltip"', content)
+        self.assertIn('addEventListener("pointermove"', content)
+        self.assertIn('aria-valuetext', content)
+        self.assertIn('event.key === "ArrowRight"', content)
+        self.assertIn('chart-gridline', content)
+        self.assertIn('1 message</title>', content)
+        self.assertIn('January: 2 messages</title>', content)
+        self.assertIn('February: 1 message</title>', content)
+        self.assertNotIn('2024-01: 2 messages</title>', content)
+        self.assertNotIn('bar-list', content)
+        self.assertIn('Conversation-level statistics', content)
+        self.assertIn('data-conversation-sort="name"', content)
+        self.assertIn('data-conversation-sort="messages"', content)
+        self.assertIn('data-conversation-sort="busiest-day"', content)
+        self.assertIn('data-conversation-sort="longest-gap"', content)
+        self.assertIn('aria-sort="descending"', content)
+        self.assertIn('conversationStatsTable.tBodies[0].appendChild(row)', content)
+        self.assertIn('data-sort-reply-sent=', content)
+        self.assertIn('Median sent reply', content)
+        self.assertIn('Longest active streak', content)
+        self.assertIn('Photos and images</td><td>1', content)
+        self.assertIn('Videos</td><td>1', content)
+        self.assertIn('Audio</td><td>1', content)
+        self.assertIn('Call statistics', content)
+        self.assertIn('Calls by year', content)
+        self.assertIn('Calls by month', content)
+        self.assertIn('Total calls</span></div>', content)
+        self.assertIn('>1</strong><span>Missed calls', content)
+        self.assertIn('2m</strong><span>Average duration of non-missed calls', content)
+
+    def test_index_handles_empty_conversation_and_call_statistics(self):
+        stats = summarize_messages([])
+        stats['conversations'] = 0
+        path = build_index([], self.output_dir, stats)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('No dated messages are available.', content)
+        self.assertIn('No call records are available.', content)
+        self.assertIn('0</strong><span>Active days</span>', content)
+        self.assertIn('0.0</strong><span>Average messages per active day</span>', content)
 
     def test_conversation_page_restores_incoming_search_filters(self):
         path = build_html('Alex', self.messages, self.output_dir)

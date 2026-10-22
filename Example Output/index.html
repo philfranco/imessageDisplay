@@ -17,6 +17,31 @@
     .stat { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px #0001; }
     .stat strong { display: block; font-size: 22px; color: #111; }
     .stat span { color: #666; font-size: 13px; }
+    .stat-group { margin: 20px 0; }
+    .stat-group h2 { margin: 0 0 12px; font-size: 21px; color: #102a56; }
+    .stat-group h3 { margin: 16px 0 8px; font-size: 16px; color: #334155; }
+    .stats-table { width: 100%; border-collapse: collapse; background: #fff; }
+    .stats-table th, .stats-table td { padding: 9px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    .stats-table th { color: #475569; font-size: 12px; }
+    .stats-table td { color: #334155; font-size: 13px; }
+    .stats-table a { color: #2563eb; text-decoration: none; font-weight: 600; }
+    .stats-table a:hover { text-decoration: underline; }
+    .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .line-chart { margin: 0; padding: 12px 10px 4px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px #0f172a08; }
+    .line-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .chart-gridline { stroke: #e2e8f0; stroke-width: 1; }
+    .chart-y-label, .chart-x-label { fill: #64748b; font-family: inherit; font-size: 12px; }
+    .chart-line { fill: none; stroke: #2563eb; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+    .chart-point { fill: #fff; stroke: #2563eb; stroke-width: 3; vector-effect: non-scaling-stroke; }
+    .chart-focus-line { stroke: #0f172a; stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+    .chart-focus-point { fill: #fff; stroke: #0f172a; stroke-width: 3; vector-effect: non-scaling-stroke; }
+    .chart-tooltip rect { fill: #102a56; stroke: #fff; stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .chart-tooltip text { fill: #fff; font-family: inherit; font-size: 13px; font-weight: 700; }
+    .chart-interaction { fill: transparent; cursor: crosshair; outline: none; }
+    .chart-interaction:focus-visible { stroke: #2563eb; stroke-width: 2; stroke-dasharray: 5 4; }
+    .conversation-stats summary { padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; color: #102a56; font-weight: 700; cursor: pointer; }
+    .conversation-stats[open] summary { margin-bottom: 10px; }
+    .stat-note { color: #64748b; font-size: 12px; }
     .activity-card { margin: 20px 0; padding: 20px; border-radius: 14px; background: #fff; box-shadow: 0 1px 4px #0001; }
     .activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .activity-heading h2 { margin: 0; font-size: 19px; }
@@ -51,13 +76,13 @@
     <main>
     <section class="stats" aria-label="Database statistics">
       <div class="stat"><strong>8</strong><span>Conversations</span></div>
-      <div class="stat"><strong>69</strong><span>Messages</span></div>
+      <div class="stat"><strong>60</strong><span>Messages</span></div>
       <div class="stat"><strong>0</strong><span>Attachments</span></div>
-      <div class="stat"><strong>32</strong><span>Sent messages</span></div>
-      <div class="stat"><strong>37</strong><span>Received messages</span></div>
-      <div class="stat"><strong>11</strong><span>Most messages in one day (2024-06-10)</span></div>
-      <div class="stat"><strong>2022-02-14 03:20:00</strong><span>First message</span></div>
-      <div class="stat"><strong>2025-11-03 13:44:00</strong><span>Last message</span></div>
+      <div class="stat"><strong>30</strong><span>Sent messages</span></div>
+      <div class="stat"><strong>30</strong><span>Received messages</span></div>
+      <div class="stat"><strong>7</strong><span>Most messages in one day (2023-06-10)</span></div>
+      <div class="stat"><strong>2022-02-21 08:00:00</strong><span>First message</span></div>
+      <div class="stat"><strong>2025-08-19 14:24:00</strong><span>Last message</span></div>
     </section>
     <section class="activity-card" aria-label="Daily message activity">
       <div class="activity-heading"><h2>Messages per day</h2>
@@ -130,14 +155,14 @@
 <a class="activity-day level-0" href="search.html?date=2022-02-11" title="2022-02-11: 0 messages" aria-label="Search messages from 2022-02-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-12" title="2022-02-12: 0 messages" aria-label="Search messages from 2022-02-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-13" title="2022-02-13: 0 messages" aria-label="Search messages from 2022-02-13: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2022-02-14" title="2022-02-14: 2 messages" aria-label="Search messages from 2022-02-14: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2022-02-14" title="2022-02-14: 0 messages" aria-label="Search messages from 2022-02-14: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-15" title="2022-02-15: 0 messages" aria-label="Search messages from 2022-02-15: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-16" title="2022-02-16: 0 messages" aria-label="Search messages from 2022-02-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-17" title="2022-02-17: 0 messages" aria-label="Search messages from 2022-02-17: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-18" title="2022-02-18: 0 messages" aria-label="Search messages from 2022-02-18: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-19" title="2022-02-19: 0 messages" aria-label="Search messages from 2022-02-19: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-20" title="2022-02-20: 0 messages" aria-label="Search messages from 2022-02-20: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2022-02-21" title="2022-02-21: 0 messages" aria-label="Search messages from 2022-02-21: 0 messages"></a>
+<a class="activity-day level-4" href="search.html?date=2022-02-21" title="2022-02-21: 2 messages" aria-label="Search messages from 2022-02-21: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-22" title="2022-02-22: 0 messages" aria-label="Search messages from 2022-02-22: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-23" title="2022-02-23: 0 messages" aria-label="Search messages from 2022-02-23: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-02-24" title="2022-02-24: 0 messages" aria-label="Search messages from 2022-02-24: 0 messages"></a>
@@ -158,7 +183,7 @@
 <a class="activity-day level-0" href="search.html?date=2022-03-11" title="2022-03-11: 0 messages" aria-label="Search messages from 2022-03-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-03-12" title="2022-03-12: 0 messages" aria-label="Search messages from 2022-03-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-03-13" title="2022-03-13: 0 messages" aria-label="Search messages from 2022-03-13: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2022-03-14" title="2022-03-14: 0 messages" aria-label="Search messages from 2022-03-14: 0 messages"></a>
+<a class="activity-day level-4" href="search.html?date=2022-03-14" title="2022-03-14: 2 messages" aria-label="Search messages from 2022-03-14: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-03-15" title="2022-03-15: 0 messages" aria-label="Search messages from 2022-03-15: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-03-16" title="2022-03-16: 0 messages" aria-label="Search messages from 2022-03-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-03-17" title="2022-03-17: 0 messages" aria-label="Search messages from 2022-03-17: 0 messages"></a>
@@ -177,7 +202,7 @@
 <a class="activity-day level-0" href="search.html?date=2022-03-30" title="2022-03-30: 0 messages" aria-label="Search messages from 2022-03-30: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-03-31" title="2022-03-31: 0 messages" aria-label="Search messages from 2022-03-31: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-04-01" title="2022-04-01: 0 messages" aria-label="Search messages from 2022-04-01: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2022-04-02" title="2022-04-02: 2 messages" aria-label="Search messages from 2022-04-02: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2022-04-02" title="2022-04-02: 0 messages" aria-label="Search messages from 2022-04-02: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-04-03" title="2022-04-03: 0 messages" aria-label="Search messages from 2022-04-03: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-04-04" title="2022-04-04: 0 messages" aria-label="Search messages from 2022-04-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-04-05" title="2022-04-05: 0 messages" aria-label="Search messages from 2022-04-05: 0 messages"></a>
@@ -246,7 +271,7 @@
 <a class="activity-day level-0" href="search.html?date=2022-06-07" title="2022-06-07: 0 messages" aria-label="Search messages from 2022-06-07: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-06-08" title="2022-06-08: 0 messages" aria-label="Search messages from 2022-06-08: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-06-09" title="2022-06-09: 0 messages" aria-label="Search messages from 2022-06-09: 0 messages"></a>
-<a class="activity-day level-4" href="search.html?date=2022-06-10" title="2022-06-10: 7 messages" aria-label="Search messages from 2022-06-10: 7 messages"></a>
+<a class="activity-day level-4" href="search.html?date=2022-06-10" title="2022-06-10: 2 messages" aria-label="Search messages from 2022-06-10: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-06-11" title="2022-06-11: 0 messages" aria-label="Search messages from 2022-06-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-06-12" title="2022-06-12: 0 messages" aria-label="Search messages from 2022-06-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-06-13" title="2022-06-13: 0 messages" aria-label="Search messages from 2022-06-13: 0 messages"></a>
@@ -342,7 +367,7 @@
 <a class="activity-day level-0" href="search.html?date=2022-09-11" title="2022-09-11: 0 messages" aria-label="Search messages from 2022-09-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-09-12" title="2022-09-12: 0 messages" aria-label="Search messages from 2022-09-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-09-13" title="2022-09-13: 0 messages" aria-label="Search messages from 2022-09-13: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2022-09-14" title="2022-09-14: 0 messages" aria-label="Search messages from 2022-09-14: 0 messages"></a>
+<a class="activity-day level-4" href="search.html?date=2022-09-14" title="2022-09-14: 2 messages" aria-label="Search messages from 2022-09-14: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-09-15" title="2022-09-15: 0 messages" aria-label="Search messages from 2022-09-15: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-09-16" title="2022-09-16: 0 messages" aria-label="Search messages from 2022-09-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-09-17" title="2022-09-17: 0 messages" aria-label="Search messages from 2022-09-17: 0 messages"></a>
@@ -392,7 +417,7 @@
 <a class="activity-day level-0" href="search.html?date=2022-10-31" title="2022-10-31: 0 messages" aria-label="Search messages from 2022-10-31: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-11-01" title="2022-11-01: 0 messages" aria-label="Search messages from 2022-11-01: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-11-02" title="2022-11-02: 0 messages" aria-label="Search messages from 2022-11-02: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2022-11-03" title="2022-11-03: 0 messages" aria-label="Search messages from 2022-11-03: 0 messages"></a>
+<a class="activity-day level-4" href="search.html?date=2022-11-03" title="2022-11-03: 2 messages" aria-label="Search messages from 2022-11-03: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-11-04" title="2022-11-04: 0 messages" aria-label="Search messages from 2022-11-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-11-05" title="2022-11-05: 0 messages" aria-label="Search messages from 2022-11-05: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-11-06" title="2022-11-06: 0 messages" aria-label="Search messages from 2022-11-06: 0 messages"></a>
@@ -438,12 +463,12 @@
 <a class="activity-day level-0" href="search.html?date=2022-12-16" title="2022-12-16: 0 messages" aria-label="Search messages from 2022-12-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-12-17" title="2022-12-17: 0 messages" aria-label="Search messages from 2022-12-17: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-12-18" title="2022-12-18: 0 messages" aria-label="Search messages from 2022-12-18: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2022-12-19" title="2022-12-19: 2 messages" aria-label="Search messages from 2022-12-19: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2022-12-19" title="2022-12-19: 0 messages" aria-label="Search messages from 2022-12-19: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-12-20" title="2022-12-20: 0 messages" aria-label="Search messages from 2022-12-20: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-12-21" title="2022-12-21: 0 messages" aria-label="Search messages from 2022-12-21: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-12-22" title="2022-12-22: 0 messages" aria-label="Search messages from 2022-12-22: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-12-23" title="2022-12-23: 0 messages" aria-label="Search messages from 2022-12-23: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2022-12-24" title="2022-12-24: 0 messages" aria-label="Search messages from 2022-12-24: 0 messages"></a>
+<a class="activity-day level-4" href="search.html?date=2022-12-24" title="2022-12-24: 2 messages" aria-label="Search messages from 2022-12-24: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-12-25" title="2022-12-25: 0 messages" aria-label="Search messages from 2022-12-25: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-12-26" title="2022-12-26: 0 messages" aria-label="Search messages from 2022-12-26: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2022-12-27" title="2022-12-27: 0 messages" aria-label="Search messages from 2022-12-27: 0 messages"></a>
@@ -500,7 +525,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-01-25" title="2023-01-25: 0 messages" aria-label="Search messages from 2023-01-25: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-01-26" title="2023-01-26: 0 messages" aria-label="Search messages from 2023-01-26: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-01-27" title="2023-01-27: 0 messages" aria-label="Search messages from 2023-01-27: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2023-01-28" title="2023-01-28: 2 messages" aria-label="Search messages from 2023-01-28: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2023-01-28" title="2023-01-28: 0 messages" aria-label="Search messages from 2023-01-28: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-01-29" title="2023-01-29: 0 messages" aria-label="Search messages from 2023-01-29: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-01-30" title="2023-01-30: 0 messages" aria-label="Search messages from 2023-01-30: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-01-31" title="2023-01-31: 0 messages" aria-label="Search messages from 2023-01-31: 0 messages"></a>
@@ -514,7 +539,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-02-08" title="2023-02-08: 0 messages" aria-label="Search messages from 2023-02-08: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-09" title="2023-02-09: 0 messages" aria-label="Search messages from 2023-02-09: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-10" title="2023-02-10: 0 messages" aria-label="Search messages from 2023-02-10: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2023-02-11" title="2023-02-11: 2 messages" aria-label="Search messages from 2023-02-11: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2023-02-11" title="2023-02-11: 0 messages" aria-label="Search messages from 2023-02-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-12" title="2023-02-12: 0 messages" aria-label="Search messages from 2023-02-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-13" title="2023-02-13: 0 messages" aria-label="Search messages from 2023-02-13: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-14" title="2023-02-14: 0 messages" aria-label="Search messages from 2023-02-14: 0 messages"></a>
@@ -524,7 +549,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-02-18" title="2023-02-18: 0 messages" aria-label="Search messages from 2023-02-18: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-19" title="2023-02-19: 0 messages" aria-label="Search messages from 2023-02-19: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-20" title="2023-02-20: 0 messages" aria-label="Search messages from 2023-02-20: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2023-02-21" title="2023-02-21: 0 messages" aria-label="Search messages from 2023-02-21: 0 messages"></a>
+<a class="activity-day level-1" href="search.html?date=2023-02-21" title="2023-02-21: 1 messages" aria-label="Search messages from 2023-02-21: 1 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-22" title="2023-02-22: 0 messages" aria-label="Search messages from 2023-02-22: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-23" title="2023-02-23: 0 messages" aria-label="Search messages from 2023-02-23: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-02-24" title="2023-02-24: 0 messages" aria-label="Search messages from 2023-02-24: 0 messages"></a>
@@ -536,7 +561,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-03-02" title="2023-03-02: 0 messages" aria-label="Search messages from 2023-03-02: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-03" title="2023-03-03: 0 messages" aria-label="Search messages from 2023-03-03: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-04" title="2023-03-04: 0 messages" aria-label="Search messages from 2023-03-04: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2023-03-05" title="2023-03-05: 2 messages" aria-label="Search messages from 2023-03-05: 2 messages"></a>
+<a class="activity-day level-2" href="search.html?date=2023-03-05" title="2023-03-05: 3 messages" aria-label="Search messages from 2023-03-05: 3 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-06" title="2023-03-06: 0 messages" aria-label="Search messages from 2023-03-06: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-07" title="2023-03-07: 0 messages" aria-label="Search messages from 2023-03-07: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-08" title="2023-03-08: 0 messages" aria-label="Search messages from 2023-03-08: 0 messages"></a>
@@ -545,7 +570,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-03-11" title="2023-03-11: 0 messages" aria-label="Search messages from 2023-03-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-12" title="2023-03-12: 0 messages" aria-label="Search messages from 2023-03-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-13" title="2023-03-13: 0 messages" aria-label="Search messages from 2023-03-13: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2023-03-14" title="2023-03-14: 0 messages" aria-label="Search messages from 2023-03-14: 0 messages"></a>
+<a class="activity-day level-1" href="search.html?date=2023-03-14" title="2023-03-14: 1 messages" aria-label="Search messages from 2023-03-14: 1 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-15" title="2023-03-15: 0 messages" aria-label="Search messages from 2023-03-15: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-16" title="2023-03-16: 0 messages" aria-label="Search messages from 2023-03-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-03-17" title="2023-03-17: 0 messages" aria-label="Search messages from 2023-03-17: 0 messages"></a>
@@ -598,7 +623,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-05-03" title="2023-05-03: 0 messages" aria-label="Search messages from 2023-05-03: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-05-04" title="2023-05-04: 0 messages" aria-label="Search messages from 2023-05-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-05-05" title="2023-05-05: 0 messages" aria-label="Search messages from 2023-05-05: 0 messages"></a>
-<a class="activity-day level-3" href="search.html?date=2023-05-06" title="2023-05-06: 3 messages" aria-label="Search messages from 2023-05-06: 3 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2023-05-06" title="2023-05-06: 0 messages" aria-label="Search messages from 2023-05-06: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-05-07" title="2023-05-07: 0 messages" aria-label="Search messages from 2023-05-07: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-05-08" title="2023-05-08: 0 messages" aria-label="Search messages from 2023-05-08: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-05-09" title="2023-05-09: 0 messages" aria-label="Search messages from 2023-05-09: 0 messages"></a>
@@ -633,7 +658,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-06-07" title="2023-06-07: 0 messages" aria-label="Search messages from 2023-06-07: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-06-08" title="2023-06-08: 0 messages" aria-label="Search messages from 2023-06-08: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-06-09" title="2023-06-09: 0 messages" aria-label="Search messages from 2023-06-09: 0 messages"></a>
-<a class="activity-day level-4" href="search.html?date=2023-06-10" title="2023-06-10: 4 messages" aria-label="Search messages from 2023-06-10: 4 messages"></a>
+<a class="activity-day level-4" href="search.html?date=2023-06-10" title="2023-06-10: 7 messages" aria-label="Search messages from 2023-06-10: 7 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-06-11" title="2023-06-11: 0 messages" aria-label="Search messages from 2023-06-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-06-12" title="2023-06-12: 0 messages" aria-label="Search messages from 2023-06-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-06-13" title="2023-06-13: 0 messages" aria-label="Search messages from 2023-06-13: 0 messages"></a>
@@ -657,7 +682,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-07-01" title="2023-07-01: 0 messages" aria-label="Search messages from 2023-07-01: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-07-02" title="2023-07-02: 0 messages" aria-label="Search messages from 2023-07-02: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-07-03" title="2023-07-03: 0 messages" aria-label="Search messages from 2023-07-03: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2023-07-04" title="2023-07-04: 2 messages" aria-label="Search messages from 2023-07-04: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2023-07-04" title="2023-07-04: 0 messages" aria-label="Search messages from 2023-07-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-07-05" title="2023-07-05: 0 messages" aria-label="Search messages from 2023-07-05: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-07-06" title="2023-07-06: 0 messages" aria-label="Search messages from 2023-07-06: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-07-07" title="2023-07-07: 0 messages" aria-label="Search messages from 2023-07-07: 0 messages"></a>
@@ -729,7 +754,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-09-11" title="2023-09-11: 0 messages" aria-label="Search messages from 2023-09-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-12" title="2023-09-12: 0 messages" aria-label="Search messages from 2023-09-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-13" title="2023-09-13: 0 messages" aria-label="Search messages from 2023-09-13: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2023-09-14" title="2023-09-14: 0 messages" aria-label="Search messages from 2023-09-14: 0 messages"></a>
+<a class="activity-day level-1" href="search.html?date=2023-09-14" title="2023-09-14: 1 messages" aria-label="Search messages from 2023-09-14: 1 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-15" title="2023-09-15: 0 messages" aria-label="Search messages from 2023-09-15: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-16" title="2023-09-16: 0 messages" aria-label="Search messages from 2023-09-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-17" title="2023-09-17: 0 messages" aria-label="Search messages from 2023-09-17: 0 messages"></a>
@@ -737,7 +762,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-09-19" title="2023-09-19: 0 messages" aria-label="Search messages from 2023-09-19: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-20" title="2023-09-20: 0 messages" aria-label="Search messages from 2023-09-20: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-21" title="2023-09-21: 0 messages" aria-label="Search messages from 2023-09-21: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2023-09-22" title="2023-09-22: 2 messages" aria-label="Search messages from 2023-09-22: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2023-09-22" title="2023-09-22: 0 messages" aria-label="Search messages from 2023-09-22: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-23" title="2023-09-23: 0 messages" aria-label="Search messages from 2023-09-23: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-24" title="2023-09-24: 0 messages" aria-label="Search messages from 2023-09-24: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-09-25" title="2023-09-25: 0 messages" aria-label="Search messages from 2023-09-25: 0 messages"></a>
@@ -752,7 +777,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-10-04" title="2023-10-04: 0 messages" aria-label="Search messages from 2023-10-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-10-05" title="2023-10-05: 0 messages" aria-label="Search messages from 2023-10-05: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-10-06" title="2023-10-06: 0 messages" aria-label="Search messages from 2023-10-06: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2023-10-07" title="2023-10-07: 2 messages" aria-label="Search messages from 2023-10-07: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2023-10-07" title="2023-10-07: 0 messages" aria-label="Search messages from 2023-10-07: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-10-08" title="2023-10-08: 0 messages" aria-label="Search messages from 2023-10-08: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-10-09" title="2023-10-09: 0 messages" aria-label="Search messages from 2023-10-09: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-10-10" title="2023-10-10: 0 messages" aria-label="Search messages from 2023-10-10: 0 messages"></a>
@@ -779,7 +804,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-10-31" title="2023-10-31: 0 messages" aria-label="Search messages from 2023-10-31: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-11-01" title="2023-11-01: 0 messages" aria-label="Search messages from 2023-11-01: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-11-02" title="2023-11-02: 0 messages" aria-label="Search messages from 2023-11-02: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2023-11-03" title="2023-11-03: 0 messages" aria-label="Search messages from 2023-11-03: 0 messages"></a>
+<a class="activity-day level-1" href="search.html?date=2023-11-03" title="2023-11-03: 1 messages" aria-label="Search messages from 2023-11-03: 1 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-11-04" title="2023-11-04: 0 messages" aria-label="Search messages from 2023-11-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-11-05" title="2023-11-05: 0 messages" aria-label="Search messages from 2023-11-05: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-11-06" title="2023-11-06: 0 messages" aria-label="Search messages from 2023-11-06: 0 messages"></a>
@@ -830,7 +855,7 @@
 <a class="activity-day level-0" href="search.html?date=2023-12-21" title="2023-12-21: 0 messages" aria-label="Search messages from 2023-12-21: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-12-22" title="2023-12-22: 0 messages" aria-label="Search messages from 2023-12-22: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-12-23" title="2023-12-23: 0 messages" aria-label="Search messages from 2023-12-23: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2023-12-24" title="2023-12-24: 0 messages" aria-label="Search messages from 2023-12-24: 0 messages"></a>
+<a class="activity-day level-2" href="search.html?date=2023-12-24" title="2023-12-24: 2 messages" aria-label="Search messages from 2023-12-24: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-12-25" title="2023-12-25: 0 messages" aria-label="Search messages from 2023-12-25: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-12-26" title="2023-12-26: 0 messages" aria-label="Search messages from 2023-12-26: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2023-12-27" title="2023-12-27: 0 messages" aria-label="Search messages from 2023-12-27: 0 messages"></a>
@@ -904,7 +929,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-02-18" title="2024-02-18: 0 messages" aria-label="Search messages from 2024-02-18: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-02-19" title="2024-02-19: 0 messages" aria-label="Search messages from 2024-02-19: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-02-20" title="2024-02-20: 0 messages" aria-label="Search messages from 2024-02-20: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2024-02-21" title="2024-02-21: 0 messages" aria-label="Search messages from 2024-02-21: 0 messages"></a>
+<a class="activity-day level-1" href="search.html?date=2024-02-21" title="2024-02-21: 1 messages" aria-label="Search messages from 2024-02-21: 1 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-02-22" title="2024-02-22: 0 messages" aria-label="Search messages from 2024-02-22: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-02-23" title="2024-02-23: 0 messages" aria-label="Search messages from 2024-02-23: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-02-24" title="2024-02-24: 0 messages" aria-label="Search messages from 2024-02-24: 0 messages"></a>
@@ -926,7 +951,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-03-11" title="2024-03-11: 0 messages" aria-label="Search messages from 2024-03-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-03-12" title="2024-03-12: 0 messages" aria-label="Search messages from 2024-03-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-03-13" title="2024-03-13: 0 messages" aria-label="Search messages from 2024-03-13: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2024-03-14" title="2024-03-14: 0 messages" aria-label="Search messages from 2024-03-14: 0 messages"></a>
+<a class="activity-day level-1" href="search.html?date=2024-03-14" title="2024-03-14: 1 messages" aria-label="Search messages from 2024-03-14: 1 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-03-15" title="2024-03-15: 0 messages" aria-label="Search messages from 2024-03-15: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-03-16" title="2024-03-16: 0 messages" aria-label="Search messages from 2024-03-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-03-17" title="2024-03-17: 0 messages" aria-label="Search messages from 2024-03-17: 0 messages"></a>
@@ -945,7 +970,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-03-30" title="2024-03-30: 0 messages" aria-label="Search messages from 2024-03-30: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-03-31" title="2024-03-31: 0 messages" aria-label="Search messages from 2024-03-31: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-04-01" title="2024-04-01: 0 messages" aria-label="Search messages from 2024-04-01: 0 messages"></a>
-<a class="activity-day level-1" href="search.html?date=2024-04-02" title="2024-04-02: 2 messages" aria-label="Search messages from 2024-04-02: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2024-04-02" title="2024-04-02: 0 messages" aria-label="Search messages from 2024-04-02: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-04-03" title="2024-04-03: 0 messages" aria-label="Search messages from 2024-04-03: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-04-04" title="2024-04-04: 0 messages" aria-label="Search messages from 2024-04-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-04-05" title="2024-04-05: 0 messages" aria-label="Search messages from 2024-04-05: 0 messages"></a>
@@ -955,7 +980,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-04-09" title="2024-04-09: 0 messages" aria-label="Search messages from 2024-04-09: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-04-10" title="2024-04-10: 0 messages" aria-label="Search messages from 2024-04-10: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-04-11" title="2024-04-11: 0 messages" aria-label="Search messages from 2024-04-11: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2024-04-12" title="2024-04-12: 0 messages" aria-label="Search messages from 2024-04-12: 0 messages"></a>
+<a class="activity-day level-2" href="search.html?date=2024-04-12" title="2024-04-12: 2 messages" aria-label="Search messages from 2024-04-12: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-04-13" title="2024-04-13: 0 messages" aria-label="Search messages from 2024-04-13: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-04-14" title="2024-04-14: 0 messages" aria-label="Search messages from 2024-04-14: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-04-15" title="2024-04-15: 0 messages" aria-label="Search messages from 2024-04-15: 0 messages"></a>
@@ -991,7 +1016,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-05-15" title="2024-05-15: 0 messages" aria-label="Search messages from 2024-05-15: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-05-16" title="2024-05-16: 0 messages" aria-label="Search messages from 2024-05-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-05-17" title="2024-05-17: 0 messages" aria-label="Search messages from 2024-05-17: 0 messages"></a>
-<a class="activity-day level-1" href="search.html?date=2024-05-18" title="2024-05-18: 2 messages" aria-label="Search messages from 2024-05-18: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2024-05-18" title="2024-05-18: 0 messages" aria-label="Search messages from 2024-05-18: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-05-19" title="2024-05-19: 0 messages" aria-label="Search messages from 2024-05-19: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-05-20" title="2024-05-20: 0 messages" aria-label="Search messages from 2024-05-20: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-05-21" title="2024-05-21: 0 messages" aria-label="Search messages from 2024-05-21: 0 messages"></a>
@@ -1014,7 +1039,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-06-07" title="2024-06-07: 0 messages" aria-label="Search messages from 2024-06-07: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-06-08" title="2024-06-08: 0 messages" aria-label="Search messages from 2024-06-08: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-06-09" title="2024-06-09: 0 messages" aria-label="Search messages from 2024-06-09: 0 messages"></a>
-<a class="activity-day level-4" href="search.html?date=2024-06-10" title="2024-06-10: 11 messages" aria-label="Search messages from 2024-06-10: 11 messages"></a>
+<a class="activity-day level-4" href="search.html?date=2024-06-10" title="2024-06-10: 6 messages" aria-label="Search messages from 2024-06-10: 6 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-06-11" title="2024-06-11: 0 messages" aria-label="Search messages from 2024-06-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-06-12" title="2024-06-12: 0 messages" aria-label="Search messages from 2024-06-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-06-13" title="2024-06-13: 0 messages" aria-label="Search messages from 2024-06-13: 0 messages"></a>
@@ -1038,7 +1063,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-07-01" title="2024-07-01: 0 messages" aria-label="Search messages from 2024-07-01: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-07-02" title="2024-07-02: 0 messages" aria-label="Search messages from 2024-07-02: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-07-03" title="2024-07-03: 0 messages" aria-label="Search messages from 2024-07-03: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2024-07-04" title="2024-07-04: 0 messages" aria-label="Search messages from 2024-07-04: 0 messages"></a>
+<a class="activity-day level-2" href="search.html?date=2024-07-04" title="2024-07-04: 2 messages" aria-label="Search messages from 2024-07-04: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-07-05" title="2024-07-05: 0 messages" aria-label="Search messages from 2024-07-05: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-07-06" title="2024-07-06: 0 messages" aria-label="Search messages from 2024-07-06: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-07-07" title="2024-07-07: 0 messages" aria-label="Search messages from 2024-07-07: 0 messages"></a>
@@ -1084,7 +1109,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-08-16" title="2024-08-16: 0 messages" aria-label="Search messages from 2024-08-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-08-17" title="2024-08-17: 0 messages" aria-label="Search messages from 2024-08-17: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-08-18" title="2024-08-18: 0 messages" aria-label="Search messages from 2024-08-18: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2024-08-19" title="2024-08-19: 0 messages" aria-label="Search messages from 2024-08-19: 0 messages"></a>
+<a class="activity-day level-2" href="search.html?date=2024-08-19" title="2024-08-19: 2 messages" aria-label="Search messages from 2024-08-19: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-08-20" title="2024-08-20: 0 messages" aria-label="Search messages from 2024-08-20: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-08-21" title="2024-08-21: 0 messages" aria-label="Search messages from 2024-08-21: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-08-22" title="2024-08-22: 0 messages" aria-label="Search messages from 2024-08-22: 0 messages"></a>
@@ -1110,7 +1135,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-09-11" title="2024-09-11: 0 messages" aria-label="Search messages from 2024-09-11: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-09-12" title="2024-09-12: 0 messages" aria-label="Search messages from 2024-09-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-09-13" title="2024-09-13: 0 messages" aria-label="Search messages from 2024-09-13: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2024-09-14" title="2024-09-14: 0 messages" aria-label="Search messages from 2024-09-14: 0 messages"></a>
+<a class="activity-day level-1" href="search.html?date=2024-09-14" title="2024-09-14: 1 messages" aria-label="Search messages from 2024-09-14: 1 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-09-15" title="2024-09-15: 0 messages" aria-label="Search messages from 2024-09-15: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-09-16" title="2024-09-16: 0 messages" aria-label="Search messages from 2024-09-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-09-17" title="2024-09-17: 0 messages" aria-label="Search messages from 2024-09-17: 0 messages"></a>
@@ -1160,7 +1185,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-10-31" title="2024-10-31: 0 messages" aria-label="Search messages from 2024-10-31: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-11-01" title="2024-11-01: 0 messages" aria-label="Search messages from 2024-11-01: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-11-02" title="2024-11-02: 0 messages" aria-label="Search messages from 2024-11-02: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2024-11-03" title="2024-11-03: 0 messages" aria-label="Search messages from 2024-11-03: 0 messages"></a>
+<a class="activity-day level-1" href="search.html?date=2024-11-03" title="2024-11-03: 1 messages" aria-label="Search messages from 2024-11-03: 1 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-11-04" title="2024-11-04: 0 messages" aria-label="Search messages from 2024-11-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-11-05" title="2024-11-05: 0 messages" aria-label="Search messages from 2024-11-05: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-11-06" title="2024-11-06: 0 messages" aria-label="Search messages from 2024-11-06: 0 messages"></a>
@@ -1206,7 +1231,7 @@
 <a class="activity-day level-0" href="search.html?date=2024-12-16" title="2024-12-16: 0 messages" aria-label="Search messages from 2024-12-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-12-17" title="2024-12-17: 0 messages" aria-label="Search messages from 2024-12-17: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-12-18" title="2024-12-18: 0 messages" aria-label="Search messages from 2024-12-18: 0 messages"></a>
-<a class="activity-day level-1" href="search.html?date=2024-12-19" title="2024-12-19: 2 messages" aria-label="Search messages from 2024-12-19: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2024-12-19" title="2024-12-19: 0 messages" aria-label="Search messages from 2024-12-19: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-12-20" title="2024-12-20: 0 messages" aria-label="Search messages from 2024-12-20: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-12-21" title="2024-12-21: 0 messages" aria-label="Search messages from 2024-12-21: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2024-12-22" title="2024-12-22: 0 messages" aria-label="Search messages from 2024-12-22: 0 messages"></a>
@@ -1252,13 +1277,13 @@
 <a class="activity-day level-0" href="search.html?date=2025-01-09" title="2025-01-09: 0 messages" aria-label="Search messages from 2025-01-09: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-10" title="2025-01-10: 0 messages" aria-label="Search messages from 2025-01-10: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-11" title="2025-01-11: 0 messages" aria-label="Search messages from 2025-01-11: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2025-01-12" title="2025-01-12: 2 messages" aria-label="Search messages from 2025-01-12: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2025-01-12" title="2025-01-12: 0 messages" aria-label="Search messages from 2025-01-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-13" title="2025-01-13: 0 messages" aria-label="Search messages from 2025-01-13: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-14" title="2025-01-14: 0 messages" aria-label="Search messages from 2025-01-14: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-15" title="2025-01-15: 0 messages" aria-label="Search messages from 2025-01-15: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-16" title="2025-01-16: 0 messages" aria-label="Search messages from 2025-01-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-17" title="2025-01-17: 0 messages" aria-label="Search messages from 2025-01-17: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2025-01-18" title="2025-01-18: 0 messages" aria-label="Search messages from 2025-01-18: 0 messages"></a>
+<a class="activity-day level-2" href="search.html?date=2025-01-18" title="2025-01-18: 2 messages" aria-label="Search messages from 2025-01-18: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-19" title="2025-01-19: 0 messages" aria-label="Search messages from 2025-01-19: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-20" title="2025-01-20: 0 messages" aria-label="Search messages from 2025-01-20: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-21" title="2025-01-21: 0 messages" aria-label="Search messages from 2025-01-21: 0 messages"></a>
@@ -1268,7 +1293,7 @@
 <a class="activity-day level-0" href="search.html?date=2025-01-25" title="2025-01-25: 0 messages" aria-label="Search messages from 2025-01-25: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-26" title="2025-01-26: 0 messages" aria-label="Search messages from 2025-01-26: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-27" title="2025-01-27: 0 messages" aria-label="Search messages from 2025-01-27: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2025-01-28" title="2025-01-28: 2 messages" aria-label="Search messages from 2025-01-28: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2025-01-28" title="2025-01-28: 0 messages" aria-label="Search messages from 2025-01-28: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-29" title="2025-01-29: 0 messages" aria-label="Search messages from 2025-01-29: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-30" title="2025-01-30: 0 messages" aria-label="Search messages from 2025-01-30: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-01-31" title="2025-01-31: 0 messages" aria-label="Search messages from 2025-01-31: 0 messages"></a>
@@ -1385,7 +1410,7 @@
 <a class="activity-day level-0" href="search.html?date=2025-05-22" title="2025-05-22: 0 messages" aria-label="Search messages from 2025-05-22: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-05-23" title="2025-05-23: 0 messages" aria-label="Search messages from 2025-05-23: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-05-24" title="2025-05-24: 0 messages" aria-label="Search messages from 2025-05-24: 0 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2025-05-25" title="2025-05-25: 0 messages" aria-label="Search messages from 2025-05-25: 0 messages"></a>
+<a class="activity-day level-1" href="search.html?date=2025-05-25" title="2025-05-25: 1 messages" aria-label="Search messages from 2025-05-25: 1 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-05-26" title="2025-05-26: 0 messages" aria-label="Search messages from 2025-05-26: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-05-27" title="2025-05-27: 0 messages" aria-label="Search messages from 2025-05-27: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-05-28" title="2025-05-28: 0 messages" aria-label="Search messages from 2025-05-28: 0 messages"></a>
@@ -1401,8 +1426,8 @@
 <a class="activity-day level-0" href="search.html?date=2025-06-07" title="2025-06-07: 0 messages" aria-label="Search messages from 2025-06-07: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-06-08" title="2025-06-08: 0 messages" aria-label="Search messages from 2025-06-08: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-06-09" title="2025-06-09: 0 messages" aria-label="Search messages from 2025-06-09: 0 messages"></a>
-<a class="activity-day level-4" href="search.html?date=2025-06-10" title="2025-06-10: 4 messages" aria-label="Search messages from 2025-06-10: 4 messages"></a>
-<a class="activity-day level-0" href="search.html?date=2025-06-11" title="2025-06-11: 0 messages" aria-label="Search messages from 2025-06-11: 0 messages"></a>
+<a class="activity-day level-4" href="search.html?date=2025-06-10" title="2025-06-10: 5 messages" aria-label="Search messages from 2025-06-10: 5 messages"></a>
+<a class="activity-day level-2" href="search.html?date=2025-06-11" title="2025-06-11: 2 messages" aria-label="Search messages from 2025-06-11: 2 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-06-12" title="2025-06-12: 0 messages" aria-label="Search messages from 2025-06-12: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-06-13" title="2025-06-13: 0 messages" aria-label="Search messages from 2025-06-13: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-06-14" title="2025-06-14: 0 messages" aria-label="Search messages from 2025-06-14: 0 messages"></a>
@@ -1468,7 +1493,7 @@
 <a class="activity-day level-0" href="search.html?date=2025-08-13" title="2025-08-13: 0 messages" aria-label="Search messages from 2025-08-13: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-08-14" title="2025-08-14: 0 messages" aria-label="Search messages from 2025-08-14: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-08-15" title="2025-08-15: 0 messages" aria-label="Search messages from 2025-08-15: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2025-08-16" title="2025-08-16: 2 messages" aria-label="Search messages from 2025-08-16: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2025-08-16" title="2025-08-16: 0 messages" aria-label="Search messages from 2025-08-16: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-08-17" title="2025-08-17: 0 messages" aria-label="Search messages from 2025-08-17: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-08-18" title="2025-08-18: 0 messages" aria-label="Search messages from 2025-08-18: 0 messages"></a>
 <a class="activity-day level-2" href="search.html?date=2025-08-19" title="2025-08-19: 2 messages" aria-label="Search messages from 2025-08-19: 2 messages"></a>
@@ -1486,7 +1511,7 @@
 <a class="activity-day level-0" href="search.html?date=2025-08-31" title="2025-08-31: 0 messages" aria-label="Search messages from 2025-08-31: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-09-01" title="2025-09-01: 0 messages" aria-label="Search messages from 2025-09-01: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-09-02" title="2025-09-02: 0 messages" aria-label="Search messages from 2025-09-02: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2025-09-03" title="2025-09-03: 2 messages" aria-label="Search messages from 2025-09-03: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2025-09-03" title="2025-09-03: 0 messages" aria-label="Search messages from 2025-09-03: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-09-04" title="2025-09-04: 0 messages" aria-label="Search messages from 2025-09-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-09-05" title="2025-09-05: 0 messages" aria-label="Search messages from 2025-09-05: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-09-06" title="2025-09-06: 0 messages" aria-label="Search messages from 2025-09-06: 0 messages"></a>
@@ -1547,7 +1572,7 @@
 <a class="activity-day level-0" href="search.html?date=2025-10-31" title="2025-10-31: 0 messages" aria-label="Search messages from 2025-10-31: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-11-01" title="2025-11-01: 0 messages" aria-label="Search messages from 2025-11-01: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-11-02" title="2025-11-02: 0 messages" aria-label="Search messages from 2025-11-02: 0 messages"></a>
-<a class="activity-day level-2" href="search.html?date=2025-11-03" title="2025-11-03: 2 messages" aria-label="Search messages from 2025-11-03: 2 messages"></a>
+<a class="activity-day level-0" href="search.html?date=2025-11-03" title="2025-11-03: 0 messages" aria-label="Search messages from 2025-11-03: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-11-04" title="2025-11-04: 0 messages" aria-label="Search messages from 2025-11-04: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-11-05" title="2025-11-05: 0 messages" aria-label="Search messages from 2025-11-05: 0 messages"></a>
 <a class="activity-day level-0" href="search.html?date=2025-11-06" title="2025-11-06: 0 messages" aria-label="Search messages from 2025-11-06: 0 messages"></a>
@@ -1613,8 +1638,281 @@
 </div></div></section>
       <p class="activity-legend">Darker squares indicate more messages that day; white means no messages.</p>
     </section>
+<section class="stat-group" aria-label="Archive overview statistics">
+<h2>Archive overview</h2>
+<section class="stats">
+<div class="stat"><strong>28</strong><span>Active days</span></div>
+<div class="stat"><strong>2.1</strong><span>Average messages per active day</span></div>
+<div class="stat"><strong>2025-06</strong><span>Busiest month · 7 messages</span></div>
+<div class="stat"><strong>1,276</strong><span>Calendar days covered</span></div>
+<div class="stat"><strong><a href="Weekend_Crew.html">Weekend Crew</a></strong><span>Most active conversation · 9 messages</span></div>
+<div class="stat"><strong><a href="Maya_Chen.html">Maya Chen</a></strong><span>Longest conversation span · 1,206 days</span></div>
+</section>
+<div class="table-wrap"><table class="stats-table"><thead><tr><th>Attachment type</th><th>Count</th></tr></thead><tbody>
+<tr><td>Photos and images</td><td>0</td></tr>
+<tr><td>Videos</td><td>0</td></tr>
+<tr><td>Audio</td><td>0</td></tr>
+<tr><td>Other or unknown</td><td>0</td></tr>
+</tbody></table></div>
+<h3>Messages by year</h3>
+<figure class="line-chart" aria-label="Messages by year" data-unit-singular="message" data-unit-plural="messages"><svg viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><title>Messages by year: 16 messages maximum</title>
+<line class="chart-gridline" x1="64" y1="248.0" x2="936" y2="248.0"></line><text class="chart-y-label" x="54" y="252.0" text-anchor="end">0</text>
+<line class="chart-gridline" x1="64" y1="192.0" x2="936" y2="192.0"></line><text class="chart-y-label" x="54" y="196.0" text-anchor="end">4</text>
+<line class="chart-gridline" x1="64" y1="136.0" x2="936" y2="136.0"></line><text class="chart-y-label" x="54" y="140.0" text-anchor="end">8</text>
+<line class="chart-gridline" x1="64" y1="80.0" x2="936" y2="80.0"></line><text class="chart-y-label" x="54" y="84.0" text-anchor="end">12</text>
+<line class="chart-gridline" x1="64" y1="24.0" x2="936" y2="24.0"></line><text class="chart-y-label" x="54" y="28.0" text-anchor="end">16</text>
+<polyline class="chart-line" points="64.0,80.0 354.7,24.0 645.3,24.0 936.0,24.0"></polyline>
+<circle class="chart-point" data-label="2022" data-value="12" data-x="64.0" data-y="80.0" cx="64.0" cy="80.0" r="4"><title>2022: 12 messages</title></circle>
+<text class="chart-x-label" x="64.0" y="284" text-anchor="middle">2022</text>
+<circle class="chart-point" data-label="2023" data-value="16" data-x="354.7" data-y="24.0" cx="354.7" cy="24.0" r="4"><title>2023: 16 messages</title></circle>
+<text class="chart-x-label" x="354.7" y="284" text-anchor="middle">2023</text>
+<circle class="chart-point" data-label="2024" data-value="16" data-x="645.3" data-y="24.0" cx="645.3" cy="24.0" r="4"><title>2024: 16 messages</title></circle>
+<text class="chart-x-label" x="645.3" y="284" text-anchor="middle">2024</text>
+<circle class="chart-point" data-label="2025" data-value="16" data-x="936.0" data-y="24.0" cx="936.0" cy="24.0" r="4"><title>2025: 16 messages</title></circle>
+<text class="chart-x-label" x="936.0" y="284" text-anchor="middle">2025</text>
+<g class="chart-focus" visibility="hidden" pointer-events="none"><line class="chart-focus-line" x1="64" y1="24" x2="64" y2="248"></line><circle class="chart-focus-point" cx="64" cy="24" r="7"></circle></g>
+<g class="chart-tooltip" visibility="hidden" pointer-events="none"><rect x="0" y="0" width="220" height="34" rx="8"></rect><text x="10" y="22"></text></g>
+<rect class="chart-interaction" x="64" y="24" width="872" height="224" tabindex="0" role="slider" aria-label="Explore Messages by year values" aria-valuemin="0" aria-valuemax="16" aria-valuenow="0" data-left="64" data-right="936"></rect>
+</svg>
+</figure>
+<h3>Messages by month</h3>
+<figure class="line-chart" aria-label="Messages by month" data-unit-singular="message" data-unit-plural="messages"><svg viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><title>Messages by month: 22 messages maximum</title>
+<line class="chart-gridline" x1="64" y1="248.0" x2="936" y2="248.0"></line><text class="chart-y-label" x="54" y="252.0" text-anchor="end">0</text>
+<line class="chart-gridline" x1="64" y1="192.0" x2="936" y2="192.0"></line><text class="chart-y-label" x="54" y="196.0" text-anchor="end">6</text>
+<line class="chart-gridline" x1="64" y1="136.0" x2="936" y2="136.0"></line><text class="chart-y-label" x="54" y="140.0" text-anchor="end">12</text>
+<line class="chart-gridline" x1="64" y1="80.0" x2="936" y2="80.0"></line><text class="chart-y-label" x="54" y="84.0" text-anchor="end">18</text>
+<line class="chart-gridline" x1="64" y1="24.0" x2="936" y2="24.0"></line><text class="chart-y-label" x="54" y="28.0" text-anchor="end">24</text>
+<polyline class="chart-line" points="64.0,229.3 143.3,192.0 222.5,164.0 301.8,229.3 381.1,238.7 460.4,42.7 539.6,229.3 618.9,210.7 698.2,210.7 777.5,248.0 856.7,210.7 936.0,210.7"></polyline>
+<circle class="chart-point" data-label="January" data-value="2" data-x="64.0" data-y="229.3" cx="64.0" cy="229.3" r="4"><title>January: 2 messages</title></circle>
+<text class="chart-x-label" x="64.0" y="284" text-anchor="middle">January</text>
+<circle class="chart-point" data-label="February" data-value="6" data-x="143.3" data-y="192.0" cx="143.3" cy="192.0" r="4"><title>February: 6 messages</title></circle>
+<circle class="chart-point" data-label="March" data-value="9" data-x="222.5" data-y="164.0" cx="222.5" cy="164.0" r="4"><title>March: 9 messages</title></circle>
+<text class="chart-x-label" x="222.5" y="284" text-anchor="middle">March</text>
+<circle class="chart-point" data-label="April" data-value="2" data-x="301.8" data-y="229.3" cx="301.8" cy="229.3" r="4"><title>April: 2 messages</title></circle>
+<circle class="chart-point" data-label="May" data-value="1" data-x="381.1" data-y="238.7" cx="381.1" cy="238.7" r="4"><title>May: 1 message</title></circle>
+<text class="chart-x-label" x="381.1" y="284" text-anchor="middle">May</text>
+<circle class="chart-point" data-label="June" data-value="22" data-x="460.4" data-y="42.7" cx="460.4" cy="42.7" r="4"><title>June: 22 messages</title></circle>
+<circle class="chart-point" data-label="July" data-value="2" data-x="539.6" data-y="229.3" cx="539.6" cy="229.3" r="4"><title>July: 2 messages</title></circle>
+<text class="chart-x-label" x="539.6" y="284" text-anchor="middle">July</text>
+<circle class="chart-point" data-label="August" data-value="4" data-x="618.9" data-y="210.7" cx="618.9" cy="210.7" r="4"><title>August: 4 messages</title></circle>
+<circle class="chart-point" data-label="September" data-value="4" data-x="698.2" data-y="210.7" cx="698.2" cy="210.7" r="4"><title>September: 4 messages</title></circle>
+<text class="chart-x-label" x="698.2" y="284" text-anchor="middle">September</text>
+<circle class="chart-point" data-label="October" data-value="0" data-x="777.5" data-y="248.0" cx="777.5" cy="248.0" r="4"><title>October: 0 messages</title></circle>
+<circle class="chart-point" data-label="November" data-value="4" data-x="856.7" data-y="210.7" cx="856.7" cy="210.7" r="4"><title>November: 4 messages</title></circle>
+<text class="chart-x-label" x="856.7" y="284" text-anchor="middle">November</text>
+<circle class="chart-point" data-label="December" data-value="4" data-x="936.0" data-y="210.7" cx="936.0" cy="210.7" r="4"><title>December: 4 messages</title></circle>
+<text class="chart-x-label" x="936.0" y="284" text-anchor="middle">December</text>
+<g class="chart-focus" visibility="hidden" pointer-events="none"><line class="chart-focus-line" x1="64" y1="24" x2="64" y2="248"></line><circle class="chart-focus-point" cx="64" cy="24" r="7"></circle></g>
+<g class="chart-tooltip" visibility="hidden" pointer-events="none"><rect x="0" y="0" width="220" height="34" rx="8"></rect><text x="10" y="22"></text></g>
+<rect class="chart-interaction" x="64" y="24" width="872" height="224" tabindex="0" role="slider" aria-label="Explore Messages by month values" aria-valuemin="0" aria-valuemax="22" aria-valuenow="0" data-left="64" data-right="936"></rect>
+</svg>
+</figure>
+<h3>Messages by day of week</h3>
+<figure class="line-chart" aria-label="Messages by day of week" data-unit-singular="message" data-unit-plural="messages"><svg viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><title>Messages by day of week: 12 messages maximum</title>
+<line class="chart-gridline" x1="64" y1="248.0" x2="936" y2="248.0"></line><text class="chart-y-label" x="54" y="252.0" text-anchor="end">0</text>
+<line class="chart-gridline" x1="64" y1="192.0" x2="936" y2="192.0"></line><text class="chart-y-label" x="54" y="196.0" text-anchor="end">3</text>
+<line class="chart-gridline" x1="64" y1="136.0" x2="936" y2="136.0"></line><text class="chart-y-label" x="54" y="140.0" text-anchor="end">6</text>
+<line class="chart-gridline" x1="64" y1="80.0" x2="936" y2="80.0"></line><text class="chart-y-label" x="54" y="84.0" text-anchor="end">9</text>
+<line class="chart-gridline" x1="64" y1="24.0" x2="936" y2="24.0"></line><text class="chart-y-label" x="54" y="28.0" text-anchor="end">12</text>
+<polyline class="chart-line" points="64.0,24.0 209.3,80.0 354.7,154.7 500.0,136.0 645.3,80.0 790.7,24.0 936.0,117.3"></polyline>
+<circle class="chart-point" data-label="Monday" data-value="12" data-x="64.0" data-y="24.0" cx="64.0" cy="24.0" r="4"><title>Monday: 12 messages</title></circle>
+<text class="chart-x-label" x="64.0" y="284" text-anchor="middle">Monday</text>
+<circle class="chart-point" data-label="Tuesday" data-value="9" data-x="209.3" data-y="80.0" cx="209.3" cy="80.0" r="4"><title>Tuesday: 9 messages</title></circle>
+<text class="chart-x-label" x="209.3" y="284" text-anchor="middle">Tuesday</text>
+<circle class="chart-point" data-label="Wednesday" data-value="5" data-x="354.7" data-y="154.7" cx="354.7" cy="154.7" r="4"><title>Wednesday: 5 messages</title></circle>
+<text class="chart-x-label" x="354.7" y="284" text-anchor="middle">Wednesday</text>
+<circle class="chart-point" data-label="Thursday" data-value="6" data-x="500.0" data-y="136.0" cx="500.0" cy="136.0" r="4"><title>Thursday: 6 messages</title></circle>
+<text class="chart-x-label" x="500.0" y="284" text-anchor="middle">Thursday</text>
+<circle class="chart-point" data-label="Friday" data-value="9" data-x="645.3" data-y="80.0" cx="645.3" cy="80.0" r="4"><title>Friday: 9 messages</title></circle>
+<text class="chart-x-label" x="645.3" y="284" text-anchor="middle">Friday</text>
+<circle class="chart-point" data-label="Saturday" data-value="12" data-x="790.7" data-y="24.0" cx="790.7" cy="24.0" r="4"><title>Saturday: 12 messages</title></circle>
+<text class="chart-x-label" x="790.7" y="284" text-anchor="middle">Saturday</text>
+<circle class="chart-point" data-label="Sunday" data-value="7" data-x="936.0" data-y="117.3" cx="936.0" cy="117.3" r="4"><title>Sunday: 7 messages</title></circle>
+<text class="chart-x-label" x="936.0" y="284" text-anchor="middle">Sunday</text>
+<g class="chart-focus" visibility="hidden" pointer-events="none"><line class="chart-focus-line" x1="64" y1="24" x2="64" y2="248"></line><circle class="chart-focus-point" cx="64" cy="24" r="7"></circle></g>
+<g class="chart-tooltip" visibility="hidden" pointer-events="none"><rect x="0" y="0" width="220" height="34" rx="8"></rect><text x="10" y="22"></text></g>
+<rect class="chart-interaction" x="64" y="24" width="872" height="224" tabindex="0" role="slider" aria-label="Explore Messages by day of week values" aria-valuemin="0" aria-valuemax="12" aria-valuenow="0" data-left="64" data-right="936"></rect>
+</svg>
+</figure>
+<h3>Messages by hour of day</h3>
+<figure class="line-chart" aria-label="Messages by hour of day" data-unit-singular="message" data-unit-plural="messages"><svg viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><title>Messages by hour of day: 16 messages maximum</title>
+<line class="chart-gridline" x1="64" y1="248.0" x2="936" y2="248.0"></line><text class="chart-y-label" x="54" y="252.0" text-anchor="end">0</text>
+<line class="chart-gridline" x1="64" y1="192.0" x2="936" y2="192.0"></line><text class="chart-y-label" x="54" y="196.0" text-anchor="end">4</text>
+<line class="chart-gridline" x1="64" y1="136.0" x2="936" y2="136.0"></line><text class="chart-y-label" x="54" y="140.0" text-anchor="end">8</text>
+<line class="chart-gridline" x1="64" y1="80.0" x2="936" y2="80.0"></line><text class="chart-y-label" x="54" y="84.0" text-anchor="end">12</text>
+<line class="chart-gridline" x1="64" y1="24.0" x2="936" y2="24.0"></line><text class="chart-y-label" x="54" y="28.0" text-anchor="end">16</text>
+<polyline class="chart-line" points="64.0,248.0 101.9,248.0 139.8,248.0 177.7,248.0 215.7,248.0 253.6,248.0 291.5,234.0 329.4,122.0 367.3,94.0 405.2,24.0 443.1,164.0 481.0,178.0 519.0,192.0 556.9,192.0 594.8,220.0 632.7,220.0 670.6,248.0 708.5,248.0 746.4,248.0 784.3,248.0 822.3,248.0 860.2,248.0 898.1,248.0 936.0,248.0"></polyline>
+<circle class="chart-point" data-label="00:00" data-value="0" data-x="64.0" data-y="248.0" cx="64.0" cy="248.0" r="4"><title>00:00: 0 messages</title></circle>
+<text class="chart-x-label" x="64.0" y="284" text-anchor="middle">00:00</text>
+<circle class="chart-point" data-label="01:00" data-value="0" data-x="101.9" data-y="248.0" cx="101.9" cy="248.0" r="4"><title>01:00: 0 messages</title></circle>
+<circle class="chart-point" data-label="02:00" data-value="0" data-x="139.8" data-y="248.0" cx="139.8" cy="248.0" r="4"><title>02:00: 0 messages</title></circle>
+<circle class="chart-point" data-label="03:00" data-value="0" data-x="177.7" data-y="248.0" cx="177.7" cy="248.0" r="4"><title>03:00: 0 messages</title></circle>
+<text class="chart-x-label" x="177.7" y="284" text-anchor="middle">03:00</text>
+<circle class="chart-point" data-label="04:00" data-value="0" data-x="215.7" data-y="248.0" cx="215.7" cy="248.0" r="4"><title>04:00: 0 messages</title></circle>
+<circle class="chart-point" data-label="05:00" data-value="0" data-x="253.6" data-y="248.0" cx="253.6" cy="248.0" r="4"><title>05:00: 0 messages</title></circle>
+<circle class="chart-point" data-label="06:00" data-value="1" data-x="291.5" data-y="234.0" cx="291.5" cy="234.0" r="4"><title>06:00: 1 message</title></circle>
+<text class="chart-x-label" x="291.5" y="284" text-anchor="middle">06:00</text>
+<circle class="chart-point" data-label="07:00" data-value="9" data-x="329.4" data-y="122.0" cx="329.4" cy="122.0" r="4"><title>07:00: 9 messages</title></circle>
+<circle class="chart-point" data-label="08:00" data-value="11" data-x="367.3" data-y="94.0" cx="367.3" cy="94.0" r="4"><title>08:00: 11 messages</title></circle>
+<circle class="chart-point" data-label="09:00" data-value="16" data-x="405.2" data-y="24.0" cx="405.2" cy="24.0" r="4"><title>09:00: 16 messages</title></circle>
+<text class="chart-x-label" x="405.2" y="284" text-anchor="middle">09:00</text>
+<circle class="chart-point" data-label="10:00" data-value="6" data-x="443.1" data-y="164.0" cx="443.1" cy="164.0" r="4"><title>10:00: 6 messages</title></circle>
+<circle class="chart-point" data-label="11:00" data-value="5" data-x="481.0" data-y="178.0" cx="481.0" cy="178.0" r="4"><title>11:00: 5 messages</title></circle>
+<circle class="chart-point" data-label="12:00" data-value="4" data-x="519.0" data-y="192.0" cx="519.0" cy="192.0" r="4"><title>12:00: 4 messages</title></circle>
+<text class="chart-x-label" x="519.0" y="284" text-anchor="middle">12:00</text>
+<circle class="chart-point" data-label="13:00" data-value="4" data-x="556.9" data-y="192.0" cx="556.9" cy="192.0" r="4"><title>13:00: 4 messages</title></circle>
+<circle class="chart-point" data-label="14:00" data-value="2" data-x="594.8" data-y="220.0" cx="594.8" cy="220.0" r="4"><title>14:00: 2 messages</title></circle>
+<circle class="chart-point" data-label="15:00" data-value="2" data-x="632.7" data-y="220.0" cx="632.7" cy="220.0" r="4"><title>15:00: 2 messages</title></circle>
+<text class="chart-x-label" x="632.7" y="284" text-anchor="middle">15:00</text>
+<circle class="chart-point" data-label="16:00" data-value="0" data-x="670.6" data-y="248.0" cx="670.6" cy="248.0" r="4"><title>16:00: 0 messages</title></circle>
+<circle class="chart-point" data-label="17:00" data-value="0" data-x="708.5" data-y="248.0" cx="708.5" cy="248.0" r="4"><title>17:00: 0 messages</title></circle>
+<circle class="chart-point" data-label="18:00" data-value="0" data-x="746.4" data-y="248.0" cx="746.4" cy="248.0" r="4"><title>18:00: 0 messages</title></circle>
+<text class="chart-x-label" x="746.4" y="284" text-anchor="middle">18:00</text>
+<circle class="chart-point" data-label="19:00" data-value="0" data-x="784.3" data-y="248.0" cx="784.3" cy="248.0" r="4"><title>19:00: 0 messages</title></circle>
+<circle class="chart-point" data-label="20:00" data-value="0" data-x="822.3" data-y="248.0" cx="822.3" cy="248.0" r="4"><title>20:00: 0 messages</title></circle>
+<circle class="chart-point" data-label="21:00" data-value="0" data-x="860.2" data-y="248.0" cx="860.2" cy="248.0" r="4"><title>21:00: 0 messages</title></circle>
+<text class="chart-x-label" x="860.2" y="284" text-anchor="middle">21:00</text>
+<circle class="chart-point" data-label="22:00" data-value="0" data-x="898.1" data-y="248.0" cx="898.1" cy="248.0" r="4"><title>22:00: 0 messages</title></circle>
+<circle class="chart-point" data-label="23:00" data-value="0" data-x="936.0" data-y="248.0" cx="936.0" cy="248.0" r="4"><title>23:00: 0 messages</title></circle>
+<text class="chart-x-label" x="936.0" y="284" text-anchor="middle">23:00</text>
+<g class="chart-focus" visibility="hidden" pointer-events="none"><line class="chart-focus-line" x1="64" y1="24" x2="64" y2="248"></line><circle class="chart-focus-point" cx="64" cy="24" r="7"></circle></g>
+<g class="chart-tooltip" visibility="hidden" pointer-events="none"><rect x="0" y="0" width="220" height="34" rx="8"></rect><text x="10" y="22"></text></g>
+<rect class="chart-interaction" x="64" y="24" width="872" height="224" tabindex="0" role="slider" aria-label="Explore Messages by hour of day values" aria-valuemin="0" aria-valuemax="16" aria-valuenow="0" data-left="64" data-right="936"></rect>
+</svg>
+</figure>
+<h3>Most active group-chat participants</h3><div class="table-wrap">
+<table class="stats-table"><thead><tr><th>Participant</th><th>Messages</th></tr></thead><tbody>
+<tr><td>Ava Patel</td><td>3</td></tr>
+<tr><td>Jordan Lee</td><td>3</td></tr>
+<tr><td>Maya Chen</td><td>3</td></tr>
+<tr><td>Sofia Reyes</td><td>2</td></tr>
+<tr><td>Noah Brooks</td><td>2</td></tr>
+</tbody></table></div>
+</section>
+<details class="conversation-stats stat-group">
+<summary>Conversation-level statistics (8 conversations)</summary>
+<p class="stat-note">Reply times measure the median gap between consecutive messages that switch sender; longest gaps are between consecutive dated messages.</p>
+<div class="table-wrap"><table class="stats-table"><thead><tr>
+<th>Conversation</th><th>Messages</th><th>Busiest day</th><th>Busiest week</th><th>Busiest month</th><th>Longest gap</th><th>Longest active streak</th><th>Median sent reply</th><th>Median received reply</th><th>Top group participant</th>
+</tr></thead><tbody>
+<tr><td><a href="Weekend_Crew.html">Weekend Crew</a></td><td>9</td><td>2023-06-10 (3)</td><td>2023-W23 (3)</td><td>2023-06 (3)</td><td>365d 23h</td><td>1 days</td><td>7.0 min</td><td>100,852.0 min</td><td>Ava Patel (1)</td></tr>
+<tr><td><a href="Jordan_Lee.html">Jordan Lee</a></td><td>8</td><td>2025-06-11 (2)</td><td>2025-W24 (2)</td><td>2025-06 (2)</td><td>270d 2h</td><td>1 days</td><td>138,285.0 min</td><td>11.0 min</td><td>— (0)</td></tr>
+<tr><td><a href="Maya_Chen.html">Maya Chen</a></td><td>8</td><td>2025-06-10 (2)</td><td>2025-W24 (2)</td><td>2025-06 (2)</td><td>365d 1h</td><td>1 days</td><td>368,625.0 min</td><td>156,990.0 min</td><td>— (0)</td></tr>
+<tr><td><a href="Ava_Patel.html">Ava Patel</a></td><td>7</td><td>2025-08-19 (2)</td><td>2025-W34 (2)</td><td>2025-08 (2)</td><td>435d 4h</td><td>1 days</td><td>262,825.0 min</td><td>13.0 min</td><td>— (0)</td></tr>
+<tr><td><a href="Book_Club.html">Book Club</a></td><td>7</td><td>2023-03-05 (3)</td><td>2023-W09 (3)</td><td>2023-03 (3)</td><td>404d 1h</td><td>1 days</td><td>9.0 min</td><td>202,322.5 min</td><td>Maya Chen (1)</td></tr>
+<tr><td><a href="Family_Chat.html">Family Chat</a></td><td>7</td><td>2024-07-04 (2)</td><td>2024-W27 (2)</td><td>2024-07 (2)</td><td>365d 0h</td><td>1 days</td><td>8.5 min</td><td>277,793.0 min</td><td>Noah Brooks (1)</td></tr>
+<tr><td><a href="Noah_Brooks.html">Noah Brooks</a></td><td>7</td><td>2025-02-21 (2)</td><td>2025-W08 (2)</td><td>2025-02 (2)</td><td>365d 23h</td><td>1 days</td><td>105,019.0 min</td><td>79,449.5 min</td><td>— (0)</td></tr>
+<tr><td><a href="Sofia_Reyes.html">Sofia Reyes</a></td><td>7</td><td>2025-03-14 (2)</td><td>2025-W11 (2)</td><td>2025-03 (2)</td><td>366d 0h</td><td>1 days</td><td>525,531.0 min</td><td>15.5 min</td><td>— (0)</td></tr>
+</tbody></table></div></details>
+<section class="stat-group" aria-label="Call statistics">
+<h2>Call statistics</h2>
+<section class="stats">
+<div class="stat"><strong>6</strong><span>Total calls</span></div>
+<div class="stat"><strong>1</strong><span>Missed calls</span></div>
+<div class="stat"><strong>3m</strong><span>Average duration of non-missed calls</span></div>
+</section>
+<h3>Calls by year</h3>
+<figure class="line-chart" aria-label="Calls by year" data-unit-singular="call" data-unit-plural="calls"><svg viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><title>Calls by year: 6 calls maximum</title>
+<line class="chart-gridline" x1="64" y1="248.0" x2="936" y2="248.0"></line><text class="chart-y-label" x="54" y="252.0" text-anchor="end">0</text>
+<line class="chart-gridline" x1="64" y1="192.0" x2="936" y2="192.0"></line><text class="chart-y-label" x="54" y="196.0" text-anchor="end">2</text>
+<line class="chart-gridline" x1="64" y1="136.0" x2="936" y2="136.0"></line><text class="chart-y-label" x="54" y="140.0" text-anchor="end">4</text>
+<line class="chart-gridline" x1="64" y1="80.0" x2="936" y2="80.0"></line><text class="chart-y-label" x="54" y="84.0" text-anchor="end">6</text>
+<line class="chart-gridline" x1="64" y1="24.0" x2="936" y2="24.0"></line><text class="chart-y-label" x="54" y="28.0" text-anchor="end">8</text>
+<polyline class="chart-line" points="64.0,80.0"></polyline>
+<circle class="chart-point" data-label="2025" data-value="6" data-x="64.0" data-y="80.0" cx="64.0" cy="80.0" r="4"><title>2025: 6 calls</title></circle>
+<text class="chart-x-label" x="64.0" y="284" text-anchor="middle">2025</text>
+<g class="chart-focus" visibility="hidden" pointer-events="none"><line class="chart-focus-line" x1="64" y1="24" x2="64" y2="248"></line><circle class="chart-focus-point" cx="64" cy="24" r="7"></circle></g>
+<g class="chart-tooltip" visibility="hidden" pointer-events="none"><rect x="0" y="0" width="220" height="34" rx="8"></rect><text x="10" y="22"></text></g>
+<rect class="chart-interaction" x="64" y="24" width="872" height="224" tabindex="0" role="slider" aria-label="Explore Calls by year values" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" data-left="64" data-right="936"></rect>
+</svg>
+</figure>
+<h3>Calls by month</h3>
+<figure class="line-chart" aria-label="Calls by month" data-unit-singular="call" data-unit-plural="calls"><svg viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><title>Calls by month: 3 calls maximum</title>
+<line class="chart-gridline" x1="64" y1="248.0" x2="936" y2="248.0"></line><text class="chart-y-label" x="54" y="252.0" text-anchor="end">0</text>
+<line class="chart-gridline" x1="64" y1="192.0" x2="936" y2="192.0"></line><text class="chart-y-label" x="54" y="196.0" text-anchor="end">1</text>
+<line class="chart-gridline" x1="64" y1="136.0" x2="936" y2="136.0"></line><text class="chart-y-label" x="54" y="140.0" text-anchor="end">2</text>
+<line class="chart-gridline" x1="64" y1="80.0" x2="936" y2="80.0"></line><text class="chart-y-label" x="54" y="84.0" text-anchor="end">3</text>
+<line class="chart-gridline" x1="64" y1="24.0" x2="936" y2="24.0"></line><text class="chart-y-label" x="54" y="28.0" text-anchor="end">4</text>
+<polyline class="chart-line" points="64.0,192.0 209.3,192.0 354.7,248.0 500.0,248.0 645.3,80.0 790.7,248.0 936.0,192.0"></polyline>
+<circle class="chart-point" data-label="2025-02" data-value="1" data-x="64.0" data-y="192.0" cx="64.0" cy="192.0" r="4"><title>2025-02: 1 call</title></circle>
+<text class="chart-x-label" x="64.0" y="284" text-anchor="middle">2025-02</text>
+<circle class="chart-point" data-label="2025-03" data-value="1" data-x="209.3" data-y="192.0" cx="209.3" cy="192.0" r="4"><title>2025-03: 1 call</title></circle>
+<text class="chart-x-label" x="209.3" y="284" text-anchor="middle">2025-03</text>
+<circle class="chart-point" data-label="2025-04" data-value="0" data-x="354.7" data-y="248.0" cx="354.7" cy="248.0" r="4"><title>2025-04: 0 calls</title></circle>
+<text class="chart-x-label" x="354.7" y="284" text-anchor="middle">2025-04</text>
+<circle class="chart-point" data-label="2025-05" data-value="0" data-x="500.0" data-y="248.0" cx="500.0" cy="248.0" r="4"><title>2025-05: 0 calls</title></circle>
+<text class="chart-x-label" x="500.0" y="284" text-anchor="middle">2025-05</text>
+<circle class="chart-point" data-label="2025-06" data-value="3" data-x="645.3" data-y="80.0" cx="645.3" cy="80.0" r="4"><title>2025-06: 3 calls</title></circle>
+<text class="chart-x-label" x="645.3" y="284" text-anchor="middle">2025-06</text>
+<circle class="chart-point" data-label="2025-07" data-value="0" data-x="790.7" data-y="248.0" cx="790.7" cy="248.0" r="4"><title>2025-07: 0 calls</title></circle>
+<text class="chart-x-label" x="790.7" y="284" text-anchor="middle">2025-07</text>
+<circle class="chart-point" data-label="2025-08" data-value="1" data-x="936.0" data-y="192.0" cx="936.0" cy="192.0" r="4"><title>2025-08: 1 call</title></circle>
+<text class="chart-x-label" x="936.0" y="284" text-anchor="middle">2025-08</text>
+<g class="chart-focus" visibility="hidden" pointer-events="none"><line class="chart-focus-line" x1="64" y1="24" x2="64" y2="248"></line><circle class="chart-focus-point" cx="64" cy="24" r="7"></circle></g>
+<g class="chart-tooltip" visibility="hidden" pointer-events="none"><rect x="0" y="0" width="220" height="34" rx="8"></rect><text x="10" y="22"></text></g>
+<rect class="chart-interaction" x="64" y="24" width="872" height="224" tabindex="0" role="slider" aria-label="Explore Calls by month values" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0" data-left="64" data-right="936"></rect>
+</svg>
+</figure>
+</section>
     <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>
     <script>
+      document.querySelectorAll(".line-chart").forEach(function(figure) {
+        const svg = figure.querySelector("svg");
+        const interaction = figure.querySelector(".chart-interaction");
+        const points = Array.from(figure.querySelectorAll(".chart-point"));
+        const focus = figure.querySelector(".chart-focus");
+        const focusLine = figure.querySelector(".chart-focus-line");
+        const focusPoint = figure.querySelector(".chart-focus-point");
+        const tooltip = figure.querySelector(".chart-tooltip");
+        const tooltipText = tooltip.querySelector("text");
+        const plotLeft = Number(interaction.dataset.left);
+        const plotRight = Number(interaction.dataset.right);
+        let selectedIndex = 0;
+        function showPoint(index) {
+          selectedIndex = Math.max(0, Math.min(points.length - 1, index));
+          const point = points[selectedIndex];
+          const x = Number(point.dataset.x);
+          const y = Number(point.dataset.y);
+          const value = Number(point.dataset.value);
+          const label = point.dataset.label;
+          const unit = value === 1 ? figure.dataset.unitSingular : figure.dataset.unitPlural;
+          focusLine.setAttribute("x1", x);
+          focusLine.setAttribute("x2", x);
+          focusPoint.setAttribute("cx", x);
+          focusPoint.setAttribute("cy", y);
+          focus.setAttribute("visibility", "visible");
+          tooltipText.textContent = label + ": " + value.toLocaleString() + " " + unit;
+          const tooltipX = Math.max(plotLeft, Math.min(plotRight - 220, x - 110));
+          const tooltipY = Math.max(28, y - 46);
+          tooltip.setAttribute("transform", "translate(" + tooltipX + " " + tooltipY + ")");
+          tooltip.setAttribute("visibility", "visible");
+          interaction.setAttribute("aria-valuenow", value);
+          interaction.setAttribute("aria-valuetext", label + ": " + value.toLocaleString() + " " + unit);
+        }
+        function hidePoint() {
+          focus.setAttribute("visibility", "hidden");
+          tooltip.setAttribute("visibility", "hidden");
+        }
+        interaction.addEventListener("pointermove", function(event) {
+          const position = svg.createSVGPoint();
+          position.x = event.clientX;
+          position.y = event.clientY;
+          const localX = position.matrixTransform(svg.getScreenCTM().inverse()).x;
+          const fraction = Math.max(0, Math.min(1, (localX - plotLeft) / (plotRight - plotLeft)));
+          showPoint(Math.round(fraction * (points.length - 1)));
+        });
+        interaction.addEventListener("pointerleave", function() {
+          if (document.activeElement !== interaction) hidePoint();
+        });
+        interaction.addEventListener("focus", function() { showPoint(selectedIndex); });
+        interaction.addEventListener("blur", hidePoint);
+        interaction.addEventListener("keydown", function(event) {
+          if (event.key === "ArrowRight" || event.key === "ArrowUp") { event.preventDefault(); showPoint(selectedIndex + 1); }
+          else if (event.key === "ArrowLeft" || event.key === "ArrowDown") { event.preventDefault(); showPoint(selectedIndex - 1); }
+          else if (event.key === "Home") { event.preventDefault(); showPoint(0); }
+          else if (event.key === "End") { event.preventDefault(); showPoint(points.length - 1); }
+        });
+      });
       const activityYears = Array.from(document.querySelectorAll(".activity-year"));
       let activeYearIndex = Math.max(0, activityYears.length - 1);
       function showActivityYear() {

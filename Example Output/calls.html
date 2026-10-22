@@ -41,19 +41,19 @@
     <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>
     <header class="page-header">
       <h1>Call history</h1>
-      <p>5 calls • Times shown in America/New_York. Call data is included only when present in an extracted backup.</p>
+      <p>6 calls • Times shown in America/New_York. Call data is included only when present in an extracted backup.</p>
     </header>
     <section class="stats" aria-label="Call statistics">
       <article class="stat-card"><h2>Incoming calls</h2>
-        <p class="stat-value">2</p>
+        <p class="stat-value">3</p>
         <p class="stat-note">Includes missed incoming calls</p></article>
       <article class="stat-card"><h2>Outgoing calls</h2>
         <p class="stat-value">3</p></article>
       <article class="stat-card"><h2>Top 5 by number of calls</h2>
         <ol class="top-list">
+<li><span>Maya Chen</span><strong>2 calls</strong></li>
 <li><span>Ava Patel</span><strong>1 call</strong></li>
 <li><span>Jordan Lee</span><strong>1 call</strong></li>
-<li><span>Maya Chen</span><strong>1 call</strong></li>
 <li><span>Noah Brooks</span><strong>1 call</strong></li>
 <li><span>Sofia Reyes</span><strong>1 call</strong></li>
         </ol>
@@ -74,7 +74,7 @@
       <label>From time<input id="callTimeFrom" type="time"></label>
       <label>To time<input id="callTimeTo" type="time"></label>
     </section>
-    <div id="callCount" class="call-count" aria-live="polite">Showing 5 calls</div>
+    <div id="callCount" class="call-count" aria-live="polite">Showing 6 calls</div>
     <div class="table-wrap"><table>
       <thead><tr><th>Date and time</th><th>Contact</th><th>Number</th><th>Direction</th><th>Duration</th></tr></thead>
       <tbody id="callList">
@@ -82,7 +82,8 @@
         <tr class="call-row" data-search="jordan lee 5550100102" data-date="2025-06-11" data-time="10:05"><td>2025-06-11 10:05</td><td>Jordan Lee</td><td>5550100102</td><td>Incoming</td><td>1:38</td></tr>
         <tr class="call-row" data-search="ava patel 5550100103" data-date="2025-08-19" data-time="14:20"><td>2025-08-19 14:20</td><td>Ava Patel</td><td>5550100103</td><td>Outgoing</td><td>8:32</td></tr>
         <tr class="call-row" data-search="noah brooks 5550100104" data-date="2025-02-21" data-time="15:02"><td>2025-02-21 15:02</td><td>Noah Brooks</td><td>5550100104</td><td>Incoming</td><td>1:16</td></tr>
-        <tr class="call-row" data-search="sofia reyes 5550100105" data-date="2025-03-14" data-time="09:00"><td>2025-03-14 09:00</td><td>Sofia Reyes</td><td>5550100105</td><td>Outgoing</td><td>3:03</td></tr>
+        <tr class="call-row" data-search="sofia reyes 5550100105" data-date="2025-03-14" data-time="08:00"><td>2025-03-14 08:00</td><td>Sofia Reyes</td><td>5550100105</td><td>Outgoing</td><td>3:03</td></tr>
+        <tr class="call-row" data-search="maya chen 5550100101" data-date="2025-06-12" data-time="05:30"><td>2025-06-12 05:30</td><td>Maya Chen</td><td>5550100101</td><td>Missed</td><td>0:00</td></tr>
       </tbody></table></div>
     <script>
       const callRows = Array.from(document.querySelectorAll(".call-row"));

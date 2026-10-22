@@ -289,12 +289,6 @@ def _render_html(
 
     overall_stats = summarize_messages(messages, time_zone)
     overall_stats['conversations'] = total_convs
-    report('Building conversation index, search index, and birthday pages...')
-    build_index(index_entries, output_dir, overall_stats, time_zone)
-    build_search_index(index_entries, output_dir, time_zone)
-    build_birthdays(index_entries, output_dir, time_zone)
-    build_birthday_wishes(index_entries, output_dir, time_zone)
-
     call_history_sources = []
     for extraction_dir in sorted(glob.glob(os.path.join(output_dir, 'extracted_backup_*'))):
         if not os.path.isdir(extraction_dir):
@@ -316,6 +310,12 @@ def _render_html(
         contacts = fetch_contacts(address_book_db) if os.path.isfile(address_book_db) else {}
         call_history_sources.append((call_history_db, contacts))
     calls = fetch_call_history(call_history_sources, time_zone)
+
+    report('Building conversation index, search index, and birthday pages...')
+    build_index(index_entries, output_dir, overall_stats, time_zone, calls=calls)
+    build_search_index(index_entries, output_dir, time_zone)
+    build_birthdays(index_entries, output_dir, time_zone)
+    build_birthday_wishes(index_entries, output_dir, time_zone)
     build_call_history(calls, output_dir, time_zone)
 
     if conversion_failures:

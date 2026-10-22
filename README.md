@@ -6,6 +6,7 @@ A Python tool for extracting iPhone backup data and turning SMS/iMessage convers
 
 - Extracts messages, attachments, contacts, and call history from an iTunes/Finder iPhone backup, including password-protected backups.
 - Creates an HTML page for each conversation, along with an index, search page, birthday calendar, birthday-wishes search page, and call-history page.
+- Adds archive-wide message activity and attachment breakdowns to the index, with line graphs for message and call activity by year, month, weekday, and hour; expandable per-conversation activity and reply-time statistics; and call totals, missed-call counts, and durations.
 - Builds a birthday calendar from outgoing “Happy Birthday” messages in one-to-one conversations. Birthday text inside straight or curly quotes is ignored to avoid treating liked-message text as evidence. Detected dates are estimates; conflicting dates are shown separately with supporting message counts, and each name links to the conversation filtered to its latest observed date.
 - Includes a birthday-wishes page where you can enter your birthday to find incoming “Happy Birthday” messages on that month and day across all years. Direct and group messages are included; results are grouped under collapsible sender names. Quoted birthday text is ignored.
 - Supports searching and filtering conversations by message text, date, and time, including a random-day picker to jump to conversations active on a randomly selected day. Search data uses a compact embedded format to reduce the search page's size while keeping it self-contained.
@@ -87,6 +88,12 @@ Run the test suite from the repository root:
 
 ```powershell
 python -m unittest discover -s tests
+```
+
+Regenerate the fictional sample website after changing page generation:
+
+```powershell
+python generate_example_output.py
 ```
 
 ## Privacy

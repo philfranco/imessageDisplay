@@ -4,11 +4,13 @@ import calendar
 import hashlib
 import html
 import json
+import mimetypes
 import os
 import re
+import statistics
 from collections import Counter
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from export_media import format_attachment_html
 from sms_database import sanitize_filename
@@ -369,10 +371,481 @@ def _split_message_datetime(value):
     return '', ''
 
 
-def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME_ZONE):
+def _format_elapsed(seconds):
+    if seconds is None:
+        return '—'
+    seconds = max(0, int(seconds))
+    days, remainder = divmod(seconds, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes = remainder // 60
+    if days:
+        return f'{days}d {hours}h'
+    if hours:
+        return f'{hours}h {minutes}m'
+    if minutes:
+        return f'{minutes}m'
+    return f'{seconds}s'
+
+
+def _conversation_activity_metrics(messages, time_zone):
+    dated_messages = []
+    participants = Counter()
+    attachment_types = Counter()
+    for message in messages:
+        local_datetime = localize_message_datetime(message.get('date'), time_zone)
+        try:
+            timestamp = datetime.strptime(local_datetime, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            timestamp = None
+        if timestamp:
+            dated_messages.append((timestamp, bool(message.get('is_from_me'))))
+
+        chat_id = message.get('chat_id')
+        if isinstance(chat_id, (tuple, list)) and chat_id and chat_id[0] == 'group':
+            sender = str(message.get('sender') or 'Unknown')
+            if sender.casefold() != 'me':
+                participants[sender] += 1
+
+        for attachment in message.get('attachments') or []:
+            mime_type = str(attachment.get('mime_type') or '').casefold()
+            filename = str(attachment.get('filename') or '')
+            if not mime_type:
+                mime_type = mimetypes.guess_type(filename)[0] or ''
+            if mime_type.startswith('image/'):
+                attachment_types['Photos and images'] += 1
+            elif mime_type.startswith('video/'):
+                attachment_types['Videos'] += 1
+            elif mime_type.startswith('audio/'):
+                attachment_types['Audio'] += 1
+            else:
+                attachment_types['Other or unknown'] += 1
+
+    dated_messages.sort(key=lambda item: item[0])
+    if not dated_messages:
+        return {
+            'first_date': None,
+            'last_date': None,
+            'span_days': None,
+            'busiest_day': ('—', 0),
+            'busiest_week': ('—', 0),
+            'busiest_month': ('—', 0),
+            'longest_gap': None,
+            'active_streak': 0,
+            'reply_sent_minutes': None,
+            'reply_received_minutes': None,
+            'participants': participants,
+            'attachment_types': attachment_types,
+        }
+
+    daily_counts = Counter(timestamp.date() for timestamp, _ in dated_messages)
+    weekly_counts = Counter(
+        f'{timestamp.isocalendar()[0]}-W{timestamp.isocalendar()[1]:02d}'
+        for timestamp, _ in dated_messages
+    )
+    monthly_counts = Counter(timestamp.strftime('%Y-%m') for timestamp, _ in dated_messages)
+    busiest_day = max(daily_counts.items(), key=lambda item: (item[1], item[0]))
+    busiest_week = max(weekly_counts.items(), key=lambda item: (item[1], item[0]))
+    busiest_month = max(monthly_counts.items(), key=lambda item: (item[1], item[0]))
+    active_dates = sorted(daily_counts)
+    active_streak = 0
+    current_streak = 0
+    previous_date = None
+    for active_date in active_dates:
+        current_streak = (
+            current_streak + 1
+            if previous_date and active_date == previous_date + timedelta(days=1)
+            else 1
+        )
+        active_streak = max(active_streak, current_streak)
+        previous_date = active_date
+
+    longest_gap = max(
+        (
+            (current[0] - previous[0]).total_seconds()
+            for previous, current in zip(dated_messages, dated_messages[1:])
+        ),
+        default=None,
+    )
+    reply_minutes = {'sent': [], 'received': []}
+    previous_message = None
+    for current_message in dated_messages:
+        if previous_message and previous_message[1] != current_message[1]:
+            duration = (current_message[0] - previous_message[0]).total_seconds()
+            if duration >= 0:
+                direction = 'sent' if current_message[1] else 'received'
+                reply_minutes[direction].append(duration / 60)
+        previous_message = current_message
+
+    return {
+        'first_date': active_dates[0],
+        'last_date': active_dates[-1],
+        'span_days': (active_dates[-1] - active_dates[0]).days + 1,
+        'busiest_day': (busiest_day[0].isoformat(), busiest_day[1]),
+        'busiest_week': busiest_week,
+        'busiest_month': busiest_month,
+        'longest_gap': longest_gap,
+        'active_streak': active_streak,
+        'reply_sent_minutes': statistics.median(reply_minutes['sent']) if reply_minutes['sent'] else None,
+        'reply_received_minutes': statistics.median(reply_minutes['received']) if reply_minutes['received'] else None,
+        'participants': participants,
+        'attachment_types': attachment_types,
+    }
+
+
+def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME_ZONE, calls=()):
     index_path = os.path.join(output_dir, 'index.html')
     daily_counts = overall_stats.get('daily_counts', {})
     years = sorted({day[:4] for day in daily_counts if len(day) >= 4})
+    yearly_counts = Counter()
+    monthly_counts = Counter()
+    month_of_year_counts = Counter()
+    hourly_counts = Counter()
+    weekday_counts = Counter()
+    attachment_types = Counter()
+    conversation_metrics = []
+    parsed_dates = []
+    group_participants = Counter()
+
+    for conversation_name, filename, messages in conversations:
+        metrics = _conversation_activity_metrics(messages, time_zone)
+        conversation_metrics.append((conversation_name, filename, len(messages), metrics))
+        attachment_types.update(metrics['attachment_types'])
+        group_participants.update(metrics['participants'])
+        for message in messages:
+            localized = localize_message_datetime(message.get('date'), time_zone)
+            try:
+                timestamp = datetime.strptime(localized, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                continue
+            parsed_dates.append(timestamp)
+            yearly_counts[str(timestamp.year)] += 1
+            monthly_counts[timestamp.strftime('%Y-%m')] += 1
+            month_of_year_counts[timestamp.month] += 1
+            hourly_counts[timestamp.hour] += 1
+            weekday_counts[timestamp.weekday()] += 1
+
+    active_days = len(daily_counts)
+    average_per_active_day = (
+        len(parsed_dates) / active_days if active_days else 0
+    )
+    span_days = (
+        (max(parsed_dates).date() - min(parsed_dates).date()).days + 1
+        if parsed_dates else 0
+    )
+    busiest_month = max(monthly_counts.items(), key=lambda item: (item[1], item[0]), default=('—', 0))
+    most_active = max(conversation_metrics, key=lambda item: (item[2], item[0].casefold()), default=None)
+    longest_span = max(
+        conversation_metrics,
+        key=lambda item: (item[3]['span_days'] or 0, item[0].casefold()),
+        default=None,
+    )
+
+    call_yearly_counts = Counter()
+    call_monthly_counts = Counter()
+    call_durations = []
+    parsed_call_dates = []
+    missed_calls = 0
+    for call in calls:
+        if call.get('direction') == 'Missed':
+            missed_calls += 1
+        else:
+            try:
+                duration = max(0, float(call.get('duration') or 0))
+            except (TypeError, ValueError, OverflowError):
+                duration = 0
+            call_durations.append(duration)
+
+        local_call_date = localize_message_datetime(call.get('date'), time_zone)
+        try:
+            call_date = datetime.strptime(local_call_date, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            continue
+        parsed_call_dates.append(call_date)
+        call_yearly_counts[str(call_date.year)] += 1
+        call_monthly_counts[call_date.strftime('%Y-%m')] += 1
+
+    analytics_content = [
+        '<section class="stat-group" aria-label="Archive overview statistics">',
+        '<h2>Archive overview</h2>',
+        '<section class="stats">',
+        f'<div class="stat"><strong>{active_days:,}</strong><span>Active days</span></div>',
+        f'<div class="stat"><strong>{average_per_active_day:,.1f}</strong><span>Average messages per active day</span></div>',
+        f'<div class="stat"><strong>{html.escape(busiest_month[0])}</strong><span>Busiest month · {busiest_month[1]:,} messages</span></div>',
+        f'<div class="stat"><strong>{span_days:,}</strong><span>Calendar days covered</span></div>',
+    ]
+    if most_active:
+        analytics_content.append(
+            f'<div class="stat"><strong><a href="{html.escape(most_active[1], quote=True)}.html">'
+            f'{html.escape(most_active[0])}</a></strong><span>Most active conversation · '
+            f'{most_active[2]:,} messages</span></div>'
+        )
+    if longest_span:
+        analytics_content.append(
+            f'<div class="stat"><strong><a href="{html.escape(longest_span[1], quote=True)}.html">'
+            f'{html.escape(longest_span[0])}</a></strong><span>Longest conversation span · '
+            f'{longest_span[3]["span_days"] or 0:,} days</span></div>'
+        )
+    analytics_content.extend([
+        '</section>',
+        '<div class="table-wrap"><table class="stats-table"><thead><tr><th>Attachment type</th><th>Count</th></tr></thead><tbody>',
+    ])
+    for category in ('Photos and images', 'Videos', 'Audio', 'Other or unknown'):
+        analytics_content.append(
+            f'<tr><td>{category}</td><td>{attachment_types[category]:,}</td></tr>'
+        )
+    analytics_content.append('</tbody></table></div>')
+
+    def append_line_chart(title, points, label_formatter, unit):
+        if not points:
+            analytics_content.append('<p class="stat-note">No data available.</p>')
+            return
+
+        chart_width = 960
+        chart_height = 300
+        left = 64
+        right = 24
+        top = 24
+        bottom = 52
+        plot_width = chart_width - left - right
+        plot_height = chart_height - top - bottom
+        maximum = max((value for _, value in points), default=0)
+        scale_maximum = max(4, ((maximum + 3) // 4) * 4)
+        x_step = plot_width / max(1, len(points) - 1)
+
+        def y_coordinate(value):
+            return top + plot_height * (1 - value / scale_maximum)
+
+        coordinates = [
+            (left + index * x_step, y_coordinate(value))
+            for index, (_, value) in enumerate(points)
+        ]
+        line_points = ' '.join(
+            f'{x:.1f},{y:.1f}' for x, y in coordinates
+        )
+        label_step = max(1, (len(points) + 7) // 8)
+        label_indices = set(range(0, len(points), label_step))
+        label_indices.add(len(points) - 1)
+        analytics_content.append(f'<h3>{title}</h3>')
+        analytics_content.append(
+            f'<figure class="line-chart" aria-label="{html.escape(title, quote=True)}" '
+            f'data-unit-singular="{html.escape(unit[:-1], quote=True)}" '
+            f'data-unit-plural="{html.escape(unit, quote=True)}">'
+            f'<svg viewBox="0 0 {chart_width} {chart_height}" '
+            f'preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
+            f'<title>{html.escape(title)}: {maximum:,} {unit} maximum</title>'
+        )
+        for tick in range(5):
+            value = scale_maximum * tick / 4
+            y = y_coordinate(value)
+            analytics_content.append(
+                f'<line class="chart-gridline" x1="{left}" y1="{y:.1f}" '
+                f'x2="{chart_width - right}" y2="{y:.1f}"></line>'
+                f'<text class="chart-y-label" x="{left - 10}" y="{y + 4:.1f}" '
+                f'text-anchor="end">{value:,.0f}</text>'
+            )
+        analytics_content.append(
+            f'<polyline class="chart-line" points="{line_points}"></polyline>'
+        )
+        for index, ((key, value), (x, y)) in enumerate(zip(points, coordinates)):
+            label = label_formatter(key)
+            count_label = f'{value:,} {unit if value != 1 else unit[:-1]}'
+            analytics_content.append(
+                f'<circle class="chart-point" data-label="{html.escape(label, quote=True)}" '
+                f'data-value="{value}" data-x="{x:.1f}" data-y="{y:.1f}" '
+                f'cx="{x:.1f}" cy="{y:.1f}" r="4">'
+                f'<title>{html.escape(label)}: {html.escape(count_label)}</title></circle>'
+            )
+            if index in label_indices:
+                analytics_content.append(
+                    f'<text class="chart-x-label" x="{x:.1f}" '
+                    f'y="{chart_height - 16}" text-anchor="middle">'
+                    f'{html.escape(label_formatter(key))}</text>'
+                )
+        analytics_content.extend([
+            f'<g class="chart-focus" visibility="hidden" pointer-events="none">'
+            f'<line class="chart-focus-line" x1="{left}" y1="{top}" '
+            f'x2="{left}" y2="{top + plot_height}"></line>'
+            f'<circle class="chart-focus-point" cx="{left}" cy="{top}" r="7"></circle>'
+            '</g>',
+            '<g class="chart-tooltip" visibility="hidden" pointer-events="none">'
+            '<rect x="0" y="0" width="220" height="34" rx="8"></rect>'
+            '<text x="10" y="22"></text></g>',
+            f'<rect class="chart-interaction" x="{left}" y="{top}" '
+            f'width="{plot_width}" height="{plot_height}" tabindex="0" role="slider" '
+            f'aria-label="Explore {html.escape(title, quote=True)} values" '
+            f'aria-valuemin="0" aria-valuemax="{maximum}" aria-valuenow="0" '
+            f'data-left="{left}" data-right="{left + plot_width}"></rect>',
+        ])
+        analytics_content.extend(['</svg>', '</figure>'])
+
+    def months_between(dates):
+        months = []
+        if dates:
+            month_cursor = date(min(dates).year, min(dates).month, 1)
+            last_month = date(max(dates).year, max(dates).month, 1)
+        else:
+            return months
+        while month_cursor <= last_month:
+            months.append(month_cursor.strftime('%Y-%m'))
+            if month_cursor.month == 12:
+                month_cursor = date(month_cursor.year + 1, 1, 1)
+            else:
+                month_cursor = date(month_cursor.year, month_cursor.month + 1, 1)
+        return months
+
+    if yearly_counts:
+        years_range = range(
+            min(map(int, yearly_counts)),
+            max(map(int, yearly_counts)) + 1,
+        )
+        append_line_chart(
+            'Messages by year',
+            [(str(year), yearly_counts.get(str(year), 0)) for year in years_range],
+            str,
+            'messages',
+        )
+    else:
+        analytics_content.append('<h3>Messages by year</h3>')
+        analytics_content.append('<p class="stat-note">No dated messages are available.</p>')
+
+    append_line_chart(
+        'Messages by month',
+        [
+            (month, month_of_year_counts.get(month, 0))
+            for month in range(1, 13)
+        ],
+        lambda month: calendar.month_name[month],
+        'messages',
+    )
+    append_line_chart(
+        'Messages by day of week',
+        [(day, weekday_counts.get(day, 0)) for day in range(7)],
+        lambda day: calendar.day_name[day],
+        'messages',
+    )
+    append_line_chart(
+        'Messages by hour of day',
+        [(hour, hourly_counts.get(hour, 0)) for hour in range(24)],
+        lambda hour: f'{hour:02d}:00',
+        'messages',
+    )
+    if group_participants:
+        analytics_content.append('<h3>Most active group-chat participants</h3><div class="table-wrap">')
+        analytics_content.append(
+            '<table class="stats-table"><thead><tr><th>Participant</th><th>Messages</th></tr></thead><tbody>'
+        )
+        for participant, count in group_participants.most_common(10):
+            analytics_content.append(
+                f'<tr><td>{html.escape(participant)}</td><td>{count:,}</td></tr>'
+            )
+        analytics_content.append('</tbody></table></div>')
+    analytics_content.append('</section>')
+
+    analytics_content.extend([
+        '<details class="conversation-stats stat-group">',
+        f'<summary>Conversation-level statistics ({len(conversation_metrics):,} conversations)</summary>',
+        '<p class="stat-note">Reply times measure the median gap between consecutive messages that switch sender; longest gaps are between consecutive dated messages.</p>',
+        '<div class="table-wrap"><table class="stats-table sortable-stats"><thead><tr>',
+    ])
+    conversation_sort_columns = (
+        ('name', 'Conversation'),
+        ('messages', 'Messages'),
+        ('busiest-day', 'Busiest day'),
+        ('busiest-week', 'Busiest week'),
+        ('busiest-month', 'Busiest month'),
+        ('longest-gap', 'Longest gap'),
+        ('active-streak', 'Longest active streak'),
+        ('reply-sent', 'Median sent reply'),
+        ('reply-received', 'Median received reply'),
+        ('top-participant', 'Top group participant'),
+    )
+    for sort_key, label in conversation_sort_columns:
+        analytics_content.append(
+            f'<th scope="col"><button type="button" data-conversation-sort="{sort_key}" '
+            f'aria-sort="none">{label} <span class="sort-indicator"></span></button></th>'
+        )
+    analytics_content.append('</tr></thead><tbody>')
+    for conversation_name, filename, message_count, metrics in sorted(
+        conversation_metrics,
+        key=lambda item: (-item[2], item[0].casefold()),
+    ):
+        top_participant, participant_count = metrics['participants'].most_common(1)[0] if metrics['participants'] else ('—', 0)
+        sent_reply = (
+            f'{metrics["reply_sent_minutes"]:,.1f} min'
+            if metrics['reply_sent_minutes'] is not None else '—'
+        )
+        received_reply = (
+            f'{metrics["reply_received_minutes"]:,.1f} min'
+            if metrics['reply_received_minutes'] is not None else '—'
+        )
+        sort_values = {
+            'name': conversation_name.casefold(),
+            'messages': message_count,
+            'busiest-day': metrics['busiest_day'][1],
+            'busiest-week': metrics['busiest_week'][1],
+            'busiest-month': metrics['busiest_month'][1],
+            'longest-gap': metrics['longest_gap'] if metrics['longest_gap'] is not None else -1,
+            'active-streak': metrics['active_streak'],
+            'reply-sent': metrics['reply_sent_minutes'] if metrics['reply_sent_minutes'] is not None else -1,
+            'reply-received': metrics['reply_received_minutes'] if metrics['reply_received_minutes'] is not None else -1,
+            'top-participant': top_participant.casefold(),
+        }
+        sort_attributes = ' '.join(
+            f'data-sort-{key}="{html.escape(str(value), quote=True)}"'
+            for key, value in sort_values.items()
+        )
+        analytics_content.append(
+            f'<tr {sort_attributes}>'
+            f'<td><a href="{html.escape(filename, quote=True)}.html">{html.escape(conversation_name)}</a></td>'
+            f'<td>{message_count:,}</td>'
+            f'<td>{html.escape(metrics["busiest_day"][0])} ({metrics["busiest_day"][1]:,})</td>'
+            f'<td>{html.escape(str(metrics["busiest_week"][0]))} ({metrics["busiest_week"][1]:,})</td>'
+            f'<td>{html.escape(str(metrics["busiest_month"][0]))} ({metrics["busiest_month"][1]:,})</td>'
+            f'<td>{_format_elapsed(metrics["longest_gap"])}</td>'
+            f'<td>{metrics["active_streak"]:,} days</td>'
+            f'<td>{sent_reply}</td><td>{received_reply}</td>'
+            f'<td>{html.escape(top_participant)} ({participant_count:,})</td>'
+            '</tr>'
+        )
+    analytics_content.append('</tbody></table></div></details>')
+
+    answered_call_average = (
+        statistics.mean(call_durations) if call_durations else None
+    )
+    analytics_content.extend([
+        '<section class="stat-group" aria-label="Call statistics">',
+        '<h2>Call statistics</h2>',
+        '<section class="stats">',
+        f'<div class="stat"><strong>{len(calls):,}</strong><span>Total calls</span></div>',
+        f'<div class="stat"><strong>{missed_calls:,}</strong><span>Missed calls</span></div>',
+        f'<div class="stat"><strong>{_format_elapsed(answered_call_average)}</strong><span>Average duration of non-missed calls</span></div>',
+        '</section>',
+    ])
+    if call_yearly_counts:
+        call_years = range(
+            min(map(int, call_yearly_counts)),
+            max(map(int, call_yearly_counts)) + 1,
+        )
+        append_line_chart(
+            'Calls by year',
+            [(str(year), call_yearly_counts.get(str(year), 0)) for year in call_years],
+            str,
+            'calls',
+        )
+        append_line_chart(
+            'Calls by month',
+            [
+                (month, call_monthly_counts.get(month, 0))
+                for month in months_between(parsed_call_dates)
+            ],
+            str,
+            'calls',
+        )
+    else:
+        analytics_content.append('<h3>Calls by year</h3>')
+        analytics_content.append('<p class="stat-note">No call records are available.</p>')
+    analytics_content.append('</section>')
+
     activity_content = []
     for year in years:
         year_number = int(year)
@@ -435,6 +908,35 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
         '    .stat { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px #0001; }',
         '    .stat strong { display: block; font-size: 22px; color: #111; }',
         '    .stat span { color: #666; font-size: 13px; }',
+        '    .stat-group { margin: 20px 0; }',
+        '    .stat-group h2 { margin: 0 0 12px; font-size: 21px; color: #102a56; }',
+        '    .stat-group h3 { margin: 16px 0 8px; font-size: 16px; color: #334155; }',
+        '    .stats-table { width: 100%; border-collapse: collapse; background: #fff; }',
+        '    .stats-table th, .stats-table td { padding: 9px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }',
+        '    .stats-table th { color: #475569; font-size: 12px; }',
+        '    .stats-table td { color: #334155; font-size: 13px; }',
+        '    .stats-table a { color: #2563eb; text-decoration: none; font-weight: 600; }',
+        '    .stats-table a:hover { text-decoration: underline; }',
+        '    .sortable-stats th { white-space: nowrap; }',
+        '    .sortable-stats th button { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }',
+        '    .sortable-stats th button:hover, .sortable-stats th button:focus-visible { color: #2563eb; }',
+        '    .sortable-stats .sort-indicator { color: #2563eb; }',
+        '    .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; }',
+        '    .line-chart { margin: 0; padding: 12px 10px 4px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px #0f172a08; }',
+        '    .line-chart svg { display: block; width: 100%; height: auto; overflow: visible; }',
+        '    .chart-gridline { stroke: #e2e8f0; stroke-width: 1; }',
+        '    .chart-y-label, .chart-x-label { fill: #64748b; font-family: inherit; font-size: 12px; }',
+        '    .chart-line { fill: none; stroke: #2563eb; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }',
+        '    .chart-point { fill: #fff; stroke: #2563eb; stroke-width: 3; vector-effect: non-scaling-stroke; }',
+        '    .chart-focus-line { stroke: #0f172a; stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }',
+        '    .chart-focus-point { fill: #fff; stroke: #0f172a; stroke-width: 3; vector-effect: non-scaling-stroke; }',
+        '    .chart-tooltip rect { fill: #102a56; stroke: #fff; stroke-width: 1; vector-effect: non-scaling-stroke; }',
+        '    .chart-tooltip text { fill: #fff; font-family: inherit; font-size: 13px; font-weight: 700; }',
+        '    .chart-interaction { fill: transparent; cursor: crosshair; outline: none; }',
+        '    .chart-interaction:focus-visible { stroke: #2563eb; stroke-width: 2; stroke-dasharray: 5 4; }',
+        '    .conversation-stats summary { padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; color: #102a56; font-weight: 700; cursor: pointer; }',
+        '    .conversation-stats[open] summary { margin-bottom: 10px; }',
+        '    .stat-note { color: #64748b; font-size: 12px; }',
         '    .activity-card { margin: 20px 0; padding: 20px; border-radius: 14px; background: #fff; box-shadow: 0 1px 4px #0001; }',
         '    .activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }',
         '    .activity-heading h2 { margin: 0; font-size: 19px; }',
@@ -493,8 +995,100 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
     content.extend([
         '      <p class="activity-legend">Darker squares indicate more messages that day; white means no messages.</p>',
         '    </section>',
+    ])
+    content.extend(analytics_content)
+    content.extend([
         '    <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>',
         '    <script>',
+        '      const conversationStatsTable = document.querySelector(".sortable-stats");',
+        '      if (conversationStatsTable) {',
+        '        let conversationSortKey = "messages";',
+        '        let conversationSortAscending = false;',
+        '        const conversationSortButtons = conversationStatsTable.querySelectorAll("th button[data-conversation-sort]");',
+        '        conversationSortButtons.forEach(function(button) {',
+        '          const isActive = button.dataset.conversationSort === conversationSortKey;',
+        '          button.setAttribute("aria-sort", isActive ? "descending" : "none");',
+        '          button.querySelector(".sort-indicator").textContent = isActive ? "▼" : "";',
+        '          button.addEventListener("click", function() {',
+        '            const sortKey = button.dataset.conversationSort;',
+        '            if (conversationSortKey === sortKey) conversationSortAscending = !conversationSortAscending;',
+        '            else { conversationSortKey = sortKey; conversationSortAscending = true; }',
+        '            conversationSortButtons.forEach(function(sortButton) {',
+        '              const active = sortButton.dataset.conversationSort === conversationSortKey;',
+        '              sortButton.setAttribute("aria-sort", active ? (conversationSortAscending ? "ascending" : "descending") : "none");',
+        '              sortButton.querySelector(".sort-indicator").textContent = active ? (conversationSortAscending ? "▲" : "▼") : "";',
+        '            });',
+        '            const rows = Array.from(conversationStatsTable.tBodies[0].rows);',
+        '            rows.sort(function(first, second) {',
+        '              const firstValue = first.dataset["sort" + sortKey.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1); }).join("")];',
+        '              const secondValue = second.dataset["sort" + sortKey.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1); }).join("")];',
+        '              const firstNumber = Number(firstValue);',
+        '              const secondNumber = Number(secondValue);',
+        '              const bothNumeric = firstValue !== "" && secondValue !== "" && Number.isFinite(firstNumber) && Number.isFinite(secondNumber);',
+        '              const comparison = bothNumeric ? firstNumber - secondNumber : firstValue.localeCompare(secondValue, undefined, { numeric: true, sensitivity: "base" });',
+        '              return (conversationSortAscending ? comparison : -comparison) || first.dataset.sortName.localeCompare(second.dataset.sortName);',
+        '            });',
+        '            rows.forEach(function(row) { conversationStatsTable.tBodies[0].appendChild(row); });',
+        '          });',
+        '        });',
+        '      }',
+        '      document.querySelectorAll(".line-chart").forEach(function(figure) {',
+        '        const svg = figure.querySelector("svg");',
+        '        const interaction = figure.querySelector(".chart-interaction");',
+        '        const points = Array.from(figure.querySelectorAll(".chart-point"));',
+        '        const focus = figure.querySelector(".chart-focus");',
+        '        const focusLine = figure.querySelector(".chart-focus-line");',
+        '        const focusPoint = figure.querySelector(".chart-focus-point");',
+        '        const tooltip = figure.querySelector(".chart-tooltip");',
+        '        const tooltipText = tooltip.querySelector("text");',
+        '        const plotLeft = Number(interaction.dataset.left);',
+        '        const plotRight = Number(interaction.dataset.right);',
+        '        let selectedIndex = 0;',
+        '        function showPoint(index) {',
+        '          selectedIndex = Math.max(0, Math.min(points.length - 1, index));',
+        '          const point = points[selectedIndex];',
+        '          const x = Number(point.dataset.x);',
+        '          const y = Number(point.dataset.y);',
+        '          const value = Number(point.dataset.value);',
+        '          const label = point.dataset.label;',
+        '          const unit = value === 1 ? figure.dataset.unitSingular : figure.dataset.unitPlural;',
+        '          focusLine.setAttribute("x1", x);',
+        '          focusLine.setAttribute("x2", x);',
+        '          focusPoint.setAttribute("cx", x);',
+        '          focusPoint.setAttribute("cy", y);',
+        '          focus.setAttribute("visibility", "visible");',
+        '          tooltipText.textContent = label + ": " + value.toLocaleString() + " " + unit;',
+        '          const tooltipX = Math.max(plotLeft, Math.min(plotRight - 220, x - 110));',
+        '          const tooltipY = Math.max(28, y - 46);',
+        '          tooltip.setAttribute("transform", "translate(" + tooltipX + " " + tooltipY + ")");',
+        '          tooltip.setAttribute("visibility", "visible");',
+        '          interaction.setAttribute("aria-valuenow", value);',
+        '          interaction.setAttribute("aria-valuetext", label + ": " + value.toLocaleString() + " " + unit);',
+        '        }',
+        '        function hidePoint() {',
+        '          focus.setAttribute("visibility", "hidden");',
+        '          tooltip.setAttribute("visibility", "hidden");',
+        '        }',
+        '        interaction.addEventListener("pointermove", function(event) {',
+        '          const position = svg.createSVGPoint();',
+        '          position.x = event.clientX;',
+        '          position.y = event.clientY;',
+        '          const localX = position.matrixTransform(svg.getScreenCTM().inverse()).x;',
+        '          const fraction = Math.max(0, Math.min(1, (localX - plotLeft) / (plotRight - plotLeft)));',
+        '          showPoint(Math.round(fraction * (points.length - 1)));',
+        '        });',
+        '        interaction.addEventListener("pointerleave", function() {',
+        '          if (document.activeElement !== interaction) hidePoint();',
+        '        });',
+        '        interaction.addEventListener("focus", function() { showPoint(selectedIndex); });',
+        '        interaction.addEventListener("blur", hidePoint);',
+        '        interaction.addEventListener("keydown", function(event) {',
+        '          if (event.key === "ArrowRight" || event.key === "ArrowUp") { event.preventDefault(); showPoint(selectedIndex + 1); }',
+        '          else if (event.key === "ArrowLeft" || event.key === "ArrowDown") { event.preventDefault(); showPoint(selectedIndex - 1); }',
+        '          else if (event.key === "Home") { event.preventDefault(); showPoint(0); }',
+        '          else if (event.key === "End") { event.preventDefault(); showPoint(points.length - 1); }',
+        '        });',
+        '      });',
         '      const activityYears = Array.from(document.querySelectorAll(".activity-year"));',
         '      let activeYearIndex = Math.max(0, activityYears.length - 1);',
         '      function showActivityYear() {',

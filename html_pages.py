@@ -788,7 +788,7 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
             'active-streak': metrics['active_streak'],
             'reply-sent': metrics['reply_sent_minutes'] if metrics['reply_sent_minutes'] is not None else -1,
             'reply-received': metrics['reply_received_minutes'] if metrics['reply_received_minutes'] is not None else -1,
-            'top-participant': top_participant.casefold(),
+            'top-participant': participant_count,
         }
         sort_attributes = ' '.join(
             f'data-sort-{key}="{html.escape(str(value), quote=True)}"'

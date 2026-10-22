@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Search iMessage Conversations</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; padding: 0; }
+    body { min-height: 100vh; }
+    .wrapper { width: calc(100% - 48px); max-width: 1800px; margin: 0 auto; padding: 28px 0 48px; }
+    .site-nav { display: flex; gap: 10px; margin-bottom: 22px; }
+    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #ffffff; transition: background .15s, color .15s, border-color .15s; }
+    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }
+    .page-header { padding: clamp(24px, 4vw, 48px); margin-bottom: 26px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }
+    .eyebrow { margin: 0 0 10px; color: #bfdbfe; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(30px, 4vw, 42px); letter-spacing: -.03em; }
+    .page-header p:last-child { max-width: 680px; margin: 10px 0 0; color: #e0f2fe; font-size: 16px; line-height: 1.55; }
+    .search-box { margin-bottom: 18px; }
+    input { width: 100%; padding: 14px 16px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 12px; box-sizing: border-box; box-shadow: 0 2px 8px #0f172a0a; }
+    input:focus { outline: 3px solid #93c5fd; border-color: #2563eb; }
+    .search-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+    .search-filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }
+    .search-filters input { padding: 9px 10px; border-radius: 8px; font: inherit; }
+    .random-day-control { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; grid-column: 1 / -1; }
+    .random-day-control button { padding: 9px 14px; border: 0; border-radius: 8px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }
+    .random-day-control button:hover:not(:disabled) { background: #1d4ed8; }
+    .random-day-control button:disabled { opacity: .55; cursor: not-allowed; }
+    #randomDayStatus { color: #64748b; font-size: 13px; }
+    .results-count { font-size: 14px; color: #64748b; margin-bottom: 12px; }
+    .table-wrap { overflow-x: auto; border-radius: 14px; box-shadow: 0 4px 18px #0f172a0d; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5ea; }
+    th { background: #f1f5f9; color: #475569; font-size: 13px; white-space: nowrap; }
+    th button { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+    th button:hover { color: #2563eb; }
+    .sort-indicator { margin-left: 4px; }
+    td { font-size: 14px; color: #334155; vertical-align: top; }
+    td a { color: #2563eb; text-decoration: none; font-size: 16px; font-weight: 600; }
+    td a:hover { text-decoration: underline; }
+    td.participants { min-width: 220px; color: #64748b; line-height: 1.5; }
+    tbody tr:hover { background: #f8fafc; }
+    tr:last-child td { border-bottom: 0; }
+    .hidden { display: none; }
+    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } th, td { padding: 9px 7px; font-size: 12px; } td a { font-size: 13px; } td.participants { min-width: 160px; } }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>
+    <header class="page-header">
+      <p class="eyebrow">iMessage archive</p>
+      <h1>Find a conversation</h1>
+      <p>Search, sort, and explore your conversations and message history. Times shown in America/New_York.</p>
+    </header>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search for a person or name...">
+    </div>
+    <section class="search-filters" aria-label="Search messages by text and date or time">
+      <label>Message text<input type="search" id="messageSearchInput" placeholder="Search message text"></label>
+      <label>From date<input type="date" id="dateFromInput"></label>
+      <label>To date<input type="date" id="dateToInput"></label>
+      <label>From time<input type="time" id="timeFromInput"></label>
+      <label>To time<input type="time" id="timeToInput"></label>
+      <div class="random-day-control"><button type="button" id="randomDayButton">Go to a random day</button><span id="randomDayStatus" aria-live="polite"></span></div>
+    </section>
+    <div class="results-count"><span id="resultCount">Showing all</span> conversations</div>
+    <div class="table-wrap"><table><thead><tr>
+      <th scope="col"><button type="button" data-sort-key="name" aria-sort="none">Conversation <span class="sort-indicator"></span></button></th>
+      <th scope="col"><button type="button" data-sort-key="participants" aria-sort="none">People in group <span class="sort-indicator"></span></button></th>
+      <th scope="col"><button type="button" data-sort-key="messages" aria-sort="none">Messages <span class="sort-indicator"></span></button></th>
+      <th scope="col"><button type="button" data-sort-key="attachments" aria-sort="none">Attachments <span class="sort-indicator"></span></button></th>
+      <th scope="col"><button type="button" data-sort-key="first-date" aria-sort="none">First message <span class="sort-indicator"></span></button></th>
+      <th scope="col"><button type="button" data-sort-key="last-date" aria-sort="none">Last message <span class="sort-indicator"></span></button></th>
+    </tr></thead>
+    <tbody id="conversationList">
+      <tr class="conv-item" data-name="ava patel " data-search-index="0" data-sort-name="ava patel" data-sort-participants="" data-sort-messages="9" data-sort-attachments="0" data-sort-first-date="2022-04-02 10:12:00" data-sort-last-date="2025-08-19 13:16:00"><td><a data-conversation-file="Ava_Patel.html" href="Ava_Patel.html">Ava Patel</a></td><td class="participants">—</td><td><span class="filtered-message-count">9</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-04-02 10:12:00</span></td><td><span class="filtered-last-date">2025-08-19 13:16:00</span></td></tr>
+      <tr class="conv-item" data-name="book club ava patel, me, noah brooks, priya shah" data-search-index="1" data-sort-name="book club" data-sort-participants="ava patel, me, noah brooks, priya shah" data-sort-messages="9" data-sort-attachments="0" data-sort-first-date="2022-06-10 08:20:00" data-sort-last-date="2025-09-03 16:17:00"><td><a data-conversation-file="Book_Club.html" href="Book_Club.html">Book Club</a></td><td class="participants">Ava Patel, Me, Noah Brooks, Priya Shah</td><td><span class="filtered-message-count">9</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-06-10 08:20:00</span></td><td><span class="filtered-last-date">2025-09-03 16:17:00</span></td></tr>
+      <tr class="conv-item" data-name="jordan lee " data-search-index="2" data-sort-name="jordan lee" data-sort-participants="" data-sort-messages="9" data-sort-attachments="0" data-sort-first-date="2023-03-05 07:04:00" data-sort-last-date="2025-06-10 03:45:00"><td><a data-conversation-file="Jordan_Lee.html" href="Jordan_Lee.html">Jordan Lee</a></td><td class="participants">—</td><td><span class="filtered-message-count">9</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2023-03-05 07:04:00</span></td><td><span class="filtered-last-date">2025-06-10 03:45:00</span></td></tr>
+      <tr class="conv-item" data-name="maya chen " data-search-index="3" data-sort-name="maya chen" data-sort-participants="" data-sort-messages="10" data-sort-attachments="0" data-sort-first-date="2022-02-14 03:20:00" data-sort-last-date="2025-11-03 13:44:00"><td><a data-conversation-file="Maya_Chen.html" href="Maya_Chen.html">Maya Chen</a></td><td class="participants">—</td><td><span class="filtered-message-count">10</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-02-14 03:20:00</span></td><td><span class="filtered-last-date">2025-11-03 13:44:00</span></td></tr>
+      <tr class="conv-item" data-name="noah brooks " data-search-index="4" data-sort-name="noah brooks" data-sort-participants="" data-sort-messages="8" data-sort-attachments="0" data-sort-first-date="2022-12-19 02:35:00" data-sort-last-date="2025-02-21 14:45:00"><td><a data-conversation-file="Noah_Brooks.html" href="Noah_Brooks.html">Noah Brooks</a></td><td class="participants">—</td><td><span class="filtered-message-count">8</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-12-19 02:35:00</span></td><td><span class="filtered-last-date">2025-02-21 14:45:00</span></td></tr>
+      <tr class="conv-item" data-name="priya shah " data-search-index="5" data-sort-name="priya shah" data-sort-participants="" data-sort-messages="8" data-sort-attachments="0" data-sort-first-date="2022-06-10 07:45:00" data-sort-last-date="2025-01-28 04:10:00"><td><a data-conversation-file="Priya_Shah.html" href="Priya_Shah.html">Priya Shah</a></td><td class="participants">—</td><td><span class="filtered-message-count">8</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-06-10 07:45:00</span></td><td><span class="filtered-last-date">2025-01-28 04:10:00</span></td></tr>
+      <tr class="conv-item" data-name="sofia reyes " data-search-index="6" data-sort-name="sofia reyes" data-sort-participants="" data-sort-messages="8" data-sort-attachments="0" data-sort-first-date="2022-06-10 06:22:00" data-sort-last-date="2025-03-14 08:25:00"><td><a data-conversation-file="Sofia_Reyes.html" href="Sofia_Reyes.html">Sofia Reyes</a></td><td class="participants">—</td><td><span class="filtered-message-count">8</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-06-10 06:22:00</span></td><td><span class="filtered-last-date">2025-03-14 08:25:00</span></td></tr>
+      <tr class="conv-item" data-name="weekend crew jordan lee, maya chen, me, sam rivera" data-search-index="7" data-sort-name="weekend crew" data-sort-participants="jordan lee, maya chen, me, sam rivera" data-sort-messages="8" data-sort-attachments="0" data-sort-first-date="2023-05-06 09:00:00" data-sort-last-date="2025-08-16 12:48:00"><td><a data-conversation-file="Weekend_Crew.html" href="Weekend_Crew.html">Weekend Crew</a></td><td class="participants">Jordan Lee, Maya Chen, Me, Sam Rivera</td><td><span class="filtered-message-count">8</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2023-05-06 09:00:00</span></td><td><span class="filtered-last-date">2025-08-16 12:48:00</span></td></tr>
+    </tbody></table></div>
+    <script id="searchMessageData" type="application/json">
+[[["happy birthday, ava! hope the garden party is sunny.","2022-04-02","10:12",0],["it is perfect weather. come by around 4!","2022-04-02","10:26",0],["happy birthday! sending lots of good wishes.","2023-06-10","06:14",0],["thanks, ava. this made my morning.","2023-06-10","06:40",0],["happy birthday! hope this year brings new adventures.","2024-04-02","05:00",0],["thank you! let us catch up next week.","2024-04-02","05:22",0],["happy birthday! hope you have a lovely day.","2025-06-10","04:35",0],["i tried that book you recommended. loved it.","2025-08-19","13:05",0],["i knew you would! the sequel is even better.","2025-08-19","13:16",0]],[["happy birthday! your next book pick is on us.","2022-06-10","08:20",0],["have the best day!","2022-06-10","08:29",0],["you are all wonderful. thank you!","2022-06-10","08:40",0],["i finished the mystery. the ending surprised me.","2023-02-11","13:02",0],["same here. let us discuss it at the next meetup.","2023-02-11","13:20",0],["happy birthday! we picked a celebratory read for you.","2024-06-10","07:15",0],["thank you! i am excited to read it.","2024-06-10","07:24",0],["next meeting is thursday at 7.","2025-09-03","16:10",0],["added it to my calendar.","2025-09-03","16:17",0]],[["i found a great trail for saturday.","2023-03-05","07:04",0],["count me in. i will bring snacks.","2023-03-05","07:20",0],["happy birthday, jordan! have the best day!","2023-09-22","05:30",0],["thanks! you remembered.","2023-09-22","06:01",0],["happy birthday! wishing you a fantastic year ahead.","2024-06-10","03:45",0],["thank you! let us plan a hike soon.","2024-06-10","04:03",0],["how was the winter market?","2025-01-12","11:10",0],["really fun. i found a handmade mug for you.","2025-01-12","11:32",0],["happy birthday!! wishing you a fantastic year ahead.","2025-06-10","03:45",0]],[["good luck with your first day at the new studio!","2022-02-14","03:20",0],["thanks! i will send you a photo of the mural later.","2022-02-14","03:41",0],["happy birthday! hope you get to relax today.","2023-06-10","05:02",0],["thanks, maya. brunch this weekend?","2023-06-10","05:20",0],["hey maya, are we still on for coffee?","2024-05-18","05:15",0],["absolutely! see you at 10.","2024-05-18","05:18",0],["happy birthday! hope your day is wonderful.","2025-06-10","04:02",0],["thank you! dinner soon?","2025-06-10","04:15",0],["the new cafe was great. we should go back.","2025-11-03","13:30",0],["agreed. next time i am trying the lemon cake.","2025-11-03","13:44",0]],[["happy birthday! hope the new year is your best one yet.","2022-12-19","02:35",0],["thanks, noah! coffee next week?","2022-12-19","03:02",0],["happy birthday, noah. enjoy the long weekend!","2023-07-04","07:30",0],["thanks! we are having a picnic at the park.","2023-07-04","08:08",0],["happy birthday! hope you get to celebrate.","2024-12-19","03:05",0],["thank you! keeping it low-key this year.","2024-12-19","03:32",0],["the concert tickets are booked.","2025-02-21","14:20",0],["excellent. i will make a playlist for the drive.","2025-02-21","14:45",0]],[["happy birthday! hope today is full of little surprises.","2022-06-10","07:45",0],["it has been lovely so far. thank you!","2022-06-10","08:02",0],["happy birthday, priya! sending a big hug.","2023-01-28","04:30",0],["thank you! brunch soon would be wonderful.","2023-01-28","05:05",0],["happy birthday! make sure you save room for cake.","2024-06-10","03:12",0],["i would never skip cake. thanks, priya!","2024-06-10","03:48",0],["happy birthday! hope your day is fantastic.","2025-01-28","03:45",0],["thanks! i am taking the day off and going for a walk.","2025-01-28","04:10",0]],[["happy birthday! saving you a seat at dinner.","2022-06-10","06:22",0],["thank you, sofia. i will be there.","2022-06-10","06:50",0],["happy birthday, sofia! hope you have a wonderful weekend.","2023-10-07","11:12",0],["thanks! we are celebrating at the little tapas place.","2023-10-07","11:37",0],["happy birthday! wishing you a bright and joyful year.","2024-06-10","04:10",0],["that is so kind. thank you!","2024-06-10","04:31",0],["your travel photos look amazing.","2025-03-14","08:02",0],["the coast was beautiful. i will share the itinerary.","2025-03-14","08:25",0]],[["anyone up for a picnic next weekend?","2023-05-06","09:00",0],["i can bring lemonade.","2023-05-06","09:17",0],["i will bring sandwiches.","2023-05-06","09:24",0],["happy birthday! we saved you a slice of cake.","2024-06-10","05:00",0],["hope your day is full of fun!","2024-06-10","05:06",0],["thank you all! see you tonight.","2024-06-10","05:10",0],["the cabin is booked for the first weekend in october.","2025-08-16","12:35",0],["perfect. i will bring board games.","2025-08-16","12:48",0]]]
+    </script>
+    <script>
+      const searchInput = document.getElementById("searchInput");
+      const messageSearchInput = document.getElementById("messageSearchInput");
+      const dateFromInput = document.getElementById("dateFromInput");
+      const dateToInput = document.getElementById("dateToInput");
+      const timeFromInput = document.getElementById("timeFromInput");
+      const timeToInput = document.getElementById("timeToInput");
+      const conversationList = document.getElementById("conversationList");
+      const conversationItems = conversationList.querySelectorAll(".conv-item");
+      const searchMessages = JSON.parse(document.getElementById("searchMessageData").textContent);
+      const randomDayButton = document.getElementById("randomDayButton");
+      const randomDayStatus = document.getElementById("randomDayStatus");
+      const availableDates = new Set();
+      searchMessages.forEach(function(messages) {
+        messages.forEach(function(message) { if (message[1]) availableDates.add(message[1]); });
+      });
+      randomDayButton.disabled = availableDates.size === 0;
+      const resultCount = document.getElementById("resultCount");
+      const totalConversations = conversationItems.length;
+      const pageQuery = new URLSearchParams(window.location.search);
+      const searchFields = {
+        name: searchInput, text: messageSearchInput, dateFrom: dateFromInput, dateTo: dateToInput,
+        timeFrom: timeFromInput, timeTo: timeToInput
+      };
+      if (pageQuery.has("date")) {
+        dateFromInput.value = pageQuery.get("date");
+        dateToInput.value = pageQuery.get("date");
+      }
+      Object.keys(searchFields).forEach(function(key) {
+        if (pageQuery.has(key)) searchFields[key].value = pageQuery.get(key);
+      });
+      const sortButtons = document.querySelectorAll("th button[data-sort-key]");
+      let activeSortKey = "";
+      let sortAscending = true;
+      
+      sortButtons.forEach(function(button) {
+        button.addEventListener("click", function() {
+          const sortKey = this.getAttribute("data-sort-key");
+          if (activeSortKey === sortKey) {
+            sortAscending = !sortAscending;
+          } else {
+            activeSortKey = sortKey;
+            sortAscending = true;
+          }
+          sortButtons.forEach(function(sortButton) {
+            const isActive = sortButton === button;
+            sortButton.setAttribute("aria-sort", isActive ? (sortAscending ? "ascending" : "descending") : "none");
+            sortButton.querySelector(".sort-indicator").textContent = isActive ? (sortAscending ? "▲" : "▼") : "";
+          });
+          const sortAttribute = "data-sort-" + sortKey;
+          const sortedItems = Array.from(conversationItems).sort(function(left, right) {
+            const leftValue = left.getAttribute(sortAttribute) || "";
+            const rightValue = right.getAttribute(sortAttribute) || "";
+            let comparison;
+            if (sortKey === "messages" || sortKey === "attachments") {
+              comparison = Number(leftValue) - Number(rightValue);
+            } else {
+              comparison = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: "base" });
+            }
+            return (sortAscending ? comparison : -comparison) ||
+              left.getAttribute("data-sort-name").localeCompare(right.getAttribute("data-sort-name"));
+          });
+          sortedItems.forEach(function(item) { conversationList.appendChild(item); });
+        });
+      });
+      
+      function filterConversations() {
+        const searchTerm = searchInput.value.toLocaleLowerCase().trim();
+        const messageTerm = messageSearchInput.value.toLocaleLowerCase().trim();
+        const dateFrom = dateFromInput.value;
+        const dateTo = dateToInput.value;
+        const timeFrom = timeFromInput.value;
+        const timeTo = timeToInput.value;
+        const messageFiltersActive = Boolean(messageTerm || dateFrom || dateTo || timeFrom || timeTo);
+        let visibleCount = 0;
+        
+        conversationItems.forEach(function(item) {
+          const nameMatches = !searchTerm || item.getAttribute("data-name").includes(searchTerm);
+          const messages = searchMessages[Number(item.getAttribute("data-search-index"))] || [];
+          const matchingMessages = messages.filter(function(message) {
+            return (!messageTerm || message[0].includes(messageTerm)) &&
+              (!dateFrom || message[1] >= dateFrom) && (!dateTo || message[1] <= dateTo) &&
+              (!timeFrom || message[2] >= timeFrom) && (!timeTo || message[2] <= timeTo);
+          });
+          const messageMatches = !messageFiltersActive || matchingMessages.length > 0;
+          const filteredAttachments = matchingMessages.reduce(function(total, message) {
+            return total + Number(message[3] || 0);
+          }, 0);
+          const matchingDates = matchingMessages.map(function(message) {
+            return message[1];
+          }).filter(Boolean).sort();
+          item.querySelector(".filtered-message-count").textContent = matchingMessages.length.toLocaleString();
+          item.querySelector(".filtered-attachment-count").textContent = filteredAttachments.toLocaleString();
+          item.querySelector(".filtered-first-date").textContent = matchingDates.length ? matchingDates[0] : "—";
+          item.querySelector(".filtered-last-date").textContent = matchingDates.length ? matchingDates[matchingDates.length - 1] : "—";
+          item.setAttribute("data-sort-messages", matchingMessages.length);
+          item.setAttribute("data-sort-attachments", filteredAttachments);
+          item.setAttribute("data-sort-first-date", matchingDates.length ? matchingDates[0] : "");
+          item.setAttribute("data-sort-last-date", matchingDates.length ? matchingDates[matchingDates.length - 1] : "");
+          if (nameMatches && messageMatches) {
+            item.classList.remove("hidden");
+            visibleCount++;
+          } else {
+            item.classList.add("hidden");
+          }
+        });
+        
+        if (!searchTerm && !messageFiltersActive) {
+          resultCount.textContent = "Showing all";
+        } else {
+          resultCount.textContent = "Showing " + visibleCount + " of " + totalConversations;
+        }
+        const activeFilters = new URLSearchParams();
+        Object.keys(searchFields).forEach(function(key) {
+          const value = searchFields[key].value.trim();
+          if (value) activeFilters.set(key, value);
+        });
+        conversationItems.forEach(function(item) {
+          const link = item.querySelector("a[data-conversation-file]");
+          const query = activeFilters.toString();
+          link.href = link.dataset.conversationFile + (query ? "?" + query : "");
+        });
+      }
+      randomDayButton.addEventListener("click", function() {
+        const dates = Array.from(availableDates);
+        if (!dates.length) return;
+        const randomDate = dates[Math.floor(Math.random() * dates.length)];
+        searchInput.value = "";
+        messageSearchInput.value = "";
+        dateFromInput.value = randomDate;
+        dateToInput.value = randomDate;
+        timeFromInput.value = "";
+        timeToInput.value = "";
+        filterConversations();
+        randomDayStatus.textContent = "Showing conversations from " + randomDate;
+      });
+      [searchInput, messageSearchInput, dateFromInput, dateToInput, timeFromInput, timeToInput].forEach(function(input) {
+        function handleFilterChange() {
+          randomDayStatus.textContent = "";
+          filterConversations();
+        }
+        input.addEventListener("input", handleFilterChange);
+        input.addEventListener("change", handleFilterChange);
+      });
+      window.addEventListener("pageshow", function() { filterConversations(); });
+      filterConversations();
+    </script>
+  </div>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Call history</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; color: #172033; }
+    .wrapper { width: calc(100% - 48px); max-width: 1200px; margin: 0 auto; padding: 28px 0 48px; }
+    .site-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #fff; }
+    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }
+    .page-header { padding: clamp(24px, 4vw, 42px); margin-bottom: 20px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }
+    .page-header p { margin: 10px 0 0; color: #e0f2fe; }
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .stat-card { padding: 18px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }
+    .stat-card h2 { margin: 0 0 12px; color: #475569; font-size: 14px; }
+    .stat-value { margin: 0; color: #102a56; font-size: 30px; font-weight: 700; }
+    .stat-note { margin: 5px 0 0; color: #64748b; font-size: 12px; }
+    .top-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .top-list li { display: flex; justify-content: space-between; gap: 10px; color: #334155; font-size: 13px; }
+    .top-list strong { white-space: nowrap; }
+    .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+    .filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }
+    .filters input { box-sizing: border-box; width: 100%; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+    .call-count { color: #64748b; font-size: 13px; margin: 8px 2px; }
+    .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f1f5f9; color: #475569; font-size: 13px; white-space: nowrap; }
+    td { color: #334155; font-size: 14px; }
+    tr:last-child td { border-bottom: 0; }
+    tr.filtered-out { display: none; }
+    .empty-state { padding: 22px; color: #64748b; }
+    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } th, td { padding: 9px 7px; font-size: 12px; } }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>
+    <header class="page-header">
+      <h1>Call history</h1>
+      <p>5 calls • Times shown in America/New_York. Call data is included only when present in an extracted backup.</p>
+    </header>
+    <section class="stats" aria-label="Call statistics">
+      <article class="stat-card"><h2>Incoming calls</h2>
+        <p class="stat-value">2</p>
+        <p class="stat-note">Includes missed incoming calls</p></article>
+      <article class="stat-card"><h2>Outgoing calls</h2>
+        <p class="stat-value">3</p></article>
+      <article class="stat-card"><h2>Top 5 by number of calls</h2>
+        <ol class="top-list">
+<li><span>Ava Patel</span><strong>1 call</strong></li>
+<li><span>Jordan Lee</span><strong>1 call</strong></li>
+<li><span>Maya Chen</span><strong>1 call</strong></li>
+<li><span>Noah Brooks</span><strong>1 call</strong></li>
+<li><span>Sofia Reyes</span><strong>1 call</strong></li>
+        </ol>
+      </article><article class="stat-card"><h2>Top 5 by call duration</h2>
+        <ol class="top-list">
+<li><span>Ava Patel</span><strong>8:32</strong></li>
+<li><span>Maya Chen</span><strong>4:05</strong></li>
+<li><span>Sofia Reyes</span><strong>3:03</strong></li>
+<li><span>Jordan Lee</span><strong>1:38</strong></li>
+<li><span>Noah Brooks</span><strong>1:16</strong></li>
+        </ol>
+      </article>
+    </section>
+    <section class="filters" aria-label="Filter call history">
+      <label>Search contact or number<input id="callSearch" type="search" placeholder="Name or number"></label>
+      <label>From date<input id="callDateFrom" type="date"></label>
+      <label>To date<input id="callDateTo" type="date"></label>
+      <label>From time<input id="callTimeFrom" type="time"></label>
+      <label>To time<input id="callTimeTo" type="time"></label>
+    </section>
+    <div id="callCount" class="call-count" aria-live="polite">Showing 5 calls</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date and time</th><th>Contact</th><th>Number</th><th>Direction</th><th>Duration</th></tr></thead>
+      <tbody id="callList">
+        <tr class="call-row" data-search="maya chen 5550100101" data-date="2025-06-10" data-time="07:30"><td>2025-06-10 07:30</td><td>Maya Chen</td><td>5550100101</td><td>Outgoing</td><td>4:05</td></tr>
+        <tr class="call-row" data-search="jordan lee 5550100102" data-date="2025-06-11" data-time="10:05"><td>2025-06-11 10:05</td><td>Jordan Lee</td><td>5550100102</td><td>Incoming</td><td>1:38</td></tr>
+        <tr class="call-row" data-search="ava patel 5550100103" data-date="2025-08-19" data-time="14:20"><td>2025-08-19 14:20</td><td>Ava Patel</td><td>5550100103</td><td>Outgoing</td><td>8:32</td></tr>
+        <tr class="call-row" data-search="noah brooks 5550100104" data-date="2025-02-21" data-time="15:02"><td>2025-02-21 15:02</td><td>Noah Brooks</td><td>5550100104</td><td>Incoming</td><td>1:16</td></tr>
+        <tr class="call-row" data-search="sofia reyes 5550100105" data-date="2025-03-14" data-time="09:00"><td>2025-03-14 09:00</td><td>Sofia Reyes</td><td>5550100105</td><td>Outgoing</td><td>3:03</td></tr>
+      </tbody></table></div>
+    <script>
+      const callRows = Array.from(document.querySelectorAll(".call-row"));
+      const callSearch = document.getElementById("callSearch");
+      const callFilters = ["callDateFrom", "callDateTo", "callTimeFrom", "callTimeTo"].map(function(id) { return document.getElementById(id); });
+      const callCount = document.getElementById("callCount");
+      function filterCalls() {
+        const query = callSearch.value.trim().toLocaleLowerCase();
+        let visible = 0;
+        callRows.forEach(function(row) {
+          const date = row.dataset.date;
+          const time = row.dataset.time;
+          const matches = row.dataset.search.includes(query)
+            && (!callFilters[0].value || date >= callFilters[0].value)
+            && (!callFilters[1].value || date <= callFilters[1].value)
+            && (!callFilters[2].value || time >= callFilters[2].value)
+            && (!callFilters[3].value || time <= callFilters[3].value);
+          row.classList.toggle("filtered-out", !matches);
+          if (matches) visible += 1;
+        });
+        callCount.textContent = "Showing " + visible.toLocaleString() + " of " + callRows.length.toLocaleString() + " calls";
+      }
+      [callSearch].concat(callFilters).forEach(function(input) { input.addEventListener("input", filterCalls); input.addEventListener("change", filterCalls); });
+    </script>
+  </div>
+</body>
+</html>

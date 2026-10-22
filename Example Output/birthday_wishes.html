@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Birthday wishes</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; color: #172033; }
+    .wrapper { width: calc(100% - 48px); max-width: 1100px; margin: 0 auto; padding: 28px 0 48px; }
+    .site-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #fff; }
+    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }
+    .page-header { padding: clamp(24px, 4vw, 42px); margin-bottom: 20px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }
+    .page-header p { margin: 10px 0 0; color: #e0f2fe; line-height: 1.5; }
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); }
+    .birthday-search { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-bottom: 14px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+    .birthday-search label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }
+    .birthday-search input, .birthday-search button { padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+    .birthday-search button { border: 0; color: #fff; background: #2563eb; font-weight: 600; cursor: pointer; }
+    .results-count { margin: 10px 2px; color: #64748b; font-size: 14px; }
+    .wish-list { display: grid; gap: 12px; }
+    .wish-card { padding: 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }
+    .wish-card summary { color: #102a56; font-size: 18px; font-weight: 700; cursor: pointer; }
+    .wish-card[open] summary { margin-bottom: 8px; }
+    .wish-card p { margin: 7px 0; line-height: 1.5; overflow-wrap: anywhere; }
+    .wish-meta { color: #64748b; font-size: 13px; }
+    .wish-card a { color: #2563eb; font-weight: 600; text-decoration: none; }
+    .wish-card a:hover { text-decoration: underline; }
+    .empty-state { padding: 22px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #64748b; }
+    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>
+    <header class="page-header">
+      <h1>Who wished you a happy birthday?</h1>
+      <p>Enter your birthday to find incoming “Happy Birthday” messages on that month and day across all years. Searches all direct and group conversations; group wishes are attributed to the sender shown in the message. Dates use America/New_York.</p>
+    </header>
+    <form id="birthdaySearch" class="birthday-search">
+      <label>Your birthday<input id="birthdayDate" type="date" required></label>
+      <button type="submit">Find birthday wishes</button>
+    </form>
+    <div id="resultsCount" class="results-count" aria-live="polite">Choose your birthday to search the archive.</div>
+    <main id="wishList" class="wish-list"></main>
+    <p id="emptyState" class="empty-state" hidden>No matching incoming birthday wishes were found for that month and day.</p>
+    <script id="birthdayWishData" type="application/json">
+[["Ava Patel","Book_Club","2022-06-10","Happy birthday! Your next book pick is on us.","Book Club"],["Priya Shah","Priya_Shah","2022-06-10","Happy birthday! Hope today is full of little surprises.","Priya Shah"],["Sofia Reyes","Sofia_Reyes","2022-06-10","Happy birthday! Saving you a seat at dinner.","Sofia Reyes"],["Noah Brooks","Noah_Brooks","2022-12-19","Happy birthday! Hope the new year is your best one yet.","Noah Brooks"],["Ava Patel","Ava_Patel","2023-06-10","Happy birthday! Sending lots of good wishes.","Ava Patel"],["Maya Chen","Maya_Chen","2023-06-10","Happy birthday! Hope you get to relax today.","Maya Chen"],["Jordan Lee","Jordan_Lee","2024-06-10","Happy birthday! Wishing you a fantastic year ahead.","Jordan Lee"],["Priya Shah","Book_Club","2024-06-10","Happy birthday! We picked a celebratory read for you.","Book Club"],["Priya Shah","Priya_Shah","2024-06-10","Happy birthday! Make sure you save room for cake.","Priya Shah"],["Sam Rivera","Weekend_Crew","2024-06-10","Happy birthday! We saved you a slice of cake.","Weekend Crew"],["Sofia Reyes","Sofia_Reyes","2024-06-10","Happy birthday! Wishing you a bright and joyful year.","Sofia Reyes"],["Noah Brooks","Noah_Brooks","2024-12-19","Happy birthday! Hope you get to celebrate.","Noah Brooks"],["Ava Patel","Ava_Patel","2025-06-10","Happy birthday! Hope you have a lovely day.","Ava Patel"],["Jordan Lee","Jordan_Lee","2025-06-10","Happy birthday!! Wishing you a fantastic year ahead.","Jordan Lee"],["Maya Chen","Maya_Chen","2025-06-10","Happy birthday! Hope your day is wonderful.","Maya Chen"]]
+    </script>
+    <script>
+      const birthdayWishes = JSON.parse(document.getElementById("birthdayWishData").textContent);
+      const birthdayForm = document.getElementById("birthdaySearch");
+      const birthdayDateInput = document.getElementById("birthdayDate");
+      const wishList = document.getElementById("wishList");
+      const resultsCount = document.getElementById("resultsCount");
+      const emptyState = document.getElementById("emptyState");
+      function showBirthdayWishes(value) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
+        const monthDay = value.slice(5);
+        const matches = birthdayWishes.filter(function(wish) { return wish[2].slice(5) === monthDay; });
+        wishList.replaceChildren();
+        const bySender = new Map();
+        matches.forEach(function(wish) {
+          if (!bySender.has(wish[0])) bySender.set(wish[0], []);
+          bySender.get(wish[0]).push(wish);
+        });
+        bySender.forEach(function(senderWishes, sender) {
+          const card = document.createElement("details");
+          card.className = "wish-card";
+          const heading = document.createElement("summary");
+          heading.textContent = sender + " (" + senderWishes.length + " wishes)";
+          card.appendChild(heading);
+          senderWishes.forEach(function(wish) {
+            const detail = document.createElement("p");
+            detail.className = "wish-meta";
+            detail.textContent = wish[2] + " · " + wish[4];
+            card.appendChild(detail);
+            const quote = document.createElement("p");
+            quote.textContent = wish[3];
+            card.appendChild(quote);
+            const link = document.createElement("a");
+            const query = new URLSearchParams({ dateFrom: wish[2], dateTo: wish[2] });
+            link.href = encodeURIComponent(wish[1]) + ".html?" + query.toString();
+            link.textContent = "Open conversation";
+            card.appendChild(link);
+          });
+          wishList.appendChild(card);
+        });
+        resultsCount.textContent = "Found " + matches.length + " message(s) from " + bySender.size + " sender(s) across " + (new Set(matches.map(function(wish) { return wish[2].slice(0, 4); }))).size + " year(s).";
+        emptyState.hidden = matches.length > 0;
+      }
+      birthdayForm.addEventListener("submit", function(event) {
+        event.preventDefault();
+        showBirthdayWishes(birthdayDateInput.value);
+      });
+    </script>
+  </div>
+</body>
+</html>

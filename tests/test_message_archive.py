@@ -201,6 +201,7 @@ class MessageArchiveTests(unittest.TestCase):
         self.assertEqual(count, 1)
         self.assertTrue(os.path.isfile(os.path.join(self.output_dir, 'Alex.html')))
         self.assertTrue(os.path.isfile(os.path.join(self.output_dir, 'birthdays.html')))
+        self.assertTrue(os.path.isfile(os.path.join(self.output_dir, 'birthday_wishes.html')))
         with open(os.path.join(self.output_dir, 'Alex.html'), encoding='utf-8') as conversation:
             self.assertIn('2025-01-01 05:00:00', conversation.read())
 

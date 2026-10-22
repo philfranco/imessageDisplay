@@ -91,7 +91,7 @@ def build_html(
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a id="backToSearch" href="search.html">← Back to search</a><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a id="backToSearch" href="search.html">← Back to search</a><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         f'      <p class="eyebrow">iMessage conversation • {html.escape(time_zone)}</p>',
         f'      <h1>{html.escape(conversation_name)}</h1>',
@@ -460,7 +460,7 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Your conversations</h1>',
@@ -570,7 +570,7 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Find a conversation</h1>',
@@ -820,7 +820,8 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
     """Create a calendar of birthday dates inferred from outgoing direct messages."""
     page_path = os.path.join(output_dir, 'birthdays.html')
     birthday_evidence = defaultdict(dict)
-    birthday_phrase = re.compile(r'\bhappy\s+birthday\b', re.IGNORECASE)
+    birthday_phrase = re.compile(r'.*\bhappy\s+birthday\b.*', re.IGNORECASE | re.DOTALL)
+    quoted_text = re.compile(r'"(?:\\.|[^"\\])*"|“[^”]*”')
 
     for display_name, filename, messages in conversations:
         for message in messages:
@@ -830,7 +831,9 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
                 or not isinstance(chat_id, (tuple, list))
                 or not chat_id
                 or chat_id[0] not in ('phone', 'address')
-                or not birthday_phrase.search(str(message.get('text') or ''))
+                or not birthday_phrase.search(
+                    quoted_text.sub('', str(message.get('text') or ''))
+                )
             ):
                 continue
 
@@ -907,7 +910,7 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <h1>Birthday calendar</h1>',
         f'      <p>{total_candidates:,} inferred date(s) for {len(unique_contacts):,} contact(s). Dates are inferred from outgoing “Happy Birthday” messages and may not be the actual birthday. Conflicting dates are shown separately; the number indicates supporting messages. Times and dates use {html.escape(time_zone)}.</p>',
@@ -965,6 +968,155 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         content.append('    </main>')
 
     content.extend(['  </div>', '</body>', '</html>'])
+    with open(page_path, 'w', encoding='utf-8') as page:
+        page.write('\n'.join(content))
+    return page_path
+
+
+def build_birthday_wishes(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
+    """Create a page for finding incoming birthday wishes by month and day."""
+    page_path = os.path.join(output_dir, 'birthday_wishes.html')
+    birthday_phrase = re.compile(r'.*\bhappy\s+birthday\b.*', re.IGNORECASE | re.DOTALL)
+    quoted_text = re.compile(r'"(?:\\.|[^"\\])*"|“[^”]*”')
+    wishes = []
+
+    for conversation_name, filename, messages in conversations:
+        for message in messages:
+            chat_id = message.get('chat_id')
+            text = str(message.get('text') or '')
+            if (
+                message.get('is_from_me')
+                or not isinstance(chat_id, (tuple, list))
+                or not chat_id
+                or chat_id[0] not in ('phone', 'address', 'group')
+                or not birthday_phrase.search(quoted_text.sub('', text))
+            ):
+                continue
+
+            local_date, _ = _split_message_datetime(
+                localize_message_datetime(message.get('date'), time_zone)
+            )
+            try:
+                date.fromisoformat(local_date)
+            except ValueError:
+                continue
+
+            wishes.append([
+                str(message.get('sender') or 'Unknown'),
+                filename,
+                local_date,
+                text,
+                conversation_name,
+            ])
+
+    wishes.sort(key=lambda wish: (wish[2], wish[0].casefold(), wish[1]))
+    serialized_wishes = json.dumps(wishes, ensure_ascii=False, separators=(',', ':'))
+    serialized_wishes = (
+        serialized_wishes.replace('&', '\\u0026')
+        .replace('<', '\\u003c')
+        .replace('>', '\\u003e')
+    )
+    content = [
+        '<!DOCTYPE html>',
+        '<html lang="en">',
+        '<head>',
+        '  <meta charset="UTF-8">',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+        '  <title>Birthday wishes</title>',
+        '  <style>',
+        '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; color: #172033; }',
+        '    .wrapper { width: calc(100% - 48px); max-width: 1100px; margin: 0 auto; padding: 28px 0 48px; }',
+        '    .site-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }',
+        '    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #fff; }',
+        '    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }',
+        '    .page-header { padding: clamp(24px, 4vw, 42px); margin-bottom: 20px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }',
+        '    .page-header p { margin: 10px 0 0; color: #e0f2fe; line-height: 1.5; }',
+        '    h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); }',
+        '    .birthday-search { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-bottom: 14px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }',
+        '    .birthday-search label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }',
+        '    .birthday-search input, .birthday-search button { padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }',
+        '    .birthday-search button { border: 0; color: #fff; background: #2563eb; font-weight: 600; cursor: pointer; }',
+        '    .results-count { margin: 10px 2px; color: #64748b; font-size: 14px; }',
+        '    .wish-list { display: grid; gap: 12px; }',
+        '    .wish-card { padding: 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }',
+        '    .wish-card summary { color: #102a56; font-size: 18px; font-weight: 700; cursor: pointer; }',
+        '    .wish-card[open] summary { margin-bottom: 8px; }',
+        '    .wish-card p { margin: 7px 0; line-height: 1.5; overflow-wrap: anywhere; }',
+        '    .wish-meta { color: #64748b; font-size: 13px; }',
+        '    .wish-card a { color: #2563eb; font-weight: 600; text-decoration: none; }',
+        '    .wish-card a:hover { text-decoration: underline; }',
+        '    .empty-state { padding: 22px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #64748b; }',
+        '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } }',
+        '  </style>',
+        '</head>',
+        '<body>',
+        '  <div class="wrapper">',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
+        '    <header class="page-header">',
+        '      <h1>Who wished you a happy birthday?</h1>',
+        f'      <p>Enter your birthday to find incoming “Happy Birthday” messages on that month and day across all years. Searches all direct and group conversations; group wishes are attributed to the sender shown in the message. Dates use {html.escape(time_zone)}.</p>',
+        '    </header>',
+        '    <form id="birthdaySearch" class="birthday-search">',
+        '      <label>Your birthday<input id="birthdayDate" type="date" required></label>',
+        '      <button type="submit">Find birthday wishes</button>',
+        '    </form>',
+        '    <div id="resultsCount" class="results-count" aria-live="polite">Choose your birthday to search the archive.</div>',
+        '    <main id="wishList" class="wish-list"></main>',
+        '    <p id="emptyState" class="empty-state" hidden>No matching incoming birthday wishes were found for that month and day.</p>',
+        '    <script id="birthdayWishData" type="application/json">',
+        serialized_wishes,
+        '    </script>',
+        '    <script>',
+        '      const birthdayWishes = JSON.parse(document.getElementById("birthdayWishData").textContent);',
+        '      const birthdayForm = document.getElementById("birthdaySearch");',
+        '      const birthdayDateInput = document.getElementById("birthdayDate");',
+        '      const wishList = document.getElementById("wishList");',
+        '      const resultsCount = document.getElementById("resultsCount");',
+        '      const emptyState = document.getElementById("emptyState");',
+        '      function showBirthdayWishes(value) {',
+        '        if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return;',
+        '        const monthDay = value.slice(5);',
+        '        const matches = birthdayWishes.filter(function(wish) { return wish[2].slice(5) === monthDay; });',
+        '        wishList.replaceChildren();',
+        '        const bySender = new Map();',
+        '        matches.forEach(function(wish) {',
+        '          if (!bySender.has(wish[0])) bySender.set(wish[0], []);',
+        '          bySender.get(wish[0]).push(wish);',
+        '        });',
+        '        bySender.forEach(function(senderWishes, sender) {',
+        '          const card = document.createElement("details");',
+        '          card.className = "wish-card";',
+        '          const heading = document.createElement("summary");',
+        '          heading.textContent = sender + " (" + senderWishes.length + " wishes)";',
+        '          card.appendChild(heading);',
+        '          senderWishes.forEach(function(wish) {',
+        '            const detail = document.createElement("p");',
+        '            detail.className = "wish-meta";',
+        '            detail.textContent = wish[2] + " · " + wish[4];',
+        '            card.appendChild(detail);',
+        '            const quote = document.createElement("p");',
+        '            quote.textContent = wish[3];',
+        '            card.appendChild(quote);',
+        '            const link = document.createElement("a");',
+        '            const query = new URLSearchParams({ dateFrom: wish[2], dateTo: wish[2] });',
+        '            link.href = encodeURIComponent(wish[1]) + ".html?" + query.toString();',
+        '            link.textContent = "Open conversation";',
+        '            card.appendChild(link);',
+        '          });',
+        '          wishList.appendChild(card);',
+        '        });',
+        '        resultsCount.textContent = "Found " + matches.length + " message(s) from " + bySender.size + " sender(s) across " + (new Set(matches.map(function(wish) { return wish[2].slice(0, 4); }))).size + " year(s).";',
+        '        emptyState.hidden = matches.length > 0;',
+        '      }',
+        '      birthdayForm.addEventListener("submit", function(event) {',
+        '        event.preventDefault();',
+        '        showBirthdayWishes(birthdayDateInput.value);',
+        '      });',
+        '    </script>',
+        '  </div>',
+        '</body>',
+        '</html>',
+    ]
     with open(page_path, 'w', encoding='utf-8') as page:
         page.write('\n'.join(content))
     return page_path
@@ -1052,7 +1204,7 @@ def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <h1>Call history</h1>',
         f'      <p>{len(calls):,} calls • Times shown in {html.escape(time_zone)}. Call data is included only when present in an extracted backup.</p>',

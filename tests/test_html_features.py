@@ -6,6 +6,7 @@ from pathlib import Path
 
 from html_pages import (
     build_birthdays,
+    build_birthday_wishes,
     build_html,
     build_index,
     build_search_index,
@@ -232,10 +233,28 @@ class HtmlFeatureTests(unittest.TestCase):
                     'is_from_me': True,
                 },
                 {
+                    **self.messages[2],
+                    'text': "Loved “Happy birthday to you and many many many more. I can't wait to celebrate.”",
+                    'date': '2026-07-12 10:00:00',
+                    'is_from_me': True,
+                },
+                {
                     **self.messages[1],
                     'text': 'Happy Birthday to you',
                     'date': '2025-08-01 10:00:00',
                     'is_from_me': False,
+                },
+                {
+                    **self.messages[0],
+                    'text': 'Liked "Happy Birthday"',
+                    'date': '2025-09-01 10:00:00',
+                    'is_from_me': True,
+                },
+                {
+                    **self.messages[0],
+                    'text': 'I sent "Happy Birthday" last year',
+                    'date': '2025-10-01 10:00:00',
+                    'is_from_me': True,
                 },
             ]),
             ('Group chat', 'Group_chat', [{
@@ -274,6 +293,65 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('@media (max-width: 1000px)', content)
         self.assertIn('@media (max-width: 640px)', content)
         self.assertNotIn('href="Group_chat.html"', content)
+
+    def test_birthday_wishes_searches_incoming_direct_and_group_messages(self):
+        conversations = [
+            ('Alex', 'Alex', [
+                {
+                    **self.messages[1],
+                    'text': 'Happy birthday to you and many many many more!',
+                    'date': '2022-06-10 10:00:00',
+                    'sender': 'Alex Contact',
+                    'is_from_me': False,
+                },
+                {
+                    **self.messages[1],
+                    'text': 'Happy Birthday!',
+                    'date': '2024-06-10 10:00:00',
+                    'sender': 'Alex Contact',
+                    'is_from_me': False,
+                },
+                {
+                    **self.messages[0],
+                    'text': 'Happy Birthday',
+                    'date': '2025-06-10 10:00:00',
+                    'sender': 'Me',
+                    'is_from_me': True,
+                },
+                {
+                    **self.messages[1],
+                    'text': '“Happy birthday!”',
+                    'date': '2025-06-10 10:00:00',
+                    'sender': 'Quoted Contact',
+                    'is_from_me': False,
+                },
+            ]),
+            ('Family group', 'Family_group', [{
+                **self.messages[1],
+                'text': 'Happy birthday!',
+                'date': '2023-06-10 10:00:00',
+                'sender': 'Sam',
+                'is_from_me': False,
+                'chat_id': ('group', 'family'),
+            }]),
+        ]
+
+        path = build_birthday_wishes(conversations, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+        self.assertIn('<title>Birthday wishes</title>', content)
+        self.assertIn('id="birthdayDate" type="date" required', content)
+        self.assertIn('"Alex Contact","Alex","2022-06-10"', content)
+        self.assertIn('"Alex Contact","Alex","2024-06-10"', content)
+        self.assertIn('"Sam","Family_group","2023-06-10"', content)
+        self.assertNotIn('"Me","Alex","2025-06-10"', content)
+        self.assertNotIn('"Quoted Contact","Alex","2025-06-10"', content)
+        self.assertIn('document.createElement("details")', content)
+        self.assertIn('document.createElement("summary")', content)
+        self.assertIn('heading.textContent = sender + " (" + senderWishes.length + " wishes)"', content)
+        self.assertIn('wish[2].slice(5) === monthDay', content)
+        self.assertIn('link.href = encodeURIComponent(wish[1]) + ".html?"', content)
 
     def test_index_has_per_year_activity_and_overall_stats(self):
         stats = summarize_messages(self.messages)

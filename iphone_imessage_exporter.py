@@ -16,6 +16,7 @@ from call_history import fetch_call_history
 from export_media import discover_attachment_folders
 from html_pages import (
     build_birthdays,
+    build_birthday_wishes,
     build_call_history,
     build_conversation_entries,
     build_html,
@@ -288,10 +289,11 @@ def _render_html(
 
     overall_stats = summarize_messages(messages, time_zone)
     overall_stats['conversations'] = total_convs
-    report('Building conversation index, search index, and birthday calendar...')
+    report('Building conversation index, search index, and birthday pages...')
     build_index(index_entries, output_dir, overall_stats, time_zone)
     build_search_index(index_entries, output_dir, time_zone)
     build_birthdays(index_entries, output_dir, time_zone)
+    build_birthday_wishes(index_entries, output_dir, time_zone)
 
     call_history_sources = []
     for extraction_dir in sorted(glob.glob(os.path.join(output_dir, 'extracted_backup_*'))):

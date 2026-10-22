@@ -492,7 +492,34 @@ def _conversation_activity_metrics(messages, time_zone):
     }
 
 
-def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME_ZONE, calls=()):
+def collect_conversation_metrics(conversations, time_zone):
+    return [
+        (
+            conversation_name,
+            filename,
+            len(messages),
+            _conversation_activity_metrics(messages, time_zone),
+        )
+        for conversation_name, filename, messages in conversations
+    ]
+
+
+def _render_sortable_headers(columns):
+    return [
+        f'<th scope="col"><button type="button" data-sort-key="{sort_key}" '
+        f'aria-sort="none">{label} <span class="sort-indicator"></span></button></th>'
+        for sort_key, label in columns
+    ]
+
+
+def build_index(
+    conversations,
+    output_dir,
+    overall_stats,
+    time_zone=DEFAULT_TIME_ZONE,
+    calls=(),
+    conversation_metrics=None,
+):
     index_path = os.path.join(output_dir, 'index.html')
     daily_counts = overall_stats.get('daily_counts', {})
     years = sorted({day[:4] for day in daily_counts if len(day) >= 4})
@@ -502,13 +529,17 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
     hourly_counts = Counter()
     weekday_counts = Counter()
     attachment_types = Counter()
-    conversation_metrics = []
+    if conversation_metrics is None:
+        conversation_metrics = collect_conversation_metrics(conversations, time_zone)
+    metrics_by_filename = {
+        filename: metrics
+        for _, filename, _, metrics in conversation_metrics
+    }
     parsed_dates = []
     group_participants = Counter()
 
     for conversation_name, filename, messages in conversations:
-        metrics = _conversation_activity_metrics(messages, time_zone)
-        conversation_metrics.append((conversation_name, filename, len(messages), metrics))
+        metrics = metrics_by_filename[filename]
         attachment_types.update(metrics['attachment_types'])
         group_participants.update(metrics['participants'])
         for message in messages:
@@ -741,74 +772,6 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
         analytics_content.append('</tbody></table></div>')
     analytics_content.append('</section>')
 
-    analytics_content.extend([
-        '<details class="conversation-stats stat-group">',
-        f'<summary>Conversation-level statistics ({len(conversation_metrics):,} conversations)</summary>',
-        '<p class="stat-note">Reply times measure the median gap between consecutive messages that switch sender; longest gaps are between consecutive dated messages.</p>',
-        '<div class="table-wrap"><table class="stats-table sortable-stats"><thead><tr>',
-    ])
-    conversation_sort_columns = (
-        ('name', 'Conversation'),
-        ('messages', 'Messages'),
-        ('busiest-day', 'Busiest day'),
-        ('busiest-week', 'Busiest week'),
-        ('busiest-month', 'Busiest month'),
-        ('longest-gap', 'Longest gap'),
-        ('active-streak', 'Longest active streak'),
-        ('reply-sent', 'Median sent reply'),
-        ('reply-received', 'Median received reply'),
-        ('top-participant', 'Top group participant'),
-    )
-    for sort_key, label in conversation_sort_columns:
-        analytics_content.append(
-            f'<th scope="col"><button type="button" data-conversation-sort="{sort_key}" '
-            f'aria-sort="none">{label} <span class="sort-indicator"></span></button></th>'
-        )
-    analytics_content.append('</tr></thead><tbody>')
-    for conversation_name, filename, message_count, metrics in sorted(
-        conversation_metrics,
-        key=lambda item: (-item[2], item[0].casefold()),
-    ):
-        top_participant, participant_count = metrics['participants'].most_common(1)[0] if metrics['participants'] else ('—', 0)
-        sent_reply = (
-            f'{metrics["reply_sent_minutes"]:,.1f} min'
-            if metrics['reply_sent_minutes'] is not None else '—'
-        )
-        received_reply = (
-            f'{metrics["reply_received_minutes"]:,.1f} min'
-            if metrics['reply_received_minutes'] is not None else '—'
-        )
-        sort_values = {
-            'name': conversation_name.casefold(),
-            'messages': message_count,
-            'busiest-day': metrics['busiest_day'][1],
-            'busiest-week': metrics['busiest_week'][1],
-            'busiest-month': metrics['busiest_month'][1],
-            'longest-gap': metrics['longest_gap'] if metrics['longest_gap'] is not None else -1,
-            'active-streak': metrics['active_streak'],
-            'reply-sent': metrics['reply_sent_minutes'] if metrics['reply_sent_minutes'] is not None else -1,
-            'reply-received': metrics['reply_received_minutes'] if metrics['reply_received_minutes'] is not None else -1,
-            'top-participant': participant_count,
-        }
-        sort_attributes = ' '.join(
-            f'data-sort-{key}="{html.escape(str(value), quote=True)}"'
-            for key, value in sort_values.items()
-        )
-        analytics_content.append(
-            f'<tr {sort_attributes}>'
-            f'<td><a href="{html.escape(filename, quote=True)}.html">{html.escape(conversation_name)}</a></td>'
-            f'<td>{message_count:,}</td>'
-            f'<td>{html.escape(metrics["busiest_day"][0])} ({metrics["busiest_day"][1]:,})</td>'
-            f'<td>{html.escape(str(metrics["busiest_week"][0]))} ({metrics["busiest_week"][1]:,})</td>'
-            f'<td>{html.escape(str(metrics["busiest_month"][0]))} ({metrics["busiest_month"][1]:,})</td>'
-            f'<td>{_format_elapsed(metrics["longest_gap"])}</td>'
-            f'<td>{metrics["active_streak"]:,} days</td>'
-            f'<td>{sent_reply}</td><td>{received_reply}</td>'
-            f'<td>{html.escape(top_participant)} ({participant_count:,})</td>'
-            '</tr>'
-        )
-    analytics_content.append('</tbody></table></div></details>')
-
     answered_call_average = (
         statistics.mean(call_durations) if call_durations else None
     )
@@ -917,10 +880,6 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
         '    .stats-table td { color: #334155; font-size: 13px; }',
         '    .stats-table a { color: #2563eb; text-decoration: none; font-weight: 600; }',
         '    .stats-table a:hover { text-decoration: underline; }',
-        '    .sortable-stats th { white-space: nowrap; }',
-        '    .sortable-stats th button { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }',
-        '    .sortable-stats th button:hover, .sortable-stats th button:focus-visible { color: #2563eb; }',
-        '    .sortable-stats .sort-indicator { color: #2563eb; }',
         '    .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; }',
         '    .line-chart { margin: 0; padding: 12px 10px 4px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px #0f172a08; }',
         '    .line-chart svg { display: block; width: 100%; height: auto; overflow: visible; }',
@@ -934,8 +893,6 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
         '    .chart-tooltip text { fill: #fff; font-family: inherit; font-size: 13px; font-weight: 700; }',
         '    .chart-interaction { fill: transparent; cursor: crosshair; outline: none; }',
         '    .chart-interaction:focus-visible { stroke: #2563eb; stroke-width: 2; stroke-dasharray: 5 4; }',
-        '    .conversation-stats summary { padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; color: #102a56; font-weight: 700; cursor: pointer; }',
-        '    .conversation-stats[open] summary { margin-bottom: 10px; }',
         '    .stat-note { color: #64748b; font-size: 12px; }',
         '    .activity-card { margin: 20px 0; padding: 20px; border-radius: 14px; background: #fff; box-shadow: 0 1px 4px #0001; }',
         '    .activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }',
@@ -1000,38 +957,6 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
     content.extend([
         '    <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>',
         '    <script>',
-        '      const conversationStatsTable = document.querySelector(".sortable-stats");',
-        '      if (conversationStatsTable) {',
-        '        let conversationSortKey = "messages";',
-        '        let conversationSortAscending = false;',
-        '        const conversationSortButtons = conversationStatsTable.querySelectorAll("th button[data-conversation-sort]");',
-        '        conversationSortButtons.forEach(function(button) {',
-        '          const isActive = button.dataset.conversationSort === conversationSortKey;',
-        '          button.setAttribute("aria-sort", isActive ? "descending" : "none");',
-        '          button.querySelector(".sort-indicator").textContent = isActive ? "▼" : "";',
-        '          button.addEventListener("click", function() {',
-        '            const sortKey = button.dataset.conversationSort;',
-        '            if (conversationSortKey === sortKey) conversationSortAscending = !conversationSortAscending;',
-        '            else { conversationSortKey = sortKey; conversationSortAscending = true; }',
-        '            conversationSortButtons.forEach(function(sortButton) {',
-        '              const active = sortButton.dataset.conversationSort === conversationSortKey;',
-        '              sortButton.setAttribute("aria-sort", active ? (conversationSortAscending ? "ascending" : "descending") : "none");',
-        '              sortButton.querySelector(".sort-indicator").textContent = active ? (conversationSortAscending ? "▲" : "▼") : "";',
-        '            });',
-        '            const rows = Array.from(conversationStatsTable.tBodies[0].rows);',
-        '            rows.sort(function(first, second) {',
-        '              const firstValue = first.dataset["sort" + sortKey.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1); }).join("")];',
-        '              const secondValue = second.dataset["sort" + sortKey.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1); }).join("")];',
-        '              const firstNumber = Number(firstValue);',
-        '              const secondNumber = Number(secondValue);',
-        '              const bothNumeric = firstValue !== "" && secondValue !== "" && Number.isFinite(firstNumber) && Number.isFinite(secondNumber);',
-        '              const comparison = bothNumeric ? firstNumber - secondNumber : firstValue.localeCompare(secondValue, undefined, { numeric: true, sensitivity: "base" });',
-        '              return (conversationSortAscending ? comparison : -comparison) || first.dataset.sortName.localeCompare(second.dataset.sortName);',
-        '            });',
-        '            rows.forEach(function(row) { conversationStatsTable.tBodies[0].appendChild(row); });',
-        '          });',
-        '        });',
-        '      }',
         '      document.querySelectorAll(".line-chart").forEach(function(figure) {',
         '        const svg = figure.querySelector("svg");',
         '        const interaction = figure.querySelector(".chart-interaction");',
@@ -1112,9 +1037,16 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
     return index_path
 
 
-def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
+def build_search_index(
+    conversations,
+    output_dir,
+    time_zone=DEFAULT_TIME_ZONE,
+    conversation_metrics=None,
+):
     search_path = os.path.join(output_dir, 'search.html')
     conv_list = sorted(conversations, key=lambda entry: entry[0].lower())
+    if conversation_metrics is None:
+        conversation_metrics = collect_conversation_metrics(conversations, time_zone)
 
     content = [
         '<!DOCTYPE html>',
@@ -1152,6 +1084,13 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '    th button { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }',
         '    th button:hover { color: #2563eb; }',
         '    .sort-indicator { margin-left: 4px; }',
+        '    .conversation-section { margin-top: 24px; }',
+        '    .conversation-section h2 { margin: 0 0 10px; color: #102a56; font-size: 21px; }',
+        '    .conversation-table { min-width: 900px; }',
+        '    .conversation-table th button { font-size: 12px; }',
+        '    .conversation-table .sort-indicator { color: #2563eb; }',
+        '    .conversation-table td { white-space: nowrap; }',
+        '    .conversation-table td.participants { white-space: normal; }',
         '    td { font-size: 14px; color: #334155; vertical-align: top; }',
         '    td a { color: #2563eb; text-decoration: none; font-size: 16px; font-weight: 600; }',
         '    td a:hover { text-decoration: underline; }',
@@ -1182,22 +1121,54 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '      <div class="random-day-control"><button type="button" id="randomDayButton">Go to a random day</button><span id="randomDayStatus" aria-live="polite"></span></div>',
         '    </section>',
         '    <div class="results-count"><span id="resultCount">Showing all</span> conversations</div>',
-        '    <div class="table-wrap"><table><thead><tr>',
-        '      <th scope="col"><button type="button" data-sort-key="name" aria-sort="none">Conversation <span class="sort-indicator"></span></button></th>',
-        '      <th scope="col"><button type="button" data-sort-key="participants" aria-sort="none">People in group <span class="sort-indicator"></span></button></th>',
-        '      <th scope="col"><button type="button" data-sort-key="messages" aria-sort="none">Messages <span class="sort-indicator"></span></button></th>',
-        '      <th scope="col"><button type="button" data-sort-key="attachments" aria-sort="none">Attachments <span class="sort-indicator"></span></button></th>',
-        '      <th scope="col"><button type="button" data-sort-key="first-date" aria-sort="none">First message <span class="sort-indicator"></span></button></th>',
-        '      <th scope="col"><button type="button" data-sort-key="last-date" aria-sort="none">Last message <span class="sort-indicator"></span></button></th>',
-        '    </tr></thead>',
-        '    <tbody id="conversationList">',
     ]
 
+    direct_columns = (
+        ('name', 'Conversation'),
+        ('messages', 'Messages'),
+        ('attachments', 'Attachments'),
+        ('first-date', 'First message'),
+        ('last-date', 'Last message'),
+        ('busiest-day', 'Busiest day'),
+        ('busiest-week', 'Busiest week'),
+        ('busiest-month', 'Busiest month'),
+        ('longest-gap', 'Longest gap'),
+        ('active-streak', 'Longest active streak'),
+        ('reply-sent', 'Median sent reply'),
+        ('reply-received', 'Median received reply'),
+    )
+    group_columns = (
+        ('name', 'Conversation'),
+        ('participants', 'People in group'),
+        ('messages', 'Messages'),
+        ('attachments', 'Attachments'),
+        ('first-date', 'First message'),
+        ('last-date', 'Last message'),
+        ('top-participant', 'Top group participant'),
+    )
+    content.extend([
+        '    <section class="conversation-section" aria-labelledby="directConversationsHeading">',
+        '      <h2 id="directConversationsHeading">Conversations</h2>',
+        '      <div class="table-wrap"><table class="conversation-table"><thead><tr>',
+    ])
+    content.extend(_render_sortable_headers(direct_columns))
+    content.extend([
+        '</tr></thead><tbody id="conversationList">',
+    ])
+
     search_data = []
+    direct_rows = []
+    group_rows = []
+    metrics_by_filename = {
+        filename: metrics
+        for _, filename, _, metrics in conversation_metrics
+    }
     for display_name, filename, messages in conv_list:
         stats = summarize_messages(messages, time_zone)
         is_group = any(
-            isinstance(message.get('chat_id'), tuple) and message['chat_id'][0] == 'group'
+            isinstance(message.get('chat_id'), (tuple, list))
+            and message['chat_id']
+            and message['chat_id'][0] == 'group'
             for message in messages
         )
         participant_names = sorted({
@@ -1230,26 +1201,92 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         )
         search_index = len(search_data)
         search_data.append(serialized_messages)
-        content.append(
-            f'      <tr class="conv-item" data-name="{html.escape(searchable_name, quote=True)}" '
-            f'data-search-index="{search_index}" '
-            f'data-sort-name="{html.escape(display_name.lower())}" '
-            f'data-sort-participants="{html.escape(participants_text.lower(), quote=True)}" '
-            f'data-sort-messages="{stats["messages"]}" data-sort-attachments="{stats["attachments"]}" '
-            f'data-sort-first-date="{html.escape(stats["first_date"])}" '
-            f'data-sort-last-date="{html.escape(stats["last_date"])}">'
-            f'<td><a data-conversation-file="{html.escape(filename, quote=True)}.html" '
-            f'href="{html.escape(filename, quote=True)}.html">{html.escape(display_name)}</a></td>'
-            f'<td class="participants">{html.escape(participants_text) if participants_text else "—"}</td>'
-            f'<td><span class="filtered-message-count">{stats["messages"]:,}</span></td>'
-            f'<td><span class="filtered-attachment-count">{stats["attachments"]:,}</span></td>'
-            f'<td><span class="filtered-first-date">{html.escape(stats["first_date"])}</span></td>'
-            f'<td><span class="filtered-last-date">{html.escape(stats["last_date"])}</span></td></tr>'
+        sort_values = {
+            'name': display_name.casefold(),
+            'participants': participants_text.casefold(),
+            'messages': stats['messages'],
+            'attachments': stats['attachments'],
+            'first-date': stats['first_date'] if stats['first_date'] != '—' else '',
+            'last-date': stats['last_date'] if stats['last_date'] != '—' else '',
+        }
+        metrics = metrics_by_filename[filename]
+        top_participant, participant_count = (
+            metrics['participants'].most_common(1)[0]
+            if metrics['participants'] else ('—', 0)
         )
+        if not is_group:
+            sort_values.update({
+                'busiest-day': metrics['busiest_day'][1],
+                'busiest-week': metrics['busiest_week'][1],
+                'busiest-month': metrics['busiest_month'][1],
+                'longest-gap': metrics['longest_gap'] if metrics['longest_gap'] is not None else -1,
+                'active-streak': metrics['active_streak'],
+                'reply-sent': metrics['reply_sent_minutes'] if metrics['reply_sent_minutes'] is not None else -1,
+                'reply-received': metrics['reply_received_minutes'] if metrics['reply_received_minutes'] is not None else -1,
+            })
+        sort_attributes = ' '.join(
+            f'data-sort-{key}="{html.escape(str(value), quote=True)}"'
+            for key, value in sort_values.items()
+        )
+        row_markup = [
+            f'<tr class="conv-item" data-name="{html.escape(searchable_name, quote=True)}" '
+            f'data-search-index="{search_index}" {sort_attributes}>',
+            f'<td><a data-conversation-file="{html.escape(filename, quote=True)}.html" '
+            f'href="{html.escape(filename, quote=True)}.html">{html.escape(display_name)}</a></td>',
+        ]
+        if is_group:
+            row_markup.extend([
+                f'<td class="participants">{html.escape(participants_text) if participants_text else "—"}</td>',
+                f'<td><span class="filtered-message-count">{stats["messages"]:,}</span></td>',
+                f'<td><span class="filtered-attachment-count">{stats["attachments"]:,}</span></td>',
+                f'<td><span class="filtered-first-date">{html.escape(stats["first_date"])}</span></td>',
+                f'<td><span class="filtered-last-date">{html.escape(stats["last_date"])}</span></td>',
+                f'<td>{html.escape(top_participant)} ({participant_count:,})</td>',
+            ])
+        else:
+            sent_reply = (
+                f'{metrics["reply_sent_minutes"]:,.1f} min'
+                if metrics['reply_sent_minutes'] is not None else '—'
+            )
+            received_reply = (
+                f'{metrics["reply_received_minutes"]:,.1f} min'
+                if metrics['reply_received_minutes'] is not None else '—'
+            )
+            row_markup.extend([
+                f'<td><span class="filtered-message-count">{stats["messages"]:,}</span></td>',
+                f'<td><span class="filtered-attachment-count">{stats["attachments"]:,}</span></td>',
+                f'<td><span class="filtered-first-date">{html.escape(stats["first_date"])}</span></td>',
+                f'<td><span class="filtered-last-date">{html.escape(stats["last_date"])}</span></td>',
+                f'<td>{html.escape(metrics["busiest_day"][0])} ({metrics["busiest_day"][1]:,})</td>',
+                f'<td>{html.escape(str(metrics["busiest_week"][0]))} ({metrics["busiest_week"][1]:,})</td>',
+                f'<td>{html.escape(str(metrics["busiest_month"][0]))} ({metrics["busiest_month"][1]:,})</td>',
+                f'<td>{_format_elapsed(metrics["longest_gap"])}</td>',
+                f'<td>{metrics["active_streak"]:,} days</td>',
+                f'<td>{sent_reply}</td><td>{received_reply}</td>',
+            ])
+        row_markup.append('</tr>')
+        if is_group:
+            group_rows.append(''.join(row_markup))
+        else:
+            direct_rows.append(''.join(row_markup))
 
     serialized_search_data = '[' + ','.join(search_data) + ']'
     content.extend([
-        '    </tbody></table></div>',
+        *direct_rows,
+        '      </tbody></table></div>',
+        '    </section>',
+        '    <section class="conversation-section" aria-labelledby="groupConversationsHeading">',
+        '      <h2 id="groupConversationsHeading">Group conversations</h2>',
+        '      <div class="table-wrap"><table class="conversation-table"><thead><tr>',
+    ])
+    content.extend(_render_sortable_headers(group_columns))
+    content.extend([
+        '</tr></thead><tbody id="groupConversationList">',
+        *group_rows,
+        '      </tbody></table></div>',
+        '    </section>',
+    ])
+    content.extend([
         '    <script id="searchMessageData" type="application/json">',
         serialized_search_data,
         '    </script>',
@@ -1260,8 +1297,7 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '      const dateToInput = document.getElementById("dateToInput");',
         '      const timeFromInput = document.getElementById("timeFromInput");',
         '      const timeToInput = document.getElementById("timeToInput");',
-        '      const conversationList = document.getElementById("conversationList");',
-        '      const conversationItems = conversationList.querySelectorAll(".conv-item");',
+        '      const conversationItems = document.querySelectorAll(".conv-item");',
         '      const searchMessages = JSON.parse(document.getElementById("searchMessageData").textContent);',
         '      const randomDayButton = document.getElementById("randomDayButton");',
         '      const randomDayStatus = document.getElementById("randomDayStatus");',
@@ -1284,38 +1320,33 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '      Object.keys(searchFields).forEach(function(key) {',
         '        if (pageQuery.has(key)) searchFields[key].value = pageQuery.get(key);',
         '      });',
-        '      const sortButtons = document.querySelectorAll("th button[data-sort-key]");',
-        '      let activeSortKey = "";',
-        '      let sortAscending = true;',
-        '      ',
-        '      sortButtons.forEach(function(button) {',
-        '        button.addEventListener("click", function() {',
-        '          const sortKey = this.getAttribute("data-sort-key");',
-        '          if (activeSortKey === sortKey) {',
-        '            sortAscending = !sortAscending;',
-        '          } else {',
-        '            activeSortKey = sortKey;',
-        '            sortAscending = true;',
-        '          }',
-        '          sortButtons.forEach(function(sortButton) {',
-        '            const isActive = sortButton === button;',
-        '            sortButton.setAttribute("aria-sort", isActive ? (sortAscending ? "ascending" : "descending") : "none");',
-        '            sortButton.querySelector(".sort-indicator").textContent = isActive ? (sortAscending ? "▲" : "▼") : "";',
+        '      document.querySelectorAll(".conversation-table").forEach(function(table) {',
+        '        let activeSortKey = "";',
+        '        let sortAscending = true;',
+        '        const sortButtons = table.querySelectorAll("th button[data-sort-key]");',
+        '        sortButtons.forEach(function(button) {',
+        '          button.addEventListener("click", function() {',
+        '            const sortKey = button.dataset.sortKey;',
+        '            if (activeSortKey === sortKey) sortAscending = !sortAscending;',
+        '            else { activeSortKey = sortKey; sortAscending = true; }',
+        '            sortButtons.forEach(function(sortButton) {',
+        '              const isActive = sortButton.dataset.sortKey === activeSortKey;',
+        '              sortButton.setAttribute("aria-sort", isActive ? (sortAscending ? "ascending" : "descending") : "none");',
+        '              sortButton.querySelector(".sort-indicator").textContent = isActive ? (sortAscending ? "▲" : "▼") : "";',
+        '            });',
+        '            const dataKey = "sort" + sortKey.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1); }).join("");',
+        '            const rows = Array.from(table.tBodies[0].rows);',
+        '            rows.sort(function(left, right) {',
+        '              const leftValue = left.dataset[dataKey] || "";',
+        '              const rightValue = right.dataset[dataKey] || "";',
+        '              const leftNumber = Number(leftValue);',
+        '              const rightNumber = Number(rightValue);',
+        '              const bothNumeric = leftValue !== "" && rightValue !== "" && Number.isFinite(leftNumber) && Number.isFinite(rightNumber);',
+        '              const comparison = bothNumeric ? leftNumber - rightNumber : leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: "base" });',
+        '              return (sortAscending ? comparison : -comparison) || left.dataset.sortName.localeCompare(right.dataset.sortName);',
+        '            });',
+        '            rows.forEach(function(row) { table.tBodies[0].appendChild(row); });',
         '          });',
-        '          const sortAttribute = "data-sort-" + sortKey;',
-        '          const sortedItems = Array.from(conversationItems).sort(function(left, right) {',
-        '            const leftValue = left.getAttribute(sortAttribute) || "";',
-        '            const rightValue = right.getAttribute(sortAttribute) || "";',
-        '            let comparison;',
-        '            if (sortKey === "messages" || sortKey === "attachments") {',
-        '              comparison = Number(leftValue) - Number(rightValue);',
-        '            } else {',
-        '              comparison = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: "base" });',
-        '            }',
-        '            return (sortAscending ? comparison : -comparison) ||',
-        '              left.getAttribute("data-sort-name").localeCompare(right.getAttribute("data-sort-name"));',
-        '          });',
-        '          sortedItems.forEach(function(item) { conversationList.appendChild(item); });',
         '        });',
         '      });',
         '      ',

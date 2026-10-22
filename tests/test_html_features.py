@@ -188,6 +188,49 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('new URLSearchParams(window.location.search)', content)
         self.assertIn('link.href = link.dataset.conversationFile', content)
         self.assertIn('href="calls.html">Call history</a>', content)
+        self.assertIn('<h2 id="directConversationsHeading">Conversations</h2>', content)
+        self.assertIn('<h2 id="groupConversationsHeading">Group conversations</h2>', content)
+        self.assertNotIn('<details class="conversation-stats', content)
+        self.assertIn('data-sort-key="busiest-day"', content)
+        self.assertIn('data-sort-key="longest-gap"', content)
+        self.assertIn('data-sort-key="top-participant"', content)
+        self.assertIn('data-sort-key="participants"', content)
+        self.assertIn('table.tBodies[0].appendChild(row)', content)
+        self.assertIn('data-sort-reply-sent=', content)
+        self.assertIn('data-sort-top-participant="0"', content)
+        self.assertIn('Median sent reply', content)
+        self.assertIn('Longest active streak', content)
+
+    def test_search_page_splits_direct_and_group_tables(self):
+        group_messages = [
+            {
+                **self.messages[0],
+                'id': 4,
+                'chat_id': ('group', 'chat-1'),
+                'group_participants': ['Alex', 'Jordan'],
+                'attachments': [{'filename': 'photo.jpg'}],
+            }
+        ]
+        conversations = [
+            ('Alex', 'Alex', self.messages),
+            ('Weekend group', 'Weekend_group', group_messages),
+        ]
+        path = build_search_index(conversations, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        direct_table = content.split('<tbody id="conversationList">', 1)[1].split('</tbody>', 1)[0]
+        group_table = content.split('<tbody id="groupConversationList">', 1)[1].split('</tbody>', 1)[0]
+        self.assertIn('>Alex</a>', direct_table)
+        self.assertNotIn('Weekend group', direct_table)
+        self.assertIn('>Weekend group</a>', group_table)
+        self.assertIn('Alex, Jordan', group_table)
+        self.assertIn('filtered-attachment-count">1</span>', group_table)
+        self.assertNotIn('Median sent reply', group_table)
+        self.assertIn('data-sort-key="reply-sent"', content)
+        self.assertIn('data-sort-key="participants"', content)
+        self.assertLess(content.index('id="conversationList"'), content.index('id="groupConversationList"'))
 
     def test_search_page_applies_message_filters_to_row_counts_and_dates(self):
         messages = sample_messages()
@@ -408,19 +451,9 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('February: 1 message</title>', content)
         self.assertNotIn('2024-01: 2 messages</title>', content)
         self.assertNotIn('bar-list', content)
-        self.assertIn('Conversation-level statistics', content)
-        self.assertIn('data-conversation-sort="name"', content)
-        self.assertIn('data-conversation-sort="messages"', content)
-        self.assertIn('data-conversation-sort="busiest-day"', content)
-        self.assertIn('data-conversation-sort="longest-gap"', content)
-        self.assertIn('data-conversation-sort="top-participant"', content)
-        self.assertIn('aria-sort="none"', content)
-        self.assertIn('active ? (conversationSortAscending ? "ascending" : "descending")', content)
-        self.assertIn('conversationStatsTable.tBodies[0].appendChild(row)', content)
-        self.assertIn('data-sort-reply-sent=', content)
-        self.assertIn('data-sort-top-participant="0"', content)
-        self.assertIn('Median sent reply', content)
-        self.assertIn('Longest active streak', content)
+        self.assertNotIn('Conversation-level statistics', content)
+        self.assertNotIn('data-conversation-sort=', content)
+        self.assertNotIn('conversationStatsTable', content)
         self.assertIn('Photos and images</td><td>1', content)
         self.assertIn('Videos</td><td>1', content)
         self.assertIn('Audio</td><td>1', content)

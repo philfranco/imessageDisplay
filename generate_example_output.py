@@ -10,6 +10,7 @@ from html_pages import (
     build_html,
     build_index,
     build_search_index,
+    collect_conversation_metrics,
     summarize_messages,
 )
 from time_zone_utils import DEFAULT_TIME_ZONE
@@ -199,8 +200,21 @@ def main():
 
     for display_name, filename, messages in entries:
         build_html(display_name, messages, output_dir, output_filename=filename)
-    build_index(entries, output_dir, overall_stats, DEFAULT_TIME_ZONE, calls=calls)
-    build_search_index(entries, output_dir, DEFAULT_TIME_ZONE)
+    conversation_metrics = collect_conversation_metrics(entries, DEFAULT_TIME_ZONE)
+    build_index(
+        entries,
+        output_dir,
+        overall_stats,
+        DEFAULT_TIME_ZONE,
+        calls=calls,
+        conversation_metrics=conversation_metrics,
+    )
+    build_search_index(
+        entries,
+        output_dir,
+        DEFAULT_TIME_ZONE,
+        conversation_metrics=conversation_metrics,
+    )
     build_birthdays(entries, output_dir, DEFAULT_TIME_ZONE)
     build_birthday_wishes(entries, output_dir, DEFAULT_TIME_ZONE)
     build_call_history(calls, output_dir, DEFAULT_TIME_ZONE)

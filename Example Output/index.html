@@ -26,10 +26,6 @@
     .stats-table td { color: #334155; font-size: 13px; }
     .stats-table a { color: #2563eb; text-decoration: none; font-weight: 600; }
     .stats-table a:hover { text-decoration: underline; }
-    .sortable-stats th { white-space: nowrap; }
-    .sortable-stats th button { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
-    .sortable-stats th button:hover, .sortable-stats th button:focus-visible { color: #2563eb; }
-    .sortable-stats .sort-indicator { color: #2563eb; }
     .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; }
     .line-chart { margin: 0; padding: 12px 10px 4px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px #0f172a08; }
     .line-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -43,8 +39,6 @@
     .chart-tooltip text { fill: #fff; font-family: inherit; font-size: 13px; font-weight: 700; }
     .chart-interaction { fill: transparent; cursor: crosshair; outline: none; }
     .chart-interaction:focus-visible { stroke: #2563eb; stroke-width: 2; stroke-dasharray: 5 4; }
-    .conversation-stats summary { padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; color: #102a56; font-weight: 700; cursor: pointer; }
-    .conversation-stats[open] summary { margin-bottom: 10px; }
     .stat-note { color: #64748b; font-size: 12px; }
     .activity-card { margin: 20px 0; padding: 20px; border-radius: 14px; background: #fff; box-shadow: 0 1px 4px #0001; }
     .activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -1793,30 +1787,6 @@
 <tr><td>Noah Brooks</td><td>2</td></tr>
 </tbody></table></div>
 </section>
-<details class="conversation-stats stat-group">
-<summary>Conversation-level statistics (8 conversations)</summary>
-<p class="stat-note">Reply times measure the median gap between consecutive messages that switch sender; longest gaps are between consecutive dated messages.</p>
-<div class="table-wrap"><table class="stats-table sortable-stats"><thead><tr>
-<th scope="col"><button type="button" data-conversation-sort="name" aria-sort="none">Conversation <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-conversation-sort="messages" aria-sort="none">Messages <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-conversation-sort="busiest-day" aria-sort="none">Busiest day <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-conversation-sort="busiest-week" aria-sort="none">Busiest week <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-conversation-sort="busiest-month" aria-sort="none">Busiest month <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-conversation-sort="longest-gap" aria-sort="none">Longest gap <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-conversation-sort="active-streak" aria-sort="none">Longest active streak <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-conversation-sort="reply-sent" aria-sort="none">Median sent reply <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-conversation-sort="reply-received" aria-sort="none">Median received reply <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-conversation-sort="top-participant" aria-sort="none">Top group participant <span class="sort-indicator"></span></button></th>
-</tr></thead><tbody>
-<tr data-sort-name="weekend crew" data-sort-messages="9" data-sort-busiest-day="3" data-sort-busiest-week="3" data-sort-busiest-month="3" data-sort-longest-gap="31621200.0" data-sort-active-streak="1" data-sort-reply-sent="7.0" data-sort-reply-received="100852.0" data-sort-top-participant="1"><td><a href="Weekend_Crew.html">Weekend Crew</a></td><td>9</td><td>2023-06-10 (3)</td><td>2023-W23 (3)</td><td>2023-06 (3)</td><td>365d 23h</td><td>1 days</td><td>7.0 min</td><td>100,852.0 min</td><td>Ava Patel (1)</td></tr>
-<tr data-sort-name="jordan lee" data-sort-messages="8" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="23335500.0" data-sort-active-streak="1" data-sort-reply-sent="138285.0" data-sort-reply-received="11.0" data-sort-top-participant="0"><td><a href="Jordan_Lee.html">Jordan Lee</a></td><td>8</td><td>2025-06-11 (2)</td><td>2025-W24 (2)</td><td>2025-06 (2)</td><td>270d 2h</td><td>1 days</td><td>138,285.0 min</td><td>11.0 min</td><td>— (0)</td></tr>
-<tr data-sort-name="maya chen" data-sort-messages="8" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31541400.0" data-sort-active-streak="1" data-sort-reply-sent="368625.0" data-sort-reply-received="156990.0" data-sort-top-participant="0"><td><a href="Maya_Chen.html">Maya Chen</a></td><td>8</td><td>2025-06-10 (2)</td><td>2025-W24 (2)</td><td>2025-06 (2)</td><td>365d 1h</td><td>1 days</td><td>368,625.0 min</td><td>156,990.0 min</td><td>— (0)</td></tr>
-<tr data-sort-name="ava patel" data-sort-messages="7" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="37600680.0" data-sort-active-streak="1" data-sort-reply-sent="262825.0" data-sort-reply-received="13.0" data-sort-top-participant="0"><td><a href="Ava_Patel.html">Ava Patel</a></td><td>7</td><td>2025-08-19 (2)</td><td>2025-W34 (2)</td><td>2025-08 (2)</td><td>435d 4h</td><td>1 days</td><td>262,825.0 min</td><td>13.0 min</td><td>— (0)</td></tr>
-<tr data-sort-name="book club" data-sort-messages="7" data-sort-busiest-day="3" data-sort-busiest-week="3" data-sort-busiest-month="3" data-sort-longest-gap="34911360.0" data-sort-active-streak="1" data-sort-reply-sent="9.0" data-sort-reply-received="202322.5" data-sort-top-participant="1"><td><a href="Book_Club.html">Book Club</a></td><td>7</td><td>2023-03-05 (3)</td><td>2023-W09 (3)</td><td>2023-03 (3)</td><td>404d 1h</td><td>1 days</td><td>9.0 min</td><td>202,322.5 min</td><td>Maya Chen (1)</td></tr>
-<tr data-sort-name="family chat" data-sort-messages="7" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31538880.0" data-sort-active-streak="1" data-sort-reply-sent="8.5" data-sort-reply-received="277793.0" data-sort-top-participant="1"><td><a href="Family_Chat.html">Family Chat</a></td><td>7</td><td>2024-07-04 (2)</td><td>2024-W27 (2)</td><td>2024-07 (2)</td><td>365d 0h</td><td>1 days</td><td>8.5 min</td><td>277,793.0 min</td><td>Noah Brooks (1)</td></tr>
-<tr data-sort-name="noah brooks" data-sort-messages="7" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31618800.0" data-sort-active-streak="1" data-sort-reply-sent="105019.0" data-sort-reply-received="79449.5" data-sort-top-participant="0"><td><a href="Noah_Brooks.html">Noah Brooks</a></td><td>7</td><td>2025-02-21 (2)</td><td>2025-W08 (2)</td><td>2025-02 (2)</td><td>365d 23h</td><td>1 days</td><td>105,019.0 min</td><td>79,449.5 min</td><td>— (0)</td></tr>
-<tr data-sort-name="sofia reyes" data-sort-messages="7" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31622400.0" data-sort-active-streak="1" data-sort-reply-sent="525531.0" data-sort-reply-received="15.5" data-sort-top-participant="0"><td><a href="Sofia_Reyes.html">Sofia Reyes</a></td><td>7</td><td>2025-03-14 (2)</td><td>2025-W11 (2)</td><td>2025-03 (2)</td><td>366d 0h</td><td>1 days</td><td>525,531.0 min</td><td>15.5 min</td><td>— (0)</td></tr>
-</tbody></table></div></details>
 <section class="stat-group" aria-label="Call statistics">
 <h2>Call statistics</h2>
 <section class="stats">
@@ -1869,38 +1839,6 @@
 </section>
     <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>
     <script>
-      const conversationStatsTable = document.querySelector(".sortable-stats");
-      if (conversationStatsTable) {
-        let conversationSortKey = "messages";
-        let conversationSortAscending = false;
-        const conversationSortButtons = conversationStatsTable.querySelectorAll("th button[data-conversation-sort]");
-        conversationSortButtons.forEach(function(button) {
-          const isActive = button.dataset.conversationSort === conversationSortKey;
-          button.setAttribute("aria-sort", isActive ? "descending" : "none");
-          button.querySelector(".sort-indicator").textContent = isActive ? "▼" : "";
-          button.addEventListener("click", function() {
-            const sortKey = button.dataset.conversationSort;
-            if (conversationSortKey === sortKey) conversationSortAscending = !conversationSortAscending;
-            else { conversationSortKey = sortKey; conversationSortAscending = true; }
-            conversationSortButtons.forEach(function(sortButton) {
-              const active = sortButton.dataset.conversationSort === conversationSortKey;
-              sortButton.setAttribute("aria-sort", active ? (conversationSortAscending ? "ascending" : "descending") : "none");
-              sortButton.querySelector(".sort-indicator").textContent = active ? (conversationSortAscending ? "▲" : "▼") : "";
-            });
-            const rows = Array.from(conversationStatsTable.tBodies[0].rows);
-            rows.sort(function(first, second) {
-              const firstValue = first.dataset["sort" + sortKey.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1); }).join("")];
-              const secondValue = second.dataset["sort" + sortKey.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1); }).join("")];
-              const firstNumber = Number(firstValue);
-              const secondNumber = Number(secondValue);
-              const bothNumeric = firstValue !== "" && secondValue !== "" && Number.isFinite(firstNumber) && Number.isFinite(secondNumber);
-              const comparison = bothNumeric ? firstNumber - secondNumber : firstValue.localeCompare(secondValue, undefined, { numeric: true, sensitivity: "base" });
-              return (conversationSortAscending ? comparison : -comparison) || first.dataset.sortName.localeCompare(second.dataset.sortName);
-            });
-            rows.forEach(function(row) { conversationStatsTable.tBodies[0].appendChild(row); });
-          });
-        });
-      }
       document.querySelectorAll(".line-chart").forEach(function(figure) {
         const svg = figure.querySelector("svg");
         const interaction = figure.querySelector(".chart-interaction");

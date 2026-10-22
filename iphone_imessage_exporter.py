@@ -22,6 +22,7 @@ from html_pages import (
     build_html,
     build_index,
     build_search_index,
+    collect_conversation_metrics,
     summarize_messages,
 )
 from gui_preferences import load_preferences, save_preferences
@@ -312,8 +313,21 @@ def _render_html(
     calls = fetch_call_history(call_history_sources, time_zone)
 
     report('Building conversation index, search index, and birthday pages...')
-    build_index(index_entries, output_dir, overall_stats, time_zone, calls=calls)
-    build_search_index(index_entries, output_dir, time_zone)
+    conversation_metrics = collect_conversation_metrics(index_entries, time_zone)
+    build_index(
+        index_entries,
+        output_dir,
+        overall_stats,
+        time_zone,
+        calls=calls,
+        conversation_metrics=conversation_metrics,
+    )
+    build_search_index(
+        index_entries,
+        output_dir,
+        time_zone,
+        conversation_metrics=conversation_metrics,
+    )
     build_birthdays(index_entries, output_dir, time_zone)
     build_birthday_wishes(index_entries, output_dir, time_zone)
     build_call_history(calls, output_dir, time_zone)

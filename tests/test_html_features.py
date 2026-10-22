@@ -155,6 +155,16 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('id="dateToInput"', content)
         self.assertIn('id="timeFromInput"', content)
         self.assertIn('id="timeToInput"', content)
+        self.assertIn('id="randomDayButton">Go to a random day</button>', content)
+        self.assertIn('randomDayButton.disabled = availableDates.size === 0', content)
+        self.assertIn('const randomDate = dates[Math.floor(Math.random() * dates.length)]', content)
+        self.assertIn('dateFromInput.value = randomDate', content)
+        self.assertIn('dateToInput.value = randomDate', content)
+        self.assertIn('randomDayStatus.textContent = "Showing conversations from " + randomDate', content)
+        self.assertIn(
+            'window.addEventListener("pageshow", function() { filterConversations(); });',
+            content,
+        )
         self.assertIn('type="application/json"', content)
         self.assertIn('data-search-index="0"', content)
         self.assertNotIn('data-search-messages=', content)

@@ -182,7 +182,7 @@ def convert_mov_to_mp4(source_path, output_dir):
                 '-probesize', '100M',
                 '-i', source_path,
                 '-map', '0:v:0',
-                '-map', '0:a?',
+                '-map', '0:a:0?',
                 '-c:v', 'libx264',
                 '-preset', 'medium',
                 '-crf', '23',

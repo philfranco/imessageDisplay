@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from attachment_dedup import hash_media_file, index_existing_attachments
@@ -86,6 +87,29 @@ class AttachmentDedupTests(unittest.TestCase):
 
         self.assertTrue(os.path.samefile(old_jpeg, jpeg))
         self.assertTrue(os.path.samefile(old_mp4, mp4))
+
+    def test_mov_conversion_maps_only_first_audio_track(self):
+        source = self._write(
+            self._attachment(os.path.join(self.output_dir, 'extracted_backup_new'), 'clip.mov'),
+            b'movie',
+        )
+        digest = 'b' * 64
+
+        def run_ffmpeg(command, **_kwargs):
+            with open(command[-1], 'wb') as output:
+                output.write(b'mp4')
+            return SimpleNamespace(returncode=0, stderr='')
+
+        with patch('export_media.hash_media_file', return_value=digest):
+            with patch('export_media.shutil.which', return_value='ffmpeg'):
+                with patch('export_media.subprocess.run', side_effect=run_ffmpeg) as run:
+                    converted_path = convert_mov_to_mp4(source, self.output_dir)
+
+        command = run.call_args.args[0]
+        self.assertEqual(command[command.index('-map') + 1], '0:v:0')
+        audio_map_index = command.index('-map', command.index('-map') + 1)
+        self.assertEqual(command[audio_map_index + 1], '0:a:0?')
+        self.assertTrue(os.path.isfile(converted_path))
 
 
 if __name__ == '__main__':

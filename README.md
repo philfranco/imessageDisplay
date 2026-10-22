@@ -6,9 +6,9 @@ A Python tool for extracting iPhone backup data and turning SMS/iMessage convers
 
 - Extracts messages, attachments, contacts, and call history from an iTunes/Finder iPhone backup, including password-protected backups.
 - Creates an HTML page for each conversation, along with an index, search page, birthday calendar, birthday-wishes search page, and call-history page.
-- Builds a birthday calendar from outgoing “Happy Birthday” messages in one-to-one conversations. Detected dates are estimates; if a contact has multiple candidate dates, each is shown with its supporting message count.
-- Includes a birthday-wishes page that searches incoming “Happy Birthday” messages in direct and group conversations by the user's month and day of birth, across all years.
-- Supports searching and filtering conversations by message text, date, and time, including a random-day picker to jump to conversations active on a randomly selected day.
+- Builds a birthday calendar from outgoing “Happy Birthday” messages in one-to-one conversations. Birthday text inside straight or curly quotes is ignored to avoid treating liked-message text as evidence. Detected dates are estimates; conflicting dates are shown separately with supporting message counts, and each name links to the conversation filtered to its latest observed date.
+- Includes a birthday-wishes page where you can enter your birthday to find incoming “Happy Birthday” messages on that month and day across all years. Direct and group messages are included; results are grouped under collapsible sender names. Quoted birthday text is ignored.
+- Supports searching and filtering conversations by message text, date, and time, including a random-day picker to jump to conversations active on a randomly selected day. Search data uses a compact embedded format to reduce the search page's size while keeping it self-contained.
 - Merges messages from successive backups into a persistent SQLite archive instead of replacing earlier imports.
 - Converts HEIC/HEIF images to JPEG and MOV videos to MP4 for browser previews.
 - Extracts cached iMessage stickers and sticker-library previews from the backup. If a sticker's cached image is missing, the exporter uses its matching embedded library preview when available.
@@ -68,6 +68,8 @@ python iphone_imessage_exporter.py `
   --output-dir "C:\path\to\imessage_html" `
   --time-zone "America/New_York"
 ```
+
+The rebuild also regenerates the birthday calendar and birthday-wishes page from the archived messages. Open `birthdays.html` to browse inferred birthdays, or `birthday_wishes.html` to search for people who wished you a happy birthday.
 
 Run `python iphone_imessage_exporter.py --help` for all command-line options.
 

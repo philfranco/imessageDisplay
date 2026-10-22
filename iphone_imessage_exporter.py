@@ -15,8 +15,9 @@ from backup_extractor import CALL_HISTORY_DB_PATH, extract_iphone_backup
 from call_history import fetch_call_history
 from export_media import discover_attachment_folders
 from html_pages import (
-    build_conversation_entries,
+    build_birthdays,
     build_call_history,
+    build_conversation_entries,
     build_html,
     build_index,
     build_search_index,
@@ -287,9 +288,10 @@ def _render_html(
 
     overall_stats = summarize_messages(messages, time_zone)
     overall_stats['conversations'] = total_convs
-    report('Building conversation index and search index...')
+    report('Building conversation index, search index, and birthday calendar...')
     build_index(index_entries, output_dir, overall_stats, time_zone)
     build_search_index(index_entries, output_dir, time_zone)
+    build_birthdays(index_entries, output_dir, time_zone)
 
     call_history_sources = []
     for extraction_dir in sorted(glob.glob(os.path.join(output_dir, 'extracted_backup_*'))):

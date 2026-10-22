@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from html_pages import (
+    build_birthdays,
     build_html,
     build_index,
     build_search_index,
@@ -208,6 +209,71 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('item.querySelector(".filtered-first-date").textContent', content)
         self.assertIn('item.setAttribute("data-sort-messages", matchingMessages.length)', content)
         self.assertIn('item.setAttribute("data-sort-attachments", filteredAttachments)', content)
+
+    def test_birthdays_calendar_uses_outgoing_direct_greetings_and_shows_conflicts(self):
+        conversations = [
+            ('Alex <Friend>', 'Alex_Friend', [
+                {
+                    **self.messages[0],
+                    'text': 'Happy Birthday!',
+                    'date': '2022-06-10 10:00:00',
+                    'is_from_me': True,
+                },
+                {
+                    **self.messages[1],
+                    'text': 'happy birthday again',
+                    'date': '2024-06-10 10:00:00',
+                    'is_from_me': True,
+                },
+                {
+                    **self.messages[2],
+                    'text': 'Happy Birthday',
+                    'date': '2025-07-12 10:00:00',
+                    'is_from_me': True,
+                },
+                {
+                    **self.messages[1],
+                    'text': 'Happy Birthday to you',
+                    'date': '2025-08-01 10:00:00',
+                    'is_from_me': False,
+                },
+            ]),
+            ('Group chat', 'Group_chat', [{
+                **self.messages[0],
+                'text': 'Happy Birthday',
+                'date': '2025-09-01 10:00:00',
+                'is_from_me': True,
+                'chat_id': ('group', 12),
+            }]),
+        ]
+
+        path = build_birthdays(conversations, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+        self.assertIn('<title>Inferred birthdays</title>', content)
+        self.assertIn(
+            'href="Alex_Friend.html?dateFrom=2024-06-10&amp;dateTo=2024-06-10"',
+            content,
+        )
+        self.assertIn(
+            'title="2 supporting messages; observed in 2022, 2024; open 2024-06-10"',
+            content,
+        )
+        self.assertIn(
+            'href="Alex_Friend.html?dateFrom=2025-07-12&amp;dateTo=2025-07-12"',
+            content,
+        )
+        self.assertIn(
+            'title="1 supporting message; observed in 2025; open 2025-07-12"',
+            content,
+        )
+        self.assertIn('Alex &lt;Friend&gt;', content)
+        self.assertEqual(content.count('href="Alex_Friend.html?'), 2)
+        self.assertIn('grid-template-columns: repeat(3, minmax(0, 1fr))', content)
+        self.assertIn('@media (max-width: 1000px)', content)
+        self.assertIn('@media (max-width: 640px)', content)
+        self.assertNotIn('href="Group_chat.html"', content)
 
     def test_index_has_per_year_activity_and_overall_stats(self):
         stats = summarize_messages(self.messages)

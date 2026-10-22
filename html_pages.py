@@ -1,9 +1,11 @@
 """Render conversation, index, and search HTML pages."""
 
+import calendar
 import hashlib
 import html
 import json
 import os
+import re
 from collections import Counter
 from collections import defaultdict
 from datetime import date, timedelta
@@ -89,7 +91,7 @@ def build_html(
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a id="backToSearch" href="search.html">← Back to search</a><a href="index.html">Index</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a id="backToSearch" href="search.html">← Back to search</a><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         f'      <p class="eyebrow">iMessage conversation • {html.escape(time_zone)}</p>',
         f'      <h1>{html.escape(conversation_name)}</h1>',
@@ -458,7 +460,7 @@ def build_index(conversations, output_dir, overall_stats, time_zone=DEFAULT_TIME
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Your conversations</h1>',
@@ -568,7 +570,7 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Find a conversation</h1>',
@@ -814,6 +816,160 @@ def build_search_index(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
     return search_path
 
 
+def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
+    """Create a calendar of birthday dates inferred from outgoing direct messages."""
+    page_path = os.path.join(output_dir, 'birthdays.html')
+    birthday_evidence = defaultdict(dict)
+    birthday_phrase = re.compile(r'\bhappy\s+birthday\b', re.IGNORECASE)
+
+    for display_name, filename, messages in conversations:
+        for message in messages:
+            chat_id = message.get('chat_id')
+            if (
+                not message.get('is_from_me')
+                or not isinstance(chat_id, (tuple, list))
+                or not chat_id
+                or chat_id[0] not in ('phone', 'address')
+                or not birthday_phrase.search(str(message.get('text') or ''))
+            ):
+                continue
+
+            local_date, _ = _split_message_datetime(
+                localize_message_datetime(message.get('date'), time_zone)
+            )
+            try:
+                message_day = date.fromisoformat(local_date)
+            except ValueError:
+                continue
+
+            birthday_key = (message_day.month, message_day.day)
+            contact = birthday_evidence[birthday_key].setdefault(
+                (display_name, filename),
+                {'count': 0, 'years': set()},
+            )
+            contact['count'] += 1
+            contact['years'].add(message_day.year)
+
+    birthdays_by_day = defaultdict(list)
+    for (month, day), contacts in birthday_evidence.items():
+        birthdays_by_day[(month, day)] = sorted(
+            (
+                {
+                    'name': name,
+                    'filename': filename,
+                    'count': evidence['count'],
+                    'years': sorted(evidence['years']),
+                }
+                for (name, filename), evidence in contacts.items()
+            ),
+            key=lambda contact: contact['name'].casefold(),
+        )
+
+    total_candidates = sum(len(contacts) for contacts in birthdays_by_day.values())
+    unique_contacts = {
+        (contact['name'], contact['filename'])
+        for contacts in birthdays_by_day.values()
+        for contact in contacts
+    }
+    content = [
+        '<!DOCTYPE html>',
+        '<html lang="en">',
+        '<head>',
+        '  <meta charset="UTF-8">',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+        '  <title>Inferred birthdays</title>',
+        '  <style>',
+        '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; color: #172033; }',
+        '    .wrapper { width: calc(100% - 48px); max-width: 1500px; margin: 0 auto; padding: 28px 0 48px; }',
+        '    .site-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }',
+        '    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #fff; }',
+        '    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }',
+        '    .page-header { padding: clamp(24px, 4vw, 42px); margin-bottom: 20px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }',
+        '    .page-header p { margin: 10px 0 0; color: #e0f2fe; line-height: 1.5; }',
+        '    h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); }',
+        '    .calendar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }',
+        '    .month { padding: 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }',
+        '    .month h2 { margin: 0 0 12px; color: #102a56; font-size: 18px; }',
+        '    .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }',
+        '    .weekday { padding: 4px 0; color: #64748b; font-size: 11px; font-weight: 700; text-align: center; }',
+        '    .day { min-height: 64px; padding: 5px; border-radius: 8px; background: #f8fafc; font-size: 12px; }',
+        '    .day.empty { background: transparent; }',
+        '    .day.has-birthday { background: #eff6ff; box-shadow: inset 0 0 0 1px #bfdbfe; }',
+        '    .day-number { color: #475569; font-weight: 700; }',
+        '    .birthday-list { display: grid; gap: 3px; margin-top: 4px; }',
+        '    .birthday-list a { color: #1d4ed8; font-weight: 600; overflow-wrap: anywhere; text-decoration: none; }',
+        '    .birthday-list a:hover { text-decoration: underline; }',
+        '    .evidence { color: #64748b; font-size: 10px; line-height: 1.3; }',
+        '    .empty-state { padding: 22px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #64748b; }',
+        '    @media (max-width: 1000px) { .calendar { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
+        '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .calendar { grid-template-columns: 1fr; } .month { padding: 10px; } .day { min-height: 58px; padding: 3px; } }',
+        '  </style>',
+        '</head>',
+        '<body>',
+        '  <div class="wrapper">',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
+        '    <header class="page-header">',
+        '      <h1>Birthday calendar</h1>',
+        f'      <p>{total_candidates:,} inferred date(s) for {len(unique_contacts):,} contact(s). Dates are inferred from outgoing “Happy Birthday” messages and may not be the actual birthday. Conflicting dates are shown separately; the number indicates supporting messages. Times and dates use {html.escape(time_zone)}.</p>',
+        '    </header>',
+    ]
+
+    if not total_candidates:
+        content.append(
+            '    <p class="empty-state">No outgoing “Happy Birthday” messages in one-to-one conversations were found.</p>'
+        )
+    else:
+        content.append('    <main class="calendar" aria-label="Birthday calendar">')
+        weekdays = ('Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat')
+        for month in range(1, 13):
+            content.append(
+                f'      <section class="month"><h2>{calendar.month_name[month]}</h2>'
+                '<div class="month-grid">'
+            )
+            content.extend(
+                f'<span class="weekday" aria-hidden="true">{weekday}</span>'
+                for weekday in weekdays
+            )
+            for week in calendar.Calendar(firstweekday=6).monthdayscalendar(2000, month):
+                for day in week:
+                    if not day:
+                        content.append('<span class="day empty" aria-hidden="true"></span>')
+                        continue
+                    contacts = birthdays_by_day.get((month, day), [])
+                    classes = 'day has-birthday' if contacts else 'day'
+                    content.append(f'<div class="{classes}"><span class="day-number">{day}</span>')
+                    if contacts:
+                        content.append('<div class="birthday-list">')
+                        for contact in contacts:
+                            years = ', '.join(str(year) for year in contact['years'])
+                            observed_date = date(contact['years'][-1], month, day).isoformat()
+                            message_word = 'message' if contact['count'] == 1 else 'messages'
+                            title = (
+                                f'{contact["count"]} supporting {message_word}; '
+                                f'observed in {years}; open {observed_date}'
+                            )
+                            content.append(
+                                f'<a href="{html.escape(contact["filename"], quote=True)}.html?'
+                                f'dateFrom={observed_date}&amp;dateTo={observed_date}" '
+                                f'title="{html.escape(title, quote=True)}">'
+                                f'{html.escape(contact["name"])}'
+                                f' <span aria-label="{contact["count"]} supporting messages">'
+                                f'({contact["count"]})</span></a>'
+                            )
+                            content.append(
+                                f'<span class="evidence">{html.escape(years)}</span>'
+                            )
+                        content.append('</div>')
+                    content.append('</div>')
+            content.append('</div></section>')
+        content.append('    </main>')
+
+    content.extend(['  </div>', '</body>', '</html>'])
+    with open(page_path, 'w', encoding='utf-8') as page:
+        page.write('\n'.join(content))
+    return page_path
+
+
 def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
     """Render the combined call history from all extracted backups."""
     page_path = os.path.join(output_dir, 'calls.html')
@@ -896,7 +1052,7 @@ def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <h1>Call history</h1>',
         f'      <p>{len(calls):,} calls • Times shown in {html.escape(time_zone)}. Call data is included only when present in an extracted backup.</p>',

@@ -5,7 +5,8 @@ A Python tool for extracting iPhone backup data and turning SMS/iMessage convers
 ## Features
 
 - Extracts messages, attachments, contacts, and call history from an iTunes/Finder iPhone backup, including password-protected backups.
-- Creates an HTML page for each conversation, along with an index, search page, and call-history page.
+- Creates an HTML page for each conversation, along with an index, search page, birthday calendar, and call-history page.
+- Builds a birthday calendar from outgoing “Happy Birthday” messages in one-to-one conversations. Detected dates are estimates; if a contact has multiple candidate dates, each is shown with its supporting message count.
 - Supports searching and filtering conversations by message text, date, and time, including a random-day picker to jump to conversations active on a randomly selected day.
 - Merges messages from successive backups into a persistent SQLite archive instead of replacing earlier imports.
 - Converts HEIC/HEIF images to JPEG and MOV videos to MP4 for browser previews.

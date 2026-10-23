@@ -1189,6 +1189,7 @@ def build_search_index(
                 local_time,
                 len(message.get('attachments') or []),
                 bool(message.get('is_from_me')),
+                str(message.get('sender') or 'Unknown'),
             ])
         serialized_messages = json.dumps(
             searchable_messages,
@@ -1225,6 +1226,8 @@ def build_search_index(
                 'reply-sent': metrics['reply_sent_minutes'] if metrics['reply_sent_minutes'] is not None else -1,
                 'reply-received': metrics['reply_received_minutes'] if metrics['reply_received_minutes'] is not None else -1,
             })
+        else:
+            sort_values['top-participant'] = participant_count
         sort_attributes = ' '.join(
             f'data-sort-{key}="{html.escape(str(value), quote=True)}"'
             for key, value in sort_values.items()
@@ -1242,7 +1245,7 @@ def build_search_index(
                 f'<td><span class="filtered-attachment-count">{stats["attachments"]:,}</span></td>',
                 f'<td><span class="filtered-first-date">{html.escape(stats["first_date"])}</span></td>',
                 f'<td><span class="filtered-last-date">{html.escape(stats["last_date"])}</span></td>',
-                f'<td>{html.escape(top_participant)} ({participant_count:,})</td>',
+                f'<td><span class="filtered-top-participant">{html.escape(top_participant)} ({participant_count:,})</span></td>',
             ])
         else:
             sent_reply = (
@@ -1499,6 +1502,25 @@ def build_search_index(
         '            item.setAttribute("data-sort-active-streak", rowMetrics.activeStreak);',
         '            item.setAttribute("data-sort-reply-sent", rowMetrics.sentMedian === null ? -1 : rowMetrics.sentMedian);',
         '            item.setAttribute("data-sort-reply-received", rowMetrics.receivedMedian === null ? -1 : rowMetrics.receivedMedian);',
+        '          }',
+        '          const topParticipantCell = item.querySelector(".filtered-top-participant");',
+        '          if (topParticipantCell) {',
+        '            const senderCounts = new Map();',
+        '            matchingMessages.forEach(function(message) {',
+        '              const sender = message[5];',
+        '              if (sender.toLowerCase() === "me") return;',
+        '              senderCounts.set(sender, (senderCounts.get(sender) || 0) + 1);',
+        '            });',
+        '            let topSender = "—";',
+        '            let topSenderCount = 0;',
+        '            senderCounts.forEach(function(count, sender) {',
+        '              if (count > topSenderCount) {',
+        '                topSender = sender;',
+        '                topSenderCount = count;',
+        '              }',
+        '            });',
+        '            topParticipantCell.textContent = topSender + " (" + topSenderCount.toLocaleString() + ")";',
+        '            item.setAttribute("data-sort-top-participant", topSenderCount);',
         '          }',
         '          if (nameMatches && messageMatches) {',
         '            item.classList.remove("hidden");',

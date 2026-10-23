@@ -72,6 +72,7 @@ def build_html(
         '    .activity-day.level-4 { background: #1e3a8a; box-shadow: none; }',
         '    .activity-legend { margin: 10px 0 0; color: #64748b; font-size: 12px; }',
         '    .message-list { padding: 20px; border: 1px solid #e2e8f0; border-radius: 18px; background: #ffffffb8; box-shadow: 0 4px 18px #0f172a0d; }',
+        '    .load-more { padding: 14px 0; color: #64748b; font-size: 13px; text-align: center; }',
         '    .message-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }',
         '    .message-filters label, .search-filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }',
         '    .message-filters input, .search-filters input { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }',
@@ -188,7 +189,11 @@ def build_html(
         ])
     html_content.append('    <main class="message-list" id="messages">')
 
-    for msg in messages:
+    batch_size = 2000
+    pending_entries = []
+    all_message_dates = set()
+
+    for index, msg in enumerate(messages):
         bubble_class = 'me' if msg['is_from_me'] else 'other'
         text = html.escape(msg['text'] or '')
         if not text and not msg['attachments']:
@@ -210,26 +215,95 @@ def build_html(
         searchable_text = ' '.join(
             (str(msg.get('text') or ''), str(msg.get('sender') or ''), display_date)
         ).casefold()
+        if message_date:
+            all_message_dates.add(message_date)
+
+        if index < batch_size:
+            html_content.append(
+                f'    <div class="message {bubble_class}" '
+                f'data-date="{html.escape(message_date, quote=True)}" '
+                f'data-time="{html.escape(message_time, quote=True)}" '
+                f'data-attachment-count="{len(msg["attachments"])}" '
+                f'data-search-text="{html.escape(searchable_text, quote=True)}">'
+            )
+            html_content.append(f'      <div class="bubble {bubble_class}">')
+            html_content.append(f'        <div>{text}</div>')
+            if attachments_html:
+                html_content.append(f'        {attachments_html}')
+            html_content.append(f'        <div class="meta">{sender} • {html.escape(display_date)}</div>')
+            html_content.append('      </div>')
+            html_content.append('    </div>')
+        else:
+            pending_entries.append({
+                'cls': bubble_class,
+                'd': message_date,
+                't': message_time,
+                'a': len(msg['attachments']),
+                's': html.escape(searchable_text, quote=True),
+                'x': text,
+                'who': sender,
+                'dt': html.escape(display_date),
+                'atts': attachments_html,
+            })
+
+    if pending_entries:
         html_content.append(
-            f'    <div class="message {bubble_class}" '
-            f'data-date="{html.escape(message_date, quote=True)}" '
-            f'data-time="{html.escape(message_time, quote=True)}" '
-            f'data-attachment-count="{len(msg["attachments"])}" '
-            f'data-search-text="{html.escape(searchable_text, quote=True)}">'
+            '    <div class="load-more" id="loadMoreSentinel">'
+            '<span id="loadMoreLabel">Loading more messages…</span></div>'
         )
-        html_content.append(f'      <div class="bubble {bubble_class}">')
-        html_content.append(f'        <div>{text}</div>')
-        if attachments_html:
-            html_content.append(f'        {attachments_html}')
-        html_content.append(f'        <div class="meta">{sender} • {html.escape(display_date)}</div>')
-        html_content.append('      </div>')
-        html_content.append('    </div>')
 
     html_content.extend([
         '    </main>',
+    ])
+    if pending_entries:
+        html_content.extend([
+            '    <script type="application/json" id="pendingData">',
+            json.dumps(pending_entries, separators=(',', ':')),
+            '</script>',
+        ])
+    html_content.extend([
+        '    <script type="application/json" id="allDates">',
+        json.dumps(sorted(all_message_dates)),
+        '</script>',
+    ])
+    html_content.extend([
         '    <script>',
+        '      const BATCH_SIZE = 2000;',
         '      const messageFilters = ["messageTextSearch", "messageDateFrom", "messageDateTo", "messageTimeFrom", "messageTimeTo"];',
+        f'      const totalMessages = {stats["messages"]};',
+        f'      const totalAttachments = {stats["attachments"]};',
+        '      const pendingDataEl = document.getElementById("pendingData");',
+        '      const pending = pendingDataEl ? JSON.parse(pendingDataEl.textContent) : [];',
+        '      const loadMoreSentinel = document.getElementById("loadMoreSentinel");',
         '      const messageItems = Array.from(document.querySelectorAll(".message"));',
+        '      function renderChunk(count) {',
+        '        if (!pending.length) return;',
+        '        const slice = pending.splice(0, count);',
+        '        let markup = "";',
+        '        for (const m of slice) {',
+        '          markup += "<div class=\\"message " + m.cls + "\\" data-date=\\"" + m.d + "\\" data-time=\\"" + m.t + "\\" data-attachment-count=\\"" + m.a + "\\" data-search-text=\\"" + m.s + "\\\">" +',
+        '            "<div class=\\"bubble " + m.cls + "\\"><div>" + m.x + "</div>" + m.atts +',
+        '            "<div class=\\"meta\\">" + m.who + " • " + m.dt + "</div></div></div>";',
+        '        }',
+        '        const template = document.createElement("template");',
+        '        template.innerHTML = markup;',
+        '        const newItems = Array.from(template.content.children);',
+        '        document.getElementById("messages").insertBefore(template.content, loadMoreSentinel);',
+        '        newItems.forEach(function(item) { messageItems.push(item); });',
+        '        if (!pending.length && loadMoreSentinel) loadMoreSentinel.style.display = "none";',
+        '      }',
+        '      if (loadMoreSentinel && window.IntersectionObserver) {',
+        '        const loadMoreObserver = new IntersectionObserver(function(entries) {',
+        '          if (entries[0].isIntersecting) {',
+        '            renderChunk(BATCH_SIZE);',
+        '            if (!pending.length) {',
+        '              loadMoreSentinel.style.display = "none";',
+        '              loadMoreObserver.disconnect();',
+        '            }',
+        '          }',
+        '        }, { rootMargin: "400px" });',
+        '        loadMoreObserver.observe(loadMoreSentinel);',
+        '      }',
         '      const messageResultCount = document.getElementById("messageResultCount");',
         '      const messageCount = document.getElementById("messageCount");',
         '      const attachmentCount = document.getElementById("attachmentCount");',
@@ -247,34 +321,43 @@ def build_html(
         '        if (messageQuery.has(key)) searchQuery.set(key, messageQuery.get(key));',
         '      });',
         '      if (searchQuery.toString()) backToSearch.href = "search.html?" + searchQuery.toString();',
-        '      function filterMessages() {',
+        '      function filterMessages(materialize) {',
+        '        if (materialize) {',
+        '          while (pending.length) renderChunk(BATCH_SIZE);',
+        '        }',
         '        const text = document.getElementById("messageTextSearch").value.trim().toLocaleLowerCase();',
         '        const dateFrom = document.getElementById("messageDateFrom").value;',
         '        const dateTo = document.getElementById("messageDateTo").value;',
         '        const timeFrom = document.getElementById("messageTimeFrom").value;',
         '        const timeTo = document.getElementById("messageTimeTo").value;',
+        '        const noFilters = !text && !dateFrom && !dateTo && !timeFrom && !timeTo;',
         '        let visible = 0;',
         '        let visibleAttachments = 0;',
         '        messageItems.forEach(function(item) {',
-        '          const matches = (!text || item.dataset.searchText.includes(text)) &&',
+        '          const matches = noFilters || (',
+        '            (!text || item.dataset.searchText.includes(text)) &&',
         '            (!dateFrom || item.dataset.date >= dateFrom) && (!dateTo || item.dataset.date <= dateTo) &&',
-        '            (!timeFrom || item.dataset.time >= timeFrom) && (!timeTo || item.dataset.time <= timeTo);',
+        '            (!timeFrom || item.dataset.time >= timeFrom) && (!timeTo || item.dataset.time <= timeTo));',
         '          item.classList.toggle("filtered-out", !matches);',
-        '          if (matches) {',
+        '          if (matches && !noFilters) {',
         '            visible++;',
         '            visibleAttachments += Number(item.dataset.attachmentCount || 0);',
         '          }',
         '        });',
+        '        if (noFilters) {',
+        '          visible = totalMessages;',
+        '          visibleAttachments = totalAttachments;',
+        '        }',
         '        messageCount.textContent = visible.toLocaleString();',
         '        attachmentCount.textContent = visibleAttachments.toLocaleString();',
-        '        messageResultCount.textContent = "Showing " + visible + " of " + messageItems.length + " messages";',
+        '        messageResultCount.textContent = "Showing " + visible.toLocaleString() + " of " + totalMessages.toLocaleString() + " messages";',
         '      }',
         '      messageFilters.forEach(function(id) {',
         '        document.getElementById(id).addEventListener("input", filterMessages);',
         '        document.getElementById(id).addEventListener("change", filterMessages);',
         '      });',
-        '      const availableMessageDates = new Set();',
-        '      messageItems.forEach(function(item) { if (item.dataset.date) availableMessageDates.add(item.dataset.date); });',
+        '      const allDatesEl = document.getElementById("allDates");',
+        '      const availableMessageDates = new Set(allDatesEl ? JSON.parse(allDatesEl.textContent) : []);',
         '      const padMessageValue = function(value) { return String(value).padStart(2, "0"); };',
         '      const randomDayButton = document.getElementById("randomDayButton");',
         '      const randomWeekButton = document.getElementById("randomWeekButton");',
@@ -289,8 +372,7 @@ def build_html(
         '        document.getElementById("messageDateTo").value = end;',
         '        document.getElementById("messageTimeFrom").value = "";',
         '        document.getElementById("messageTimeTo").value = "";',
-        '        filterMessages();',
-        '        document.getElementById("messages").scrollIntoView({ behavior: "smooth" });',
+        '        filterMessages(true);',
         '      }',
         '      randomDayButton.addEventListener("click", function() {',
         '        const dates = Array.from(availableMessageDates);',
@@ -317,7 +399,7 @@ def build_html(
         '      clearFiltersButton.addEventListener("click", function() {',
         '        messageFilters.forEach(function(id) { document.getElementById(id).value = ""; });',
         '        randomStatus.textContent = "";',
-        '        filterMessages();',
+        '        filterMessages(true);',
         '      });',
         '      const activityYears = Array.from(document.querySelectorAll(".activity-year"));',
         '      if (activityYears.length) {',
@@ -336,11 +418,17 @@ def build_html(
         '        day.addEventListener("click", function() {',
         '          document.getElementById("messageDateFrom").value = day.dataset.calendarDate;',
         '          document.getElementById("messageDateTo").value = day.dataset.calendarDate;',
-        '          filterMessages();',
-        '          document.getElementById("messages").scrollIntoView({ behavior: "smooth" });',
+        '          filterMessages(true);',
         '        });',
         '      });',
-        '      filterMessages();',
+        '      const initialFiltersActive = Boolean(',
+        '        document.getElementById("messageTextSearch").value ||',
+        '        document.getElementById("messageDateFrom").value ||',
+        '        document.getElementById("messageDateTo").value ||',
+        '        document.getElementById("messageTimeFrom").value ||',
+        '        document.getElementById("messageTimeTo").value',
+        '      );',
+        '      filterMessages(initialFiltersActive);',
         '    </script>',
         '  </div>',
         '</body>',

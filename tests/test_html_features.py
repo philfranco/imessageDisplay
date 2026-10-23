@@ -177,9 +177,9 @@ class HtmlFeatureTests(unittest.TestCase):
         payload_end = content.index('</script>', payload_start)
         search_data = json.loads(content[payload_start:payload_end])
         self.assertEqual(search_data, [[
-            ['hello </script>', '2024-01-01', '03:30', 0],
-            ['reply', '2024-01-01', '03:45', 0],
-            ['next year', '2025-02-03', '05:15', 0],
+            ['hello </script>', '2024-01-01', '03:30', 0, True, 'Me'],
+            ['reply', '2024-01-01', '03:45', 0, False, 'Alex'],
+            ['next year', '2025-02-03', '05:15', 0, True, 'Me'],
         ]])
         self.assertIn(
             'JSON.parse(document.getElementById("searchMessageData").textContent)',
@@ -197,7 +197,6 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('data-sort-key="participants"', content)
         self.assertIn('table.tBodies[0].appendChild(row)', content)
         self.assertIn('data-sort-reply-sent=', content)
-        self.assertIn('data-sort-top-participant="0"', content)
         self.assertIn('Median sent reply', content)
         self.assertIn('Longest active streak', content)
 
@@ -227,6 +226,7 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('>Weekend group</a>', group_table)
         self.assertIn('Alex, Jordan', group_table)
         self.assertIn('filtered-attachment-count">1</span>', group_table)
+        self.assertIn('data-sort-top-participant="0"', group_table)
         self.assertNotIn('Median sent reply', group_table)
         self.assertIn('data-sort-key="reply-sent"', content)
         self.assertIn('data-sort-key="participants"', content)
@@ -244,7 +244,7 @@ class HtmlFeatureTests(unittest.TestCase):
 
         self.assertIn('class="filtered-message-count">3</span>', content)
         self.assertIn('class="filtered-attachment-count">4</span>', content)
-        self.assertIn('["hello \\u003c/script\\u003e","2024-01-01","03:30",2]', content)
+        self.assertIn('["hello \\u003c/script\\u003e","2024-01-01","03:30",2,true,"Me"]', content)
         self.assertIn('messages.filter(function(message)', content)
         self.assertIn('message[0].includes(messageTerm)', content)
         self.assertIn('message[3] || 0', content)
@@ -532,7 +532,55 @@ class HtmlFeatureTests(unittest.TestCase):
         search_path = build_search_index([('Alex', 'Alex', messages)], self.output_dir)
         with open(search_path, encoding='utf-8') as page:
             search_content = page.read()
-        self.assertIn('["previous local day","2024-01-01","21:00",0]', search_content)
+        self.assertIn('["previous local day","2024-01-01","21:00",0,false,"Alex"]', search_content)
+
+    def test_large_conversations_load_messages_in_2000_message_batches(self):
+        messages = [
+            {
+                'id': index,
+                'text': f'message {index}',
+                'date': '2024-01-01 08:30:00',
+                'is_from_me': index % 2 == 0,
+                'sender': 'Me' if index % 2 == 0 else 'Alex',
+                'chat_id': ('phone', '15551234567'),
+                'attachments': [],
+            }
+            for index in range(5005)
+        ]
+        path = build_html('Bulk', messages, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        # The first batch renders inline HTML; the rest is compact JSON.
+        self.assertEqual(content.count('<div class="message '), 2000)
+        self.assertIn('<div class="load-more" id="loadMoreSentinel">', content)
+        self.assertIn('Loading more messages', content)
+        self.assertIn('const BATCH_SIZE = 2000;', content)
+        self.assertIn('const messageFilters = ["messageTextSearch"', content)
+        self.assertIn('IntersectionObserver', content)
+        self.assertIn('filterMessages(true);', content)
+
+        payload_start = content.index('id="pendingData">') + len('id="pendingData">')
+        payload_end = content.index('</script>', payload_start)
+        pending = json.loads(content[payload_start:payload_end])
+        self.assertEqual(len(pending), 3005)
+        self.assertEqual(pending[0]['x'], 'message 2000')
+        self.assertEqual(pending[4]['d'], '2024-01-01')
+
+        dates_start = content.index('id="allDates">') + len('id="allDates">')
+        dates_end = content.index('</script>', dates_start)
+        self.assertEqual(json.loads(content[dates_start:dates_end]), ['2024-01-01'])
+
+    def test_small_conversations_have_no_lazy_payload(self):
+        path = build_html('Alex', self.messages, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertNotIn('id="pendingData"', content)
+        self.assertNotIn('id="loadMoreSentinel"', content)
+        self.assertIn('<strong id="messageCount">3</strong> messages', content)
 
 
 if __name__ == '__main__':

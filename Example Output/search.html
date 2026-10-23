@@ -67,7 +67,7 @@
       <label>To date<input type="date" id="dateToInput"></label>
       <label>From time<input type="time" id="timeFromInput"></label>
       <label>To time<input type="time" id="timeToInput"></label>
-      <label>Minimum total messages<input type="number" id="minTotalInput" min="1" step="1" placeholder="Off"></label>
+      <label>Minimum total messages<input type="number" id="minTotalInput" min="1" step="1" value="1" placeholder="Off"></label>
       <div class="random-day-control"><button type="button" id="randomDayButton">Go to a random day</button><button type="button" id="randomWeekButton">Go to a random week</button><button type="button" id="clearFiltersButton">Clear filters</button><span id="randomDayStatus" aria-live="polite"></span></div>
     </section>
     <div class="results-count"><span id="resultCount">Showing all</span> conversations</div>
@@ -281,8 +281,8 @@
         const dateTo = dateToInput.value;
         const timeFrom = timeFromInput.value;
         const timeTo = timeToInput.value;
-        const minTotal = Number(minTotalInput.value) || 0;
-        const messageFiltersActive = Boolean(messageTerm || dateFrom || dateTo || timeFrom || timeTo || minTotal);
+        const minTotal = Number(minTotalInput.value) || 1;
+        const messageFiltersActive = Boolean(messageTerm || dateFrom || dateTo || timeFrom || timeTo || minTotal > 1);
         let visibleCount = 0;
         
         conversationItems.forEach(function(item) {
@@ -378,7 +378,7 @@
         dateToInput.value = randomDate;
         timeFromInput.value = "";
         timeToInput.value = "";
-        minTotalInput.value = "";
+        minTotalInput.value = "1";
         filterConversations();
         randomDayStatus.textContent = "Showing conversations from " + randomDate;
       });
@@ -400,12 +400,12 @@
         dateToInput.value = formatDate(sunday);
         timeFromInput.value = "";
         timeToInput.value = "";
-        minTotalInput.value = "";
+        minTotalInput.value = "1";
         filterConversations();
         randomDayStatus.textContent = "Showing conversations from the week of " + formatDate(monday) + " to " + formatDate(sunday) + " (contains " + randomDate + ")";
       });
       document.getElementById("clearFiltersButton").addEventListener("click", function() {
-        Object.keys(searchFields).forEach(function(key) { searchFields[key].value = ""; });
+        Object.keys(searchFields).forEach(function(key) { searchFields[key].value = key === "minTotal" ? "1" : ""; });
         randomDayStatus.textContent = "";
         filterConversations();
       });

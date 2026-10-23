@@ -38,6 +38,10 @@
     .message-filters label, .search-filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }
     .message-filters input, .search-filters input { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
     .message-result-count { color: #64748b; font-size: 13px; }
+    .message-filter-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+    .message-filter-actions button { border: 0; border-radius: 10px; padding: 10px 15px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }
+    .message-filter-actions button:disabled { background: #94a3b8; cursor: not-allowed; }
+    .message-filter-actions span { color: #64748b; font-size: 13px; }
     .message { display: flex; margin-bottom: 14px; }
     .message.filtered-out { display: none; }
     .message.me { justify-content: flex-end; }
@@ -72,6 +76,12 @@
       <label>From time<input id="messageTimeFrom" type="time"></label>
       <label>To time<input id="messageTimeTo" type="time"></label>
       <div id="messageResultCount" class="message-result-count" aria-live="polite"></div>
+      <div class="message-filter-actions">
+        <button type="button" id="randomDayButton">Go to a random day</button>
+        <button type="button" id="randomWeekButton">Go to a random week</button>
+        <button type="button" id="clearFiltersButton">Clear filters</button>
+        <span id="randomStatus" aria-live="polite"></span>
+      </div>
     </section>
     <section class="activity-card" aria-label="Conversation daily message activity">
       <div class="activity-heading"><h2>Messages per day in this conversation</h2>
@@ -1716,6 +1726,52 @@
       messageFilters.forEach(function(id) {
         document.getElementById(id).addEventListener("input", filterMessages);
         document.getElementById(id).addEventListener("change", filterMessages);
+      });
+      const availableMessageDates = new Set();
+      messageItems.forEach(function(item) { if (item.dataset.date) availableMessageDates.add(item.dataset.date); });
+      const padMessageValue = function(value) { return String(value).padStart(2, "0"); };
+      const randomDayButton = document.getElementById("randomDayButton");
+      const randomWeekButton = document.getElementById("randomWeekButton");
+      const clearFiltersButton = document.getElementById("clearFiltersButton");
+      const randomStatus = document.getElementById("randomStatus");
+      const noAvailableDates = availableMessageDates.size === 0;
+      randomDayButton.disabled = noAvailableDates;
+      randomWeekButton.disabled = noAvailableDates;
+      function setConversationDateRange(start, end) {
+        document.getElementById("messageTextSearch").value = "";
+        document.getElementById("messageDateFrom").value = start;
+        document.getElementById("messageDateTo").value = end;
+        document.getElementById("messageTimeFrom").value = "";
+        document.getElementById("messageTimeTo").value = "";
+        filterMessages();
+        document.getElementById("messages").scrollIntoView({ behavior: "smooth" });
+      }
+      randomDayButton.addEventListener("click", function() {
+        const dates = Array.from(availableMessageDates);
+        if (!dates.length) return;
+        const randomDate = dates[Math.floor(Math.random() * dates.length)];
+        setConversationDateRange(randomDate, randomDate);
+        randomStatus.textContent = "Showing messages from " + randomDate + ".";
+      });
+      randomWeekButton.addEventListener("click", function() {
+        const dates = Array.from(availableMessageDates);
+        if (!dates.length) return;
+        const randomDate = dates[Math.floor(Math.random() * dates.length)];
+        const parts = randomDate.split("-").map(Number);
+        const picked = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+        const dayNumber = (picked.getUTCDay() + 6) % 7;
+        const monday = new Date(picked);
+        monday.setUTCDate(picked.getUTCDate() - dayNumber);
+        const sunday = new Date(monday);
+        sunday.setUTCDate(monday.getUTCDate() + 6);
+        const formatDate = function(date) { return date.getUTCFullYear() + "-" + padMessageValue(date.getUTCMonth() + 1) + "-" + padMessageValue(date.getUTCDate()); };
+        setConversationDateRange(formatDate(monday), formatDate(sunday));
+        randomStatus.textContent = "Showing messages from the week of " + formatDate(monday) + " to " + formatDate(sunday) + " (contains " + randomDate + ").";
+      });
+      clearFiltersButton.addEventListener("click", function() {
+        messageFilters.forEach(function(id) { document.getElementById(id).value = ""; });
+        randomStatus.textContent = "";
+        filterMessages();
       });
       const activityYears = Array.from(document.querySelectorAll(".activity-year"));
       if (activityYears.length) {

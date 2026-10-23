@@ -67,7 +67,8 @@
       <label>To date<input type="date" id="dateToInput"></label>
       <label>From time<input type="time" id="timeFromInput"></label>
       <label>To time<input type="time" id="timeToInput"></label>
-      <div class="random-day-control"><button type="button" id="randomDayButton">Go to a random day</button><span id="randomDayStatus" aria-live="polite"></span></div>
+      <label>Minimum total messages<input type="number" id="minTotalInput" min="1" step="1" placeholder="Off"></label>
+      <div class="random-day-control"><button type="button" id="randomDayButton">Go to a random day</button><button type="button" id="randomWeekButton">Go to a random week</button><button type="button" id="clearFiltersButton">Clear filters</button><span id="randomDayStatus" aria-live="polite"></span></div>
     </section>
     <div class="results-count"><span id="resultCount">Showing all</span> conversations</div>
     <section class="conversation-section" aria-labelledby="directConversationsHeading">
@@ -85,13 +86,12 @@
 <th scope="col"><button type="button" data-sort-key="active-streak" aria-sort="none">Longest active streak <span class="sort-indicator"></span></button></th>
 <th scope="col"><button type="button" data-sort-key="reply-sent" aria-sort="none">Median sent reply <span class="sort-indicator"></span></button></th>
 <th scope="col"><button type="button" data-sort-key="reply-received" aria-sort="none">Median received reply <span class="sort-indicator"></span></button></th>
-<th scope="col"><button type="button" data-sort-key="top-participant" aria-sort="none">Top group participant <span class="sort-indicator"></span></button></th>
 </tr></thead><tbody id="conversationList">
-<tr class="conv-item" data-name="ava patel " data-search-index="0" data-sort-name="ava patel" data-sort-participants="" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2022-06-10 09:00:00" data-sort-last-date="2025-08-19 14:24:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="37600680.0" data-sort-active-streak="1" data-sort-reply-sent="262825.0" data-sort-reply-received="13.0" data-sort-top-participant="0"><td><a data-conversation-file="Ava_Patel.html" href="Ava_Patel.html">Ava Patel</a></td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-06-10 09:00:00</span></td><td><span class="filtered-last-date">2025-08-19 14:24:00</span></td><td>2025-08-19 (2)</td><td>2025-W34 (2)</td><td>2025-08 (2)</td><td>435d 4h</td><td>1 days</td><td>262,825.0 min</td><td>13.0 min</td><td>— (0)</td></tr>
-<tr class="conv-item" data-name="jordan lee " data-search-index="3" data-sort-name="jordan lee" data-sort-participants="" data-sort-messages="8" data-sort-attachments="0" data-sort-first-date="2022-09-14 09:00:00" data-sort-last-date="2025-06-11 10:16:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="23335500.0" data-sort-active-streak="1" data-sort-reply-sent="138285.0" data-sort-reply-received="11.0" data-sort-top-participant="0"><td><a data-conversation-file="Jordan_Lee.html" href="Jordan_Lee.html">Jordan Lee</a></td><td><span class="filtered-message-count">8</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-09-14 09:00:00</span></td><td><span class="filtered-last-date">2025-06-11 10:16:00</span></td><td>2025-06-11 (2)</td><td>2025-W24 (2)</td><td>2025-06 (2)</td><td>270d 2h</td><td>1 days</td><td>138,285.0 min</td><td>11.0 min</td><td>— (0)</td></tr>
-<tr class="conv-item" data-name="maya chen " data-search-index="4" data-sort-name="maya chen" data-sort-participants="" data-sort-messages="8" data-sort-attachments="0" data-sort-first-date="2022-02-21 08:00:00" data-sort-last-date="2025-06-10 07:42:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31541400.0" data-sort-active-streak="1" data-sort-reply-sent="368625.0" data-sort-reply-received="156990.0" data-sort-top-participant="0"><td><a data-conversation-file="Maya_Chen.html" href="Maya_Chen.html">Maya Chen</a></td><td><span class="filtered-message-count">8</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-02-21 08:00:00</span></td><td><span class="filtered-last-date">2025-06-10 07:42:00</span></td><td>2025-06-10 (2)</td><td>2025-W24 (2)</td><td>2025-06 (2)</td><td>365d 1h</td><td>1 days</td><td>368,625.0 min</td><td>156,990.0 min</td><td>— (0)</td></tr>
-<tr class="conv-item" data-name="noah brooks " data-search-index="5" data-sort-name="noah brooks" data-sort-participants="" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2022-11-03 09:00:00" data-sort-last-date="2025-02-21 15:10:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31618800.0" data-sort-active-streak="1" data-sort-reply-sent="105019.0" data-sort-reply-received="79449.5" data-sort-top-participant="0"><td><a data-conversation-file="Noah_Brooks.html" href="Noah_Brooks.html">Noah Brooks</a></td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-11-03 09:00:00</span></td><td><span class="filtered-last-date">2025-02-21 15:10:00</span></td><td>2025-02-21 (2)</td><td>2025-W08 (2)</td><td>2025-02 (2)</td><td>365d 23h</td><td>1 days</td><td>105,019.0 min</td><td>79,449.5 min</td><td>— (0)</td></tr>
-<tr class="conv-item" data-name="sofia reyes " data-search-index="6" data-sort-name="sofia reyes" data-sort-participants="" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2022-03-14 09:00:00" data-sort-last-date="2025-06-10 12:00:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31622400.0" data-sort-active-streak="1" data-sort-reply-sent="525531.0" data-sort-reply-received="15.5" data-sort-top-participant="0"><td><a data-conversation-file="Sofia_Reyes.html" href="Sofia_Reyes.html">Sofia Reyes</a></td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-03-14 09:00:00</span></td><td><span class="filtered-last-date">2025-06-10 12:00:00</span></td><td>2025-03-14 (2)</td><td>2025-W11 (2)</td><td>2025-03 (2)</td><td>366d 0h</td><td>1 days</td><td>525,531.0 min</td><td>15.5 min</td><td>— (0)</td></tr>
+<tr class="conv-item" data-name="ava patel " data-search-index="0" data-sort-name="ava patel" data-sort-participants="" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2022-06-10 09:00:00" data-sort-last-date="2025-08-19 14:24:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="37600680.0" data-sort-active-streak="1" data-sort-reply-sent="262825.0" data-sort-reply-received="13.0"><td><a data-conversation-file="Ava_Patel.html" href="Ava_Patel.html">Ava Patel</a></td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-06-10 09:00:00</span></td><td><span class="filtered-last-date">2025-08-19 14:24:00</span></td><td><span class="filtered-busiest-day">2025-08-19 (2)</span></td><td><span class="filtered-busiest-week">2025-W34 (2)</span></td><td><span class="filtered-busiest-month">2025-08 (2)</span></td><td><span class="filtered-longest-gap">435d 4h</span></td><td><span class="filtered-active-streak">1 days</span></td><td><span class="filtered-reply-sent">262,825.0 min</span><td><span class="filtered-reply-received">13.0 min</span></tr>
+<tr class="conv-item" data-name="jordan lee " data-search-index="3" data-sort-name="jordan lee" data-sort-participants="" data-sort-messages="8" data-sort-attachments="0" data-sort-first-date="2022-09-14 09:00:00" data-sort-last-date="2025-06-11 10:16:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="23335500.0" data-sort-active-streak="1" data-sort-reply-sent="138285.0" data-sort-reply-received="11.0"><td><a data-conversation-file="Jordan_Lee.html" href="Jordan_Lee.html">Jordan Lee</a></td><td><span class="filtered-message-count">8</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-09-14 09:00:00</span></td><td><span class="filtered-last-date">2025-06-11 10:16:00</span></td><td><span class="filtered-busiest-day">2025-06-11 (2)</span></td><td><span class="filtered-busiest-week">2025-W24 (2)</span></td><td><span class="filtered-busiest-month">2025-06 (2)</span></td><td><span class="filtered-longest-gap">270d 2h</span></td><td><span class="filtered-active-streak">1 days</span></td><td><span class="filtered-reply-sent">138,285.0 min</span><td><span class="filtered-reply-received">11.0 min</span></tr>
+<tr class="conv-item" data-name="maya chen " data-search-index="4" data-sort-name="maya chen" data-sort-participants="" data-sort-messages="8" data-sort-attachments="0" data-sort-first-date="2022-02-21 08:00:00" data-sort-last-date="2025-06-10 07:42:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31541400.0" data-sort-active-streak="1" data-sort-reply-sent="368625.0" data-sort-reply-received="156990.0"><td><a data-conversation-file="Maya_Chen.html" href="Maya_Chen.html">Maya Chen</a></td><td><span class="filtered-message-count">8</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-02-21 08:00:00</span></td><td><span class="filtered-last-date">2025-06-10 07:42:00</span></td><td><span class="filtered-busiest-day">2025-06-10 (2)</span></td><td><span class="filtered-busiest-week">2025-W24 (2)</span></td><td><span class="filtered-busiest-month">2025-06 (2)</span></td><td><span class="filtered-longest-gap">365d 1h</span></td><td><span class="filtered-active-streak">1 days</span></td><td><span class="filtered-reply-sent">368,625.0 min</span><td><span class="filtered-reply-received">156,990.0 min</span></tr>
+<tr class="conv-item" data-name="noah brooks " data-search-index="5" data-sort-name="noah brooks" data-sort-participants="" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2022-11-03 09:00:00" data-sort-last-date="2025-02-21 15:10:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31618800.0" data-sort-active-streak="1" data-sort-reply-sent="105019.0" data-sort-reply-received="79449.5"><td><a data-conversation-file="Noah_Brooks.html" href="Noah_Brooks.html">Noah Brooks</a></td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-11-03 09:00:00</span></td><td><span class="filtered-last-date">2025-02-21 15:10:00</span></td><td><span class="filtered-busiest-day">2025-02-21 (2)</span></td><td><span class="filtered-busiest-week">2025-W08 (2)</span></td><td><span class="filtered-busiest-month">2025-02 (2)</span></td><td><span class="filtered-longest-gap">365d 23h</span></td><td><span class="filtered-active-streak">1 days</span></td><td><span class="filtered-reply-sent">105,019.0 min</span><td><span class="filtered-reply-received">79,449.5 min</span></tr>
+<tr class="conv-item" data-name="sofia reyes " data-search-index="6" data-sort-name="sofia reyes" data-sort-participants="" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2022-03-14 09:00:00" data-sort-last-date="2025-06-10 12:00:00" data-sort-busiest-day="2" data-sort-busiest-week="2" data-sort-busiest-month="2" data-sort-longest-gap="31622400.0" data-sort-active-streak="1" data-sort-reply-sent="525531.0" data-sort-reply-received="15.5"><td><a data-conversation-file="Sofia_Reyes.html" href="Sofia_Reyes.html">Sofia Reyes</a></td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-03-14 09:00:00</span></td><td><span class="filtered-last-date">2025-06-10 12:00:00</span></td><td><span class="filtered-busiest-day">2025-03-14 (2)</span></td><td><span class="filtered-busiest-week">2025-W11 (2)</span></td><td><span class="filtered-busiest-month">2025-03 (2)</span></td><td><span class="filtered-longest-gap">366d 0h</span></td><td><span class="filtered-active-streak">1 days</span></td><td><span class="filtered-reply-sent">525,531.0 min</span><td><span class="filtered-reply-received">15.5 min</span></tr>
       </tbody></table></div>
     </section>
     <section class="conversation-section" aria-labelledby="groupConversationsHeading">
@@ -103,14 +103,15 @@
 <th scope="col"><button type="button" data-sort-key="attachments" aria-sort="none">Attachments <span class="sort-indicator"></span></button></th>
 <th scope="col"><button type="button" data-sort-key="first-date" aria-sort="none">First message <span class="sort-indicator"></span></button></th>
 <th scope="col"><button type="button" data-sort-key="last-date" aria-sort="none">Last message <span class="sort-indicator"></span></button></th>
+<th scope="col"><button type="button" data-sort-key="top-participant" aria-sort="none">Top group participant <span class="sort-indicator"></span></button></th>
 </tr></thead><tbody id="groupConversationList">
-<tr class="conv-item" data-name="book club ava patel, jordan lee, maya chen, me, sofia reyes" data-search-index="1" data-sort-name="book club" data-sort-participants="ava patel, jordan lee, maya chen, me, sofia reyes" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2023-03-05 07:00:00" data-sort-last-date="2025-01-18 09:10:00"><td><a data-conversation-file="Book_Club.html" href="Book_Club.html">Book Club</a></td><td class="participants">Ava Patel, Jordan Lee, Maya Chen, Me, Sofia Reyes</td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2023-03-05 07:00:00</span></td><td><span class="filtered-last-date">2025-01-18 09:10:00</span></td></tr>
-<tr class="conv-item" data-name="family chat ava patel, jordan lee, maya chen, me, noah brooks" data-search-index="2" data-sort-name="family chat" data-sort-participants="ava patel, jordan lee, maya chen, me, noah brooks" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2022-12-24 10:00:00" data-sort-last-date="2025-05-25 08:00:00"><td><a data-conversation-file="Family_Chat.html" href="Family_Chat.html">Family Chat</a></td><td class="participants">Ava Patel, Jordan Lee, Maya Chen, Me, Noah Brooks</td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-12-24 10:00:00</span></td><td><span class="filtered-last-date">2025-05-25 08:00:00</span></td></tr>
-<tr class="conv-item" data-name="weekend crew ava patel, jordan lee, maya chen, me, noah brooks, sofia reyes" data-search-index="7" data-sort-name="weekend crew" data-sort-participants="ava patel, jordan lee, maya chen, me, noah brooks, sofia reyes" data-sort-messages="9" data-sort-attachments="0" data-sort-first-date="2023-06-10 11:00:00" data-sort-last-date="2025-06-10 13:35:00"><td><a data-conversation-file="Weekend_Crew.html" href="Weekend_Crew.html">Weekend Crew</a></td><td class="participants">Ava Patel, Jordan Lee, Maya Chen, Me, Noah Brooks, Sofia Reyes</td><td><span class="filtered-message-count">9</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2023-06-10 11:00:00</span></td><td><span class="filtered-last-date">2025-06-10 13:35:00</span></td></tr>
+<tr class="conv-item" data-name="book club ava patel, jordan lee, maya chen, me, sofia reyes" data-search-index="1" data-sort-name="book club" data-sort-participants="ava patel, jordan lee, maya chen, me, sofia reyes" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2023-03-05 07:00:00" data-sort-last-date="2025-01-18 09:10:00" data-sort-top-participant="1"><td><a data-conversation-file="Book_Club.html" href="Book_Club.html">Book Club</a></td><td class="participants">Ava Patel, Jordan Lee, Maya Chen, Me, Sofia Reyes</td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2023-03-05 07:00:00</span></td><td><span class="filtered-last-date">2025-01-18 09:10:00</span></td><td><span class="filtered-top-participant">Maya Chen (1)</span></td></tr>
+<tr class="conv-item" data-name="family chat ava patel, jordan lee, maya chen, me, noah brooks" data-search-index="2" data-sort-name="family chat" data-sort-participants="ava patel, jordan lee, maya chen, me, noah brooks" data-sort-messages="7" data-sort-attachments="0" data-sort-first-date="2022-12-24 10:00:00" data-sort-last-date="2025-05-25 08:00:00" data-sort-top-participant="1"><td><a data-conversation-file="Family_Chat.html" href="Family_Chat.html">Family Chat</a></td><td class="participants">Ava Patel, Jordan Lee, Maya Chen, Me, Noah Brooks</td><td><span class="filtered-message-count">7</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2022-12-24 10:00:00</span></td><td><span class="filtered-last-date">2025-05-25 08:00:00</span></td><td><span class="filtered-top-participant">Noah Brooks (1)</span></td></tr>
+<tr class="conv-item" data-name="weekend crew ava patel, jordan lee, maya chen, me, noah brooks, sofia reyes" data-search-index="7" data-sort-name="weekend crew" data-sort-participants="ava patel, jordan lee, maya chen, me, noah brooks, sofia reyes" data-sort-messages="9" data-sort-attachments="0" data-sort-first-date="2023-06-10 11:00:00" data-sort-last-date="2025-06-10 13:35:00" data-sort-top-participant="1"><td><a data-conversation-file="Weekend_Crew.html" href="Weekend_Crew.html">Weekend Crew</a></td><td class="participants">Ava Patel, Jordan Lee, Maya Chen, Me, Noah Brooks, Sofia Reyes</td><td><span class="filtered-message-count">9</span></td><td><span class="filtered-attachment-count">0</span></td><td><span class="filtered-first-date">2023-06-10 11:00:00</span></td><td><span class="filtered-last-date">2025-06-10 13:35:00</span></td><td><span class="filtered-top-participant">Ava Patel (1)</span></td></tr>
       </tbody></table></div>
     </section>
     <script id="searchMessageData" type="application/json">
-[[["happy birthday, ava! hope it is a great one.","2022-06-10","09:00",0],["thank you! we are having cake tonight.","2022-06-10","09:14",0],["happy birthday! ready for another year of adventures?","2023-06-10","10:00",0],["happy birthday, ava! dinner is on me this weekend.","2024-06-10","09:30",0],["you remembered! saturday sounds perfect.","2024-06-10","09:42",0],["i sent you the hiking photos.","2025-08-19","14:20",0],["these came out great. thanks!","2025-08-19","14:24",0]],[["i finished the mystery novel. what a twist!","2023-03-05","07:00",0],["i guessed the ending halfway through.","2023-03-05","07:13",0],["next month let us pick something lighter.","2023-03-05","07:24",0],["the new reading list is ready.","2024-04-12","09:00",0],["i vote for the travel memoir.","2024-04-12","09:08",0],["reminder: book club is at my place on friday.","2025-01-18","09:00",0],["perfect, i will bring snacks.","2025-01-18","09:10",0]],[["what time should we arrive tomorrow?","2022-12-24","10:00",0],["lunch is at one. bring your appetite!","2022-12-24","10:12",0],["happy holidays, everyone!","2023-12-24","11:00",0],["happy holidays! see you tomorrow.","2023-12-24","11:07",0],["fireworks start after sunset.","2024-07-04","09:00",0],["i will bring lemonade.","2024-07-04","09:10",0],["sunday brunch was a great idea.","2025-05-25","08:00",0]],[["happy birthday, jordan!","2022-09-14","09:00",0],["thanks! coffee soon?","2022-09-14","09:10",0],["happy birthday! hope today brings good things.","2023-06-10","08:00",0],["happy birthday! hope the new job is treating you well.","2023-09-14","10:00",0],["happy birthday! sending you a big virtual cake.","2024-06-10","08:30",0],["happy birthday, jordan! let us celebrate soon.","2024-09-14","08:00",0],["the concert was fantastic.","2025-06-11","10:05",0],["agreed. next time we should get seats closer.","2025-06-11","10:16",0]],[["happy birthday, maya! hope you get to relax today.","2022-02-21","08:00",0],["thank you! relaxing with a book right now.","2022-02-21","08:20",0],["happy birthday! hope you have a lovely day.","2023-06-10","07:30",0],["happy birthday! wishing you a brilliant year.","2023-02-21","07:00",0],["happy birthday, maya! let me know when you are free for lunch.","2024-02-21","07:15",0],["happy birthday! hope we can catch up soon.","2024-06-10","06:00",0],["happy birthday! hope your day is off to a great start.","2025-06-10","07:30",0],["it is now. thanks for the message!","2025-06-10","07:42",0]],[["happy birthday, noah!","2022-11-03","09:00",0],["thanks! i am celebrating with family.","2022-11-03","09:17",0],["happy birthday! save me a slice of cake.","2023-06-10","11:30",0],["happy birthday! hope the year ahead is a good one.","2023-11-03","08:00",0],["happy birthday, noah! have an excellent day.","2024-11-03","07:00",0],["the game starts at seven.","2025-02-21","15:02",0],["i will be there. see you soon!","2025-02-21","15:10",0]],[["happy birthday, sofia!","2022-03-14","09:00",0],["thank you! the flowers are beautiful.","2022-03-14","09:09",0],["happy birthday! hope you have a wonderful day.","2023-03-14","08:00",0],["happy birthday, sofia! sending lots of good wishes.","2024-03-14","08:00",0],["happy birthday! hope we can celebrate together soon.","2025-03-14","08:00",0],["absolutely! thanks for always remembering.","2025-03-14","08:22",0],["happy birthday! hope your day is full of sunshine.","2025-06-10","12:00",0]],[["happy birthday! we saved you a seat at dinner.","2023-06-10","11:00",0],["thank you all! see you tonight.","2023-06-10","11:06",0],["i will bring dessert.","2023-06-10","12:20",0],["happy birthday! the whole crew is cheering for you.","2024-06-10","12:00",0],["best group chat ever. thanks!","2024-06-10","12:08",0],["park picnic this sunday?","2024-08-19","13:00",0],["count me in.","2024-08-19","13:12",0],["happy birthday! your gift is waiting at dinner.","2025-06-10","13:30",0],["you did not have to! thank you.","2025-06-10","13:35",0]]]
+[[["happy birthday, ava! hope it is a great one.","2022-06-10","09:00",0,true,"Me"],["thank you! we are having cake tonight.","2022-06-10","09:14",0,false,"Ava"],["happy birthday! ready for another year of adventures?","2023-06-10","10:00",0,true,"Me"],["happy birthday, ava! dinner is on me this weekend.","2024-06-10","09:30",0,true,"Me"],["you remembered! saturday sounds perfect.","2024-06-10","09:42",0,false,"Ava"],["i sent you the hiking photos.","2025-08-19","14:20",0,false,"Ava"],["these came out great. thanks!","2025-08-19","14:24",0,true,"Me"]],[["i finished the mystery novel. what a twist!","2023-03-05","07:00",0,true,"Me"],["i guessed the ending halfway through.","2023-03-05","07:13",0,false,"Maya Chen"],["next month let us pick something lighter.","2023-03-05","07:24",0,false,"Ava Patel"],["the new reading list is ready.","2024-04-12","09:00",0,false,"Jordan Lee"],["i vote for the travel memoir.","2024-04-12","09:08",0,true,"Me"],["reminder: book club is at my place on friday.","2025-01-18","09:00",0,false,"Sofia Reyes"],["perfect, i will bring snacks.","2025-01-18","09:10",0,true,"Me"]],[["what time should we arrive tomorrow?","2022-12-24","10:00",0,true,"Me"],["lunch is at one. bring your appetite!","2022-12-24","10:12",0,false,"Noah Brooks"],["happy holidays, everyone!","2023-12-24","11:00",0,false,"Ava Patel"],["happy holidays! see you tomorrow.","2023-12-24","11:07",0,true,"Me"],["fireworks start after sunset.","2024-07-04","09:00",0,false,"Jordan Lee"],["i will bring lemonade.","2024-07-04","09:10",0,true,"Me"],["sunday brunch was a great idea.","2025-05-25","08:00",0,false,"Maya Chen"]],[["happy birthday, jordan!","2022-09-14","09:00",0,true,"Me"],["thanks! coffee soon?","2022-09-14","09:10",0,false,"Jordan"],["happy birthday! hope today brings good things.","2023-06-10","08:00",0,false,"Jordan"],["happy birthday! hope the new job is treating you well.","2023-09-14","10:00",0,true,"Me"],["happy birthday! sending you a big virtual cake.","2024-06-10","08:30",0,false,"Jordan"],["happy birthday, jordan! let us celebrate soon.","2024-09-14","08:00",0,true,"Me"],["the concert was fantastic.","2025-06-11","10:05",0,true,"Me"],["agreed. next time we should get seats closer.","2025-06-11","10:16",0,false,"Jordan"]],[["happy birthday, maya! hope you get to relax today.","2022-02-21","08:00",0,true,"Me"],["thank you! relaxing with a book right now.","2022-02-21","08:20",0,false,"Maya"],["happy birthday! hope you have a lovely day.","2023-06-10","07:30",0,false,"Maya"],["happy birthday! wishing you a brilliant year.","2023-02-21","07:00",0,true,"Me"],["happy birthday, maya! let me know when you are free for lunch.","2024-02-21","07:15",0,true,"Me"],["happy birthday! hope we can catch up soon.","2024-06-10","06:00",0,false,"Maya"],["happy birthday! hope your day is off to a great start.","2025-06-10","07:30",0,false,"Maya"],["it is now. thanks for the message!","2025-06-10","07:42",0,true,"Me"]],[["happy birthday, noah!","2022-11-03","09:00",0,true,"Me"],["thanks! i am celebrating with family.","2022-11-03","09:17",0,false,"Noah"],["happy birthday! save me a slice of cake.","2023-06-10","11:30",0,false,"Noah"],["happy birthday! hope the year ahead is a good one.","2023-11-03","08:00",0,true,"Me"],["happy birthday, noah! have an excellent day.","2024-11-03","07:00",0,true,"Me"],["the game starts at seven.","2025-02-21","15:02",0,false,"Noah"],["i will be there. see you soon!","2025-02-21","15:10",0,true,"Me"]],[["happy birthday, sofia!","2022-03-14","09:00",0,true,"Me"],["thank you! the flowers are beautiful.","2022-03-14","09:09",0,false,"Sofia"],["happy birthday! hope you have a wonderful day.","2023-03-14","08:00",0,true,"Me"],["happy birthday, sofia! sending lots of good wishes.","2024-03-14","08:00",0,true,"Me"],["happy birthday! hope we can celebrate together soon.","2025-03-14","08:00",0,true,"Me"],["absolutely! thanks for always remembering.","2025-03-14","08:22",0,false,"Sofia"],["happy birthday! hope your day is full of sunshine.","2025-06-10","12:00",0,false,"Sofia"]],[["happy birthday! we saved you a seat at dinner.","2023-06-10","11:00",0,false,"Ava Patel"],["thank you all! see you tonight.","2023-06-10","11:06",0,true,"Me"],["i will bring dessert.","2023-06-10","12:20",0,false,"Jordan Lee"],["happy birthday! the whole crew is cheering for you.","2024-06-10","12:00",0,false,"Sofia Reyes"],["best group chat ever. thanks!","2024-06-10","12:08",0,true,"Me"],["park picnic this sunday?","2024-08-19","13:00",0,false,"Maya Chen"],["count me in.","2024-08-19","13:12",0,true,"Me"],["happy birthday! your gift is waiting at dinner.","2025-06-10","13:30",0,false,"Noah Brooks"],["you did not have to! thank you.","2025-06-10","13:35",0,true,"Me"]]]
     </script>
     <script>
       const searchInput = document.getElementById("searchInput");
@@ -119,8 +120,107 @@
       const dateToInput = document.getElementById("dateToInput");
       const timeFromInput = document.getElementById("timeFromInput");
       const timeToInput = document.getElementById("timeToInput");
+      const minTotalInput = document.getElementById("minTotalInput");
       const conversationItems = document.querySelectorAll(".conv-item");
       const searchMessages = JSON.parse(document.getElementById("searchMessageData").textContent);
+      function isoWeekKey(dayValue) {
+        const parts = dayValue.split("-").map(Number);
+        const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+        const dayNumber = (date.getUTCDay() + 6) % 7;
+        date.setUTCDate(date.getUTCDate() - dayNumber + 3);
+        const isoYear = date.getUTCFullYear();
+        const jan4 = new Date(Date.UTC(isoYear, 0, 4));
+        const jan4Day = (jan4.getUTCDay() + 6) % 7;
+        const week = Math.ceil(((date - jan4) / 86400000 - 3 + jan4Day) / 7) + 1;
+        return isoYear + "-W" + String(week).padStart(2, "0");
+      }
+      function formatElapsed(seconds) {
+        const total = Math.max(0, Math.round(seconds));
+        const days = Math.floor(total / 86400);
+        const hours = Math.floor((total % 86400) / 3600);
+        const minutes = Math.floor((total % 3600) / 60);
+        if (days) return days + "d " + hours + "h";
+        if (hours) return hours + "h " + minutes + "m";
+        if (minutes) return minutes + "m";
+        return total + "s";
+      }
+      function formatReplyMinutes(value) {
+        return value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " min";
+      }
+      function computeFilteredMetrics(messages) {
+        const dated = [];
+        const dailyCounts = new Map();
+        const weeklyCounts = new Map();
+        const monthlyCounts = new Map();
+        messages.forEach(function(message) {
+          const day = message[1];
+          if (!day) return;
+          const stamp = new Date(day + "T" + (message[2] || "00:00") + ":00");
+          dated.push([stamp, message[4], day]);
+          dailyCounts.set(day, (dailyCounts.get(day) || 0) + 1);
+          const weekKey = isoWeekKey(day);
+          weeklyCounts.set(weekKey, (weeklyCounts.get(weekKey) || 0) + 1);
+          const monthKey = day.slice(0, 7);
+          monthlyCounts.set(monthKey, (monthlyCounts.get(monthKey) || 0) + 1);
+        });
+        const pickBusiest = function(counts) {
+          let busiestKey = "—";
+          let busiestCount = 0;
+          counts.forEach(function(count, key) {
+            if (count > busiestCount || (count === busiestCount && key > busiestKey)) {
+              busiestKey = key;
+              busiestCount = count;
+            }
+          });
+          return [busiestKey, busiestCount];
+        };
+        dated.sort(function(a, b) { return a[0] - b[0]; });
+        let longestGap = null;
+        for (let index = 1; index < dated.length; index++) {
+          const gap = (dated[index][0] - dated[index - 1][0]) / 1000;
+          if (gap >= 0 && (longestGap === null || gap > longestGap)) longestGap = gap;
+        }
+        const activeDays = Array.from(new Set(dated.map(function(item) { return item[2]; })));
+        activeDays.sort();
+        let streak = 0;
+        let currentStreak = 0;
+        let previousDay = null;
+        activeDays.forEach(function(day) {
+          const dayDate = new Date(day + "T12:00:00");
+          currentStreak = previousDay && Math.round((dayDate - previousDay) / 86400000) === 1
+            ? currentStreak + 1
+            : 1;
+          streak = Math.max(streak, currentStreak);
+          previousDay = dayDate;
+        });
+        const sentMinutes = [];
+        const receivedMinutes = [];
+        for (let index = 1; index < dated.length; index++) {
+          if (dated[index][1] !== dated[index - 1][1]) {
+            const minutes = (dated[index][0] - dated[index - 1][0]) / 60000;
+            if (minutes >= 0) {
+              (dated[index][1] ? sentMinutes : receivedMinutes).push(minutes);
+            }
+          }
+        }
+        const median = function(values) {
+          if (!values.length) return null;
+          const sortedValues = values.slice().sort(function(a, b) { return a - b; });
+          const middle = Math.floor(sortedValues.length / 2);
+          return sortedValues.length % 2
+            ? sortedValues[middle]
+            : (sortedValues[middle - 1] + sortedValues[middle]) / 2;
+        };
+        return {
+          busiestDay: pickBusiest(dailyCounts),
+          busiestWeek: pickBusiest(weeklyCounts),
+          busiestMonth: pickBusiest(monthlyCounts),
+          longestGap: longestGap,
+          activeStreak: streak,
+          sentMedian: median(sentMinutes),
+          receivedMedian: median(receivedMinutes)
+        };
+      }
       const randomDayButton = document.getElementById("randomDayButton");
       const randomDayStatus = document.getElementById("randomDayStatus");
       const availableDates = new Set();
@@ -128,12 +228,14 @@
         messages.forEach(function(message) { if (message[1]) availableDates.add(message[1]); });
       });
       randomDayButton.disabled = availableDates.size === 0;
+      const randomWeekButton = document.getElementById("randomWeekButton");
+      randomWeekButton.disabled = availableDates.size === 0;
       const resultCount = document.getElementById("resultCount");
       const totalConversations = conversationItems.length;
       const pageQuery = new URLSearchParams(window.location.search);
       const searchFields = {
         name: searchInput, text: messageSearchInput, dateFrom: dateFromInput, dateTo: dateToInput,
-        timeFrom: timeFromInput, timeTo: timeToInput
+        timeFrom: timeFromInput, timeTo: timeToInput, minTotal: minTotalInput
       };
       if (pageQuery.has("date")) {
         dateFromInput.value = pageQuery.get("date");
@@ -179,7 +281,8 @@
         const dateTo = dateToInput.value;
         const timeFrom = timeFromInput.value;
         const timeTo = timeToInput.value;
-        const messageFiltersActive = Boolean(messageTerm || dateFrom || dateTo || timeFrom || timeTo);
+        const minTotal = Number(minTotalInput.value) || 0;
+        const messageFiltersActive = Boolean(messageTerm || dateFrom || dateTo || timeFrom || timeTo || minTotal);
         let visibleCount = 0;
         
         conversationItems.forEach(function(item) {
@@ -190,7 +293,7 @@
               (!dateFrom || message[1] >= dateFrom) && (!dateTo || message[1] <= dateTo) &&
               (!timeFrom || message[2] >= timeFrom) && (!timeTo || message[2] <= timeTo);
           });
-          const messageMatches = !messageFiltersActive || matchingMessages.length > 0;
+          const messageMatches = !messageFiltersActive || matchingMessages.length >= minTotal;
           const filteredAttachments = matchingMessages.reduce(function(total, message) {
             return total + Number(message[3] || 0);
           }, 0);
@@ -205,6 +308,42 @@
           item.setAttribute("data-sort-attachments", filteredAttachments);
           item.setAttribute("data-sort-first-date", matchingDates.length ? matchingDates[0] : "");
           item.setAttribute("data-sort-last-date", matchingDates.length ? matchingDates[matchingDates.length - 1] : "");
+          if (item.querySelector(".filtered-busiest-day")) {
+            const rowMetrics = computeFilteredMetrics(matchingMessages);
+            item.querySelector(".filtered-busiest-day").textContent = rowMetrics.busiestDay[0] + " (" + rowMetrics.busiestDay[1].toLocaleString() + ")";
+            item.querySelector(".filtered-busiest-week").textContent = rowMetrics.busiestWeek[0] + " (" + rowMetrics.busiestWeek[1].toLocaleString() + ")";
+            item.querySelector(".filtered-busiest-month").textContent = rowMetrics.busiestMonth[0] + " (" + rowMetrics.busiestMonth[1].toLocaleString() + ")";
+            item.querySelector(".filtered-longest-gap").textContent = rowMetrics.longestGap === null ? "—" : formatElapsed(rowMetrics.longestGap);
+            item.querySelector(".filtered-active-streak").textContent = rowMetrics.activeStreak.toLocaleString() + " days";
+            item.querySelector(".filtered-reply-sent").textContent = rowMetrics.sentMedian === null ? "—" : formatReplyMinutes(rowMetrics.sentMedian);
+            item.querySelector(".filtered-reply-received").textContent = rowMetrics.receivedMedian === null ? "—" : formatReplyMinutes(rowMetrics.receivedMedian);
+            item.setAttribute("data-sort-busiest-day", rowMetrics.busiestDay[1]);
+            item.setAttribute("data-sort-busiest-week", rowMetrics.busiestWeek[1]);
+            item.setAttribute("data-sort-busiest-month", rowMetrics.busiestMonth[1]);
+            item.setAttribute("data-sort-longest-gap", rowMetrics.longestGap === null ? -1 : rowMetrics.longestGap);
+            item.setAttribute("data-sort-active-streak", rowMetrics.activeStreak);
+            item.setAttribute("data-sort-reply-sent", rowMetrics.sentMedian === null ? -1 : rowMetrics.sentMedian);
+            item.setAttribute("data-sort-reply-received", rowMetrics.receivedMedian === null ? -1 : rowMetrics.receivedMedian);
+          }
+          const topParticipantCell = item.querySelector(".filtered-top-participant");
+          if (topParticipantCell) {
+            const senderCounts = new Map();
+            matchingMessages.forEach(function(message) {
+              const sender = message[5];
+              if (sender.toLowerCase() === "me") return;
+              senderCounts.set(sender, (senderCounts.get(sender) || 0) + 1);
+            });
+            let topSender = "—";
+            let topSenderCount = 0;
+            senderCounts.forEach(function(count, sender) {
+              if (count > topSenderCount) {
+                topSender = sender;
+                topSenderCount = count;
+              }
+            });
+            topParticipantCell.textContent = topSender + " (" + topSenderCount.toLocaleString() + ")";
+            item.setAttribute("data-sort-top-participant", topSenderCount);
+          }
           if (nameMatches && messageMatches) {
             item.classList.remove("hidden");
             visibleCount++;
@@ -239,10 +378,38 @@
         dateToInput.value = randomDate;
         timeFromInput.value = "";
         timeToInput.value = "";
+        minTotalInput.value = "";
         filterConversations();
         randomDayStatus.textContent = "Showing conversations from " + randomDate;
       });
-      [searchInput, messageSearchInput, dateFromInput, dateToInput, timeFromInput, timeToInput].forEach(function(input) {
+      randomWeekButton.addEventListener("click", function() {
+        const dates = Array.from(availableDates);
+        if (!dates.length) return;
+        const randomDate = dates[Math.floor(Math.random() * dates.length)];
+        const parts = randomDate.split("-").map(Number);
+        const picked = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+        const dayNumber = (picked.getUTCDay() + 6) % 7;
+        const monday = new Date(picked);
+        monday.setUTCDate(picked.getUTCDate() - dayNumber);
+        const sunday = new Date(monday);
+        sunday.setUTCDate(monday.getUTCDate() + 6);
+        const formatDate = function(date) { return date.getUTCFullYear() + "-" + String(date.getUTCMonth() + 1).padStart(2, "0") + "-" + String(date.getUTCDate()).padStart(2, "0"); };
+        searchInput.value = "";
+        messageSearchInput.value = "";
+        dateFromInput.value = formatDate(monday);
+        dateToInput.value = formatDate(sunday);
+        timeFromInput.value = "";
+        timeToInput.value = "";
+        minTotalInput.value = "";
+        filterConversations();
+        randomDayStatus.textContent = "Showing conversations from the week of " + formatDate(monday) + " to " + formatDate(sunday) + " (contains " + randomDate + ")";
+      });
+      document.getElementById("clearFiltersButton").addEventListener("click", function() {
+        Object.keys(searchFields).forEach(function(key) { searchFields[key].value = ""; });
+        randomDayStatus.textContent = "";
+        filterConversations();
+      });
+      [searchInput, messageSearchInput, dateFromInput, dateToInput, timeFromInput, timeToInput, minTotalInput].forEach(function(input) {
         function handleFilterChange() {
           randomDayStatus.textContent = "";
           filterConversations();

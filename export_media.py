@@ -317,7 +317,7 @@ def format_attachment_html(
                         print(f'Warning: Could not convert HEIC/HEIF attachment "{full_path}": {exc}')
                     else:
                         src = _asset_url(preview_path)
-                        return f'<div class="attachment"><img src="{html.escape(src)}" alt="{filename}" /></div>'
+                        return f'<div class="attachment"><img loading="lazy" src="{html.escape(src)}" alt="{filename}" /></div>'
 
                 return (
                     f'<div class="attachment"><span>{filename}</span>'
@@ -326,7 +326,7 @@ def format_attachment_html(
 
             src = _asset_url(full_path)
             if is_image_type(mime_type, filename):
-                return f'<div class="attachment"><img src="{html.escape(src)}" alt="{filename}" /></div>'
+                return f'<div class="attachment"><img loading="lazy" src="{html.escape(src)}" alt="{filename}" /></div>'
             if is_video_type(mime_type, filename):
                 video_path = full_path
                 video_mime_type = mime_type

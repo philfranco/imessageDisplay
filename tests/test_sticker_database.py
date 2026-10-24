@@ -127,7 +127,7 @@ class StickerDatabaseTests(unittest.TestCase):
         self.assertEqual(attachments[1][0]['mime_type'], 'image/png')
         self.assertEqual(attachments[2][0]['file_path'], cache_path)
         markup = format_attachment_html(attachments[1][0], self.root)
-        self.assertIn(f'<img src="{Path(previews[key]).as_uri()}"', markup)
+        self.assertIn(f'<img loading="lazy" src="{Path(previews[key]).as_uri()}"', markup)
 
     def test_fetch_attachments_decodes_sticker_metadata_for_html_fallback(self):
         sms_path = os.path.join(self.root, 'sms.db')

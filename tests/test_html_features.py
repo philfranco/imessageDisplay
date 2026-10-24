@@ -126,7 +126,7 @@ class HtmlFeatureTests(unittest.TestCase):
 
         with open(path, encoding='utf-8') as page:
             content = page.read()
-        self.assertIn(f'<img src="{Path(sticker_path).as_uri()}"', content)
+        self.assertIn(f'<img loading="lazy" src="{Path(sticker_path).as_uri()}"', content)
 
     def test_conversation_counts_and_calendar_are_scoped_to_its_messages(self):
         messages = sample_messages()
@@ -555,14 +555,35 @@ class HtmlFeatureTests(unittest.TestCase):
         # The first batch renders inline HTML; the rest is compact JSON.
         self.assertEqual(content.count('<div class="message '), 2000)
         self.assertIn('<div class="load-more" id="loadMoreSentinel">', content)
+        self.assertIn('<button type="button" id="loadMoreButton">Load 2,000 more messages</button>', content)
         self.assertIn('Loading more messages', content)
         self.assertIn('const BATCH_SIZE = 2000;', content)
+        self.assertIn('function highlightText(source, termHtml)', content)
+        self.assertIn('mark { background: #fde68a; color: inherit; padding: 0 1px; border-radius: 3px; }', content)
         self.assertIn('const messageFilters = ["messageTextSearch"', content)
         self.assertIn('IntersectionObserver', content)
         self.assertIn('filterMessages(true);', content)
+        # Filtering must render only the entries matching the filter, never the
+        # whole conversation, so random day/week/click-to-filter stays fast.
+        self.assertIn('function renderEntries(entries)', content)
+        self.assertIn('function entryMatches(m)', content)
+        # Batch loads must keep non-matching entries in the pending queue so
+        # later random day/week picks still find their messages.
+        self.assertIn('pending = rest.concat(pending);', content)
+        self.assertNotIn('renderEntries(slice.filter(entryMatches));', content)
+        self.assertIn('renderEntries(matching);', content)
+        self.assertNotIn('while (pending.length) renderChunk(BATCH_SIZE);', content)
+        # Huge conversations: push.apply throws RangeError past ~65k args,
+        # which kills all filtering; reassignment avoids the argument limit.
+        self.assertIn('let pending =', content)
+        self.assertIn('pending = rest;', content)
+        self.assertNotIn('Array.prototype.push.apply', content)
 
         payload_start = content.index('id="pendingData">') + len('id="pendingData">')
         payload_end = content.index('</script>', payload_start)
+        # Raw '<' in the JSON block (e.g. attachment markup) must be escaped
+        # as \u003c so the script element can never terminate early.
+        self.assertNotIn('<', content[payload_start:payload_end])
         pending = json.loads(content[payload_start:payload_end])
         self.assertEqual(len(pending), 3005)
         self.assertEqual(pending[0]['x'], 'message 2000')

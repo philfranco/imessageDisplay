@@ -62,7 +62,7 @@
 </head>
 <body>
   <div class="wrapper">
-    <nav class="site-nav"><a id="backToSearch" href="search.html">← Back to search</a><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>
+    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>
     <header class="page-header">
       <p class="eyebrow">iMessage conversation • America/New_York</p>
       <h1>Family Chat</h1>
@@ -1768,12 +1768,6 @@
       Object.keys(messageQueryFields).forEach(function(key) {
         if (messageQuery.has(key)) document.getElementById(messageQueryFields[key]).value = messageQuery.get(key);
       });
-      const backToSearch = document.getElementById("backToSearch");
-      const searchQuery = new URLSearchParams();
-      ["text", "dateFrom", "dateTo", "timeFrom", "timeTo", "name"].forEach(function(key) {
-        if (messageQuery.has(key)) searchQuery.set(key, messageQuery.get(key));
-      });
-      if (searchQuery.toString()) backToSearch.href = "search.html?" + searchQuery.toString();
       function highlightText(source, termHtml) {
         const lower = source.toLocaleLowerCase();
         let result = "";

@@ -32,6 +32,16 @@
     td { color: #334155; font-size: 14px; }
     tr:last-child td { border-bottom: 0; }
     tr.filtered-out { display: none; }
+    .load-more { padding: 14px 0; color: #64748b; font-size: 13px; text-align: center; }
+    .load-more button { margin-left: 10px; padding: 9px 14px; border: 0; border-radius: 8px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }
+    .random-day-control { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; grid-column: 1 / -1; }
+    .random-day-control button { padding: 9px 14px; border: 0; border-radius: 8px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }
+    .random-day-control button:hover:not(:disabled) { background: #1d4ed8; }
+    .random-day-control button:disabled { opacity: .55; cursor: not-allowed; }
+    .sortable { cursor: pointer; user-select: none; }
+    .sortable:hover { color: #2563eb; }
+    .sort-asc::after { content: " ▲"; color: #2563eb; }
+    .sort-desc::after { content: " ▼"; color: #2563eb; }
     .empty-state { padding: 22px; color: #64748b; }
     @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } th, td { padding: 9px 7px; font-size: 12px; } }
   </style>
@@ -73,10 +83,22 @@
       <label>To date<input id="callDateTo" type="date"></label>
       <label>From time<input id="callTimeFrom" type="time"></label>
       <label>To time<input id="callTimeTo" type="time"></label>
+      <div class="random-day-control">
+        <button type="button" id="randomDayButton">Go to a random day</button>
+        <button type="button" id="randomWeekButton">Go to a random week</button>
+        <button type="button" id="clearFiltersButton">Clear filters</button>
+        <span id="randomStatus" aria-live="polite"></span>
+      </div>
     </section>
     <div id="callCount" class="call-count" aria-live="polite">Showing 6 calls</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Date and time</th><th>Contact</th><th>Number</th><th>Direction</th><th>Duration</th></tr></thead>
+      <thead><tr>
+        <th class="sortable" data-sort="datetime">Date and time</th>
+        <th class="sortable" data-sort="contact">Contact</th>
+        <th class="sortable" data-sort="number">Number</th>
+        <th class="sortable" data-sort="direction">Direction</th>
+        <th class="sortable" data-sort="duration">Duration</th>
+      </tr></thead>
       <tbody id="callList">
         <tr class="call-row" data-search="maya chen 5550100101" data-date="2025-06-10" data-time="07:30"><td>2025-06-10 07:30</td><td>Maya Chen</td><td>5550100101</td><td>Outgoing</td><td>4:05</td></tr>
         <tr class="call-row" data-search="jordan lee 5550100102" data-date="2025-06-11" data-time="10:05"><td>2025-06-11 10:05</td><td>Jordan Lee</td><td>5550100102</td><td>Incoming</td><td>1:38</td></tr>
@@ -85,27 +107,187 @@
         <tr class="call-row" data-search="sofia reyes 5550100105" data-date="2025-03-14" data-time="08:00"><td>2025-03-14 08:00</td><td>Sofia Reyes</td><td>5550100105</td><td>Outgoing</td><td>3:03</td></tr>
         <tr class="call-row" data-search="maya chen 5550100101" data-date="2025-06-12" data-time="05:30"><td>2025-06-12 05:30</td><td>Maya Chen</td><td>5550100101</td><td>Missed</td><td>0:00</td></tr>
       </tbody></table></div>
+    <template id="callTemplate"></template>
+    <script type="application/json" id="allDates">
+["2025-02-21", "2025-03-14", "2025-06-10", "2025-06-11", "2025-06-12", "2025-08-19"]
+</script>
     <script>
       const callRows = Array.from(document.querySelectorAll(".call-row"));
+      const totalCalls = 6;
       const callSearch = document.getElementById("callSearch");
       const callFilters = ["callDateFrom", "callDateTo", "callTimeFrom", "callTimeTo"].map(function(id) { return document.getElementById(id); });
       const callCount = document.getElementById("callCount");
-      function filterCalls() {
-        const query = callSearch.value.trim().toLocaleLowerCase();
+      const BATCH_SIZE = 2000;
+      const callTemplate = document.getElementById("callTemplate");
+      const loadMoreSentinel = document.getElementById("loadMoreSentinel");
+      const pendingDataEl = document.getElementById("pendingData");
+      let pending = pendingDataEl ? JSON.parse(pendingDataEl.textContent) : [];
+      const activeCriteria = { noFilters: true, text: "", dateFrom: "", dateTo: "", timeFrom: "", timeTo: "" };
+      function entryMatches(m) {
+        const c = activeCriteria;
+        if (c.noFilters) return true;
+        if (c.text && !m.s.includes(c.text)) return false;
+        if (c.dateFrom && m.d < c.dateFrom) return false;
+        if (c.dateTo && m.d > c.dateTo) return false;
+        if (c.timeFrom && m.t < c.timeFrom) return false;
+        if (c.timeTo && m.t > c.timeTo) return false;
+        return true;
+      }
+      function renderRows(entries) {
+        if (!entries.length) return;
+        let markup = "";
+        entries.forEach(function(m) { markup += m.r; });
+        callTemplate.innerHTML = "<table><tbody>" + markup + "</tbody></table>";
+        const sourceBody = callTemplate.content.querySelector("tbody");
+        const list = document.getElementById("callList");
+        Array.from(sourceBody.children).forEach(function(row) {
+          list.insertBefore(row, loadMoreSentinel);
+          callRows.push(row);
+        });
+        if (!pending.length && loadMoreSentinel) loadMoreSentinel.style.display = "none";
+      }
+      function renderChunk(count) {
+        const slice = pending.splice(0, count);
+        const matching = [];
+        const rest = [];
+        for (const m of slice) {
+          if (entryMatches(m)) matching.push(m); else rest.push(m);
+        }
+        pending = rest.concat(pending);
+        renderRows(matching);
+      }
+      const loadMoreButton = document.getElementById("loadMoreButton");
+      if (loadMoreButton) loadMoreButton.addEventListener("click", function() { renderChunk(BATCH_SIZE); });
+      if (loadMoreSentinel && typeof IntersectionObserver === "function") {
+        const loadMoreObserver = new IntersectionObserver(function(entries) {
+          if (!entries[0].isIntersecting) return;
+          if (!pending.length) { loadMoreObserver.disconnect(); return; }
+          renderChunk(BATCH_SIZE);
+        }, { rootMargin: "400px" });
+        loadMoreObserver.observe(loadMoreSentinel);
+      }
+      function filterCalls(materialize) {
+        const text = callSearch.value.trim().toLocaleLowerCase();
+        const dateFrom = callFilters[0].value;
+        const dateTo = callFilters[1].value;
+        const timeFrom = callFilters[2].value;
+        const timeTo = callFilters[3].value;
+        const noFilters = !text && !dateFrom && !dateTo && !timeFrom && !timeTo;
+        activeCriteria.noFilters = noFilters;
+        activeCriteria.text = text;
+        activeCriteria.dateFrom = dateFrom;
+        activeCriteria.dateTo = dateTo;
+        activeCriteria.timeFrom = timeFrom;
+        activeCriteria.timeTo = timeTo;
+        if (materialize) {
+          if (noFilters) {
+            if (pending.length) renderChunk(BATCH_SIZE);
+          } else {
+            const matching = [];
+            const rest = [];
+            for (const m of pending) {
+              if (entryMatches(m)) matching.push(m); else rest.push(m);
+            }
+            pending = rest;
+            renderRows(matching);
+          }
+        }
         let visible = 0;
         callRows.forEach(function(row) {
           const date = row.dataset.date;
           const time = row.dataset.time;
-          const matches = row.dataset.search.includes(query)
-            && (!callFilters[0].value || date >= callFilters[0].value)
-            && (!callFilters[1].value || date <= callFilters[1].value)
-            && (!callFilters[2].value || time >= callFilters[2].value)
-            && (!callFilters[3].value || time <= callFilters[3].value);
+          const matches = noFilters
+            || (row.dataset.search.includes(text)
+            && (!dateFrom || date >= dateFrom)
+            && (!dateTo || date <= dateTo)
+            && (!timeFrom || time >= timeFrom)
+            && (!timeTo || time <= timeTo));
           row.classList.toggle("filtered-out", !matches);
           if (matches) visible += 1;
         });
-        callCount.textContent = "Showing " + visible.toLocaleString() + " of " + callRows.length.toLocaleString() + " calls";
+        callCount.textContent = "Showing " + visible.toLocaleString() + " of " + totalCalls.toLocaleString() + " calls";
+        if (!noFilters) applySort("datetime", 1);
       }
+      const allDatesEl = document.getElementById("allDates");
+      const availableCallDates = new Set(allDatesEl ? JSON.parse(allDatesEl.textContent) : []);
+      const padCallValue = function(value) { return String(value).padStart(2, "0"); };
+      const randomDayButton = document.getElementById("randomDayButton");
+      const randomWeekButton = document.getElementById("randomWeekButton");
+      const clearFiltersButton = document.getElementById("clearFiltersButton");
+      const randomStatus = document.getElementById("randomStatus");
+      const noAvailableDates = availableCallDates.size === 0;
+      randomDayButton.disabled = noAvailableDates;
+      randomWeekButton.disabled = noAvailableDates;
+      function setCallDateRange(start, end) {
+        callSearch.value = "";
+        callFilters[0].value = start;
+        callFilters[1].value = end;
+        callFilters[2].value = "";
+        callFilters[3].value = "";
+        filterCalls(true);
+      }
+      randomDayButton.addEventListener("click", function() {
+        const dates = Array.from(availableCallDates);
+        if (!dates.length) return;
+        const randomDate = dates[Math.floor(Math.random() * dates.length)];
+        setCallDateRange(randomDate, randomDate);
+        randomStatus.textContent = "Showing calls from " + randomDate + ".";
+      });
+      randomWeekButton.addEventListener("click", function() {
+        const dates = Array.from(availableCallDates);
+        if (!dates.length) return;
+        const randomDate = dates[Math.floor(Math.random() * dates.length)];
+        const parts = randomDate.split("-").map(Number);
+        const picked = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+        const dayNumber = (picked.getUTCDay() + 6) % 7;
+        const monday = new Date(picked);
+        monday.setUTCDate(picked.getUTCDate() - dayNumber);
+        const sunday = new Date(monday);
+        sunday.setUTCDate(monday.getUTCDate() + 6);
+        const formatDate = function(date) { return date.getUTCFullYear() + "-" + padCallValue(date.getUTCMonth() + 1) + "-" + padCallValue(date.getUTCDate()); };
+        setCallDateRange(formatDate(monday), formatDate(sunday));
+        randomStatus.textContent = "Showing calls from the week of " + formatDate(monday) + " to " + formatDate(sunday) + " (contains " + randomDate + ").";
+      });
+      clearFiltersButton.addEventListener("click", function() {
+        callSearch.value = "";
+        callFilters.forEach(function(input) { input.value = ""; });
+        randomStatus.textContent = "";
+        filterCalls(true);
+      });
+      const sortState = { key: null, dir: 1 };
+      function rowValue(row, key) {
+        if (key === "datetime") return row.dataset.date + " " + row.dataset.time;
+        const cells = row.children;
+        if (key === "contact") return cells[1].textContent.toLocaleLowerCase();
+        if (key === "number") return cells[2].textContent.toLocaleLowerCase();
+        if (key === "direction") return cells[3].textContent.toLocaleLowerCase();
+        const parts = cells[4].textContent.split(":").map(Number);
+        return parts.length === 3 ? parts[0] * 3600 + parts[1] * 60 + parts[2] : parts[0] * 60 + parts[1];
+      }
+      function applySort(key, dir) {
+        sortState.key = key;
+        sortState.dir = dir;
+        callRows.sort(function(a, b) {
+          const va = rowValue(a, key);
+          const vb = rowValue(b, key);
+          if (va < vb) return -dir;
+          if (va > vb) return dir;
+          return 0;
+        });
+        const list = document.getElementById("callList");
+        callRows.forEach(function(row) { list.appendChild(row); });
+        if (loadMoreSentinel) list.appendChild(loadMoreSentinel);
+        document.querySelectorAll(".sortable").forEach(function(th) { th.classList.remove("sort-asc", "sort-desc"); });
+        const activeTh = document.querySelector('.sortable[data-sort="' + key + '"]');
+        if (activeTh) activeTh.classList.add(dir === 1 ? "sort-asc" : "sort-desc");
+      }
+      function sortRows(key) {
+        const dir = sortState.key === key ? -sortState.dir : 1;
+        applySort(key, dir);
+      }
+      document.querySelectorAll(".sortable").forEach(function(th) {
+        th.addEventListener("click", function() { sortRows(th.dataset.sort); });
+      });
       [callSearch].concat(callFilters).forEach(function(input) { input.addEventListener("input", filterCalls); input.addEventListener("change", filterCalls); });
     </script>
   </div>

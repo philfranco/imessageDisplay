@@ -484,7 +484,7 @@ class HtmlFeatureTests(unittest.TestCase):
             content = page.read()
 
         self.assertIn('messageQueryFields', content)
-        self.assertIn('backToSearch.href = "search.html?"', content)
+        self.assertNotIn('backToSearch', content)
         self.assertIn('messageQuery.get(key)', content)
 
     def test_eastern_display_applies_standard_and_daylight_offsets(self):

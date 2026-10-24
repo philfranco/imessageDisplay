@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import sqlite3
 import tempfile
@@ -77,8 +78,74 @@ class CallHistoryTests(unittest.TestCase):
         self.assertIn('Search contact or number', content)
         self.assertIn('From date', content)
         self.assertIn('Alex &amp; Jordan', content)
+        self.assertIn('Go to a random day', content)
+        self.assertIn('Go to a random week', content)
+        self.assertIn('Clear filters', content)
         self.assertIn('10:00', content)
         self.assertIn('1:05', content)
+
+    def test_call_history_page_batches_large_tables_with_lazy_loading(self):
+        calls = [
+            {
+                'date': f'2025-01-{index % 28 + 1:02d} 15:00:00',
+                'address': '111',
+                'phone_number': '111',
+                'contact': f'Caller {index}',
+                'duration': 60,
+                'direction': 'Incoming',
+            }
+            for index in range(2005)
+        ]
+
+        path = build_call_history(calls, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+        self.assertEqual(content.count('<tr class="call-row"'), 2000)
+        self.assertIn('id="loadMoreSentinel"', content)
+        self.assertIn('Load 2,000 more calls', content)
+        self.assertIn('const BATCH_SIZE = 2000;', content)
+        self.assertIn('let pending =', content)
+        self.assertIn('function renderRows(entries)', content)
+        self.assertIn('function entryMatches(m)', content)
+        self.assertIn('pending = rest.concat(pending);', content)
+        self.assertIn('if (pending.length) renderChunk(BATCH_SIZE);', content)
+        self.assertIn('<template id="callTemplate"></template>', content)
+        # tr rows cannot be parsed from a bare template fragment; wrap in a table.
+        self.assertIn('callTemplate.innerHTML = "<table><tbody>" + markup + "</tbody></table>";', content)
+        self.assertIn('callTemplate.content.querySelector("tbody");', content)
+        # Click-to-sort headers for every column.
+        self.assertIn('<th class="sortable" data-sort="datetime">Date and time</th>', content)
+        self.assertIn('<th class="sortable" data-sort="duration">Duration</th>', content)
+        self.assertIn('function rowValue(row, key)', content)
+        self.assertIn('function sortRows(key)', content)
+        # Active filters auto-sort by date ascending, showing the blue ▲ on Date and time.
+        self.assertNotIn('markFilterColumns', content)
+        self.assertNotIn('filter-mark', content)
+        self.assertIn('function applySort(key, dir)', content)
+        self.assertIn('if (!noFilters) applySort("datetime", 1);', content)
+        # Quotes in the generated selector must stay balanced; a raw " here is a JS syntax error.
+        self.assertIn("document.querySelector('.sortable[data-sort=\"' + key + '\"]');", content)
+        self.assertIn('list.appendChild(loadMoreSentinel);', content)
+        self.assertIn('.sortable { cursor: pointer; user-select: none; }', content)
+        self.assertIn('IntersectionObserver', content)
+        self.assertIn('Showing " + visible.toLocaleString() + " of " + totalCalls.toLocaleString()', content)
+        # Random day/week buttons must pick from dates that actually have calls.
+        self.assertIn('Go to a random day', content)
+        self.assertIn('Go to a random week', content)
+        self.assertIn('const availableCallDates = new Set(allDatesEl ? JSON.parse(allDatesEl.textContent) : []);', content)
+        self.assertIn('setCallDateRange(randomDate, randomDate);', content)
+        self.assertIn('setCallDateRange(formatDate(monday), formatDate(sunday));', content)
+        self.assertIn('<button type="button" id="clearFiltersButton">Clear filters</button>', content)
+
+        payload_start = content.index('id="pendingData">') + len('id="pendingData">')
+        payload_end = content.index('</script>', payload_start)
+        # Raw '<' must be escaped as \\u003c so the data block cannot terminate.
+        self.assertNotIn('<', content[payload_start:payload_end])
+        pending = json.loads(content[payload_start:payload_end])
+        self.assertEqual(len(pending), 5)
+        self.assertIn('Caller 2000', pending[0]['r'])
+        self.assertEqual(pending[0]['d'], '2025-01-13')
 
     def test_call_history_page_explains_when_no_calls_are_available(self):
         path = build_call_history([], self.output_dir)

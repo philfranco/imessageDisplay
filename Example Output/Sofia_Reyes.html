@@ -34,6 +34,9 @@
     .activity-day.level-4 { background: #1e3a8a; box-shadow: none; }
     .activity-legend { margin: 10px 0 0; color: #64748b; font-size: 12px; }
     .message-list { padding: 20px; border: 1px solid #e2e8f0; border-radius: 18px; background: #ffffffb8; box-shadow: 0 4px 18px #0f172a0d; }
+    .load-more { padding: 14px 0; color: #64748b; font-size: 13px; text-align: center; }
+    .load-more button { margin-left: 10px; padding: 9px 14px; border: 0; border-radius: 8px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }
+    mark { background: #fde68a; color: inherit; padding: 0 1px; border-radius: 3px; }
     .message-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
     .message-filters label, .search-filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }
     .message-filters input, .search-filters input { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
@@ -1681,9 +1684,79 @@
       </div>
     </div>
     </main>
+    <script type="application/json" id="allDates">
+["2022-03-14", "2023-03-14", "2024-03-14", "2025-03-14", "2025-06-10"]
+</script>
     <script>
+      const BATCH_SIZE = 2000;
       const messageFilters = ["messageTextSearch", "messageDateFrom", "messageDateTo", "messageTimeFrom", "messageTimeTo"];
+      const totalMessages = 7;
+      const totalAttachments = 0;
+      const pendingDataEl = document.getElementById("pendingData");
+      let pending = pendingDataEl ? JSON.parse(pendingDataEl.textContent) : [];
+      const loadMoreSentinel = document.getElementById("loadMoreSentinel");
       const messageItems = Array.from(document.querySelectorAll(".message"));
+      const activeCriteria = {
+        noFilters: true, text: "", termHtml: "",
+        dateFrom: "", dateTo: "", timeFrom: "", timeTo: ""
+      };
+      function entryMatches(m) {
+        const c = activeCriteria;
+        if (c.noFilters) return true;
+        return (!c.text || m.s.includes(c.text)) &&
+          (!c.dateFrom || m.d >= c.dateFrom) && (!c.dateTo || m.d <= c.dateTo) &&
+          (!c.timeFrom || m.t >= c.timeFrom) && (!c.timeTo || m.t <= c.timeTo);
+      }
+      function renderEntries(entries) {
+        if (!entries.length) return;
+        let markup = "";
+        for (const m of entries) {
+          const textPart = activeCriteria.termHtml
+            ? highlightText(m.x, activeCriteria.termHtml) : m.x;
+          markup += "<div class=\"message " + m.cls + "\" data-date=\"" + m.d + "\" data-time=\"" + m.t + "\" data-attachment-count=\"" + m.a + "\" data-search-text=\"" + m.s + "\" data-text-html=\"" + m.x + "\">" +
+            "<div class=\"bubble " + m.cls + "\"><div>" + textPart + "</div>" + m.atts +
+            "<div class=\"meta\">" + m.who + " • " + m.dt + "</div></div></div>";
+        }
+        const template = document.createElement("template");
+        template.innerHTML = markup;
+        const newItems = Array.from(template.content.children);
+        document.getElementById("messages").insertBefore(template.content, loadMoreSentinel);
+        newItems.forEach(function(item) { messageItems.push(item); });
+        if (!pending.length && loadMoreSentinel) loadMoreSentinel.style.display = "none";
+      }
+      function renderChunk(count) {
+        const slice = pending.splice(0, count);
+        const matching = [];
+        const rest = [];
+        for (const m of slice) {
+          if (entryMatches(m)) matching.push(m); else rest.push(m);
+        }
+        pending = rest.concat(pending);
+        renderEntries(matching);
+      }
+      if (loadMoreSentinel) {
+        const loadMoreButton = document.getElementById("loadMoreButton");
+        const finishLoadMore = function() {
+          if (!pending.length) loadMoreSentinel.style.display = "none";
+        };
+        if (window.IntersectionObserver) {
+          loadMoreButton.hidden = true;
+          const loadMoreObserver = new IntersectionObserver(function(entries) {
+            if (entries[0].isIntersecting) {
+              renderChunk(BATCH_SIZE);
+              finishLoadMore();
+              if (!pending.length) loadMoreObserver.disconnect();
+            }
+          }, { rootMargin: "400px" });
+          loadMoreObserver.observe(loadMoreSentinel);
+        } else {
+          document.getElementById("loadMoreLabel").hidden = true;
+          loadMoreButton.addEventListener("click", function() {
+            renderChunk(BATCH_SIZE);
+            finishLoadMore();
+          });
+        }
+      }
       const messageResultCount = document.getElementById("messageResultCount");
       const messageCount = document.getElementById("messageCount");
       const attachmentCount = document.getElementById("attachmentCount");
@@ -1701,34 +1774,78 @@
         if (messageQuery.has(key)) searchQuery.set(key, messageQuery.get(key));
       });
       if (searchQuery.toString()) backToSearch.href = "search.html?" + searchQuery.toString();
-      function filterMessages() {
+      function highlightText(source, termHtml) {
+        const lower = source.toLocaleLowerCase();
+        let result = "";
+        let index = 0;
+        let found = lower.indexOf(termHtml, index);
+        while (found !== -1) {
+          result += source.slice(index, found) + "<mark>" + source.slice(found, found + termHtml.length) + "</mark>";
+          index = found + termHtml.length;
+          found = lower.indexOf(termHtml, index);
+        }
+        return result + source.slice(index);
+      }
+      function filterMessages(materialize) {
         const text = document.getElementById("messageTextSearch").value.trim().toLocaleLowerCase();
         const dateFrom = document.getElementById("messageDateFrom").value;
         const dateTo = document.getElementById("messageDateTo").value;
         const timeFrom = document.getElementById("messageTimeFrom").value;
         const timeTo = document.getElementById("messageTimeTo").value;
+        const termHtml = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const noFilters = !text && !dateFrom && !dateTo && !timeFrom && !timeTo;
+        activeCriteria.noFilters = noFilters;
+        activeCriteria.text = text;
+        activeCriteria.dateFrom = dateFrom;
+        activeCriteria.dateTo = dateTo;
+        activeCriteria.timeFrom = timeFrom;
+        activeCriteria.timeTo = timeTo;
+        activeCriteria.termHtml = termHtml;
+        if (materialize) {
+          if (activeCriteria.noFilters) {
+            if (pending.length) renderChunk(BATCH_SIZE);
+          } else {
+            const matching = [];
+            const rest = [];
+            for (const m of pending) {
+              if (entryMatches(m)) matching.push(m); else rest.push(m);
+            }
+            pending = rest;
+            renderEntries(matching);
+          }
+        }
         let visible = 0;
         let visibleAttachments = 0;
         messageItems.forEach(function(item) {
-          const matches = (!text || item.dataset.searchText.includes(text)) &&
+          const matches = noFilters || (
+            (!text || item.dataset.searchText.includes(text)) &&
             (!dateFrom || item.dataset.date >= dateFrom) && (!dateTo || item.dataset.date <= dateTo) &&
-            (!timeFrom || item.dataset.time >= timeFrom) && (!timeTo || item.dataset.time <= timeTo);
+            (!timeFrom || item.dataset.time >= timeFrom) && (!timeTo || item.dataset.time <= timeTo));
           item.classList.toggle("filtered-out", !matches);
-          if (matches) {
+          const textDiv = item.querySelector(".bubble div:first-child");
+          if (textDiv && !item.dataset.textHtml) item.dataset.textHtml = textDiv.innerHTML;
+          if (textDiv) {
+            textDiv.innerHTML = termHtml ? highlightText(item.dataset.textHtml, termHtml) : item.dataset.textHtml;
+          }
+          if (matches && !noFilters) {
             visible++;
             visibleAttachments += Number(item.dataset.attachmentCount || 0);
           }
         });
+        if (noFilters) {
+          visible = totalMessages;
+          visibleAttachments = totalAttachments;
+        }
         messageCount.textContent = visible.toLocaleString();
         attachmentCount.textContent = visibleAttachments.toLocaleString();
-        messageResultCount.textContent = "Showing " + visible + " of " + messageItems.length + " messages";
+        messageResultCount.textContent = "Showing " + visible.toLocaleString() + " of " + totalMessages.toLocaleString() + " messages";
       }
       messageFilters.forEach(function(id) {
         document.getElementById(id).addEventListener("input", filterMessages);
         document.getElementById(id).addEventListener("change", filterMessages);
       });
-      const availableMessageDates = new Set();
-      messageItems.forEach(function(item) { if (item.dataset.date) availableMessageDates.add(item.dataset.date); });
+      const allDatesEl = document.getElementById("allDates");
+      const availableMessageDates = new Set(allDatesEl ? JSON.parse(allDatesEl.textContent) : []);
       const padMessageValue = function(value) { return String(value).padStart(2, "0"); };
       const randomDayButton = document.getElementById("randomDayButton");
       const randomWeekButton = document.getElementById("randomWeekButton");
@@ -1743,8 +1860,7 @@
         document.getElementById("messageDateTo").value = end;
         document.getElementById("messageTimeFrom").value = "";
         document.getElementById("messageTimeTo").value = "";
-        filterMessages();
-        document.getElementById("messages").scrollIntoView({ behavior: "smooth" });
+        filterMessages(true);
       }
       randomDayButton.addEventListener("click", function() {
         const dates = Array.from(availableMessageDates);
@@ -1771,7 +1887,7 @@
       clearFiltersButton.addEventListener("click", function() {
         messageFilters.forEach(function(id) { document.getElementById(id).value = ""; });
         randomStatus.textContent = "";
-        filterMessages();
+        filterMessages(true);
       });
       const activityYears = Array.from(document.querySelectorAll(".activity-year"));
       if (activityYears.length) {
@@ -1790,11 +1906,17 @@
         day.addEventListener("click", function() {
           document.getElementById("messageDateFrom").value = day.dataset.calendarDate;
           document.getElementById("messageDateTo").value = day.dataset.calendarDate;
-          filterMessages();
-          document.getElementById("messages").scrollIntoView({ behavior: "smooth" });
+          filterMessages(true);
         });
       });
-      filterMessages();
+      const initialFiltersActive = Boolean(
+        document.getElementById("messageTextSearch").value ||
+        document.getElementById("messageDateFrom").value ||
+        document.getElementById("messageDateTo").value ||
+        document.getElementById("messageTimeFrom").value ||
+        document.getElementById("messageTimeTo").value
+      );
+      filterMessages(initialFiltersActive);
     </script>
   </div>
 </body>

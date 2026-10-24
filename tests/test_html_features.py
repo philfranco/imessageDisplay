@@ -572,6 +572,10 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('pending = rest.concat(pending);', content)
         self.assertNotIn('renderEntries(slice.filter(entryMatches));', content)
         self.assertIn('renderEntries(matching);', content)
+        # Clearing filters must not materialize 100k+ messages at once (crashes
+        # the browser): it renders one chunk and streams the rest on scroll.
+        self.assertIn('if (activeCriteria.noFilters) {', content)
+        self.assertIn('if (pending.length) renderChunk(BATCH_SIZE);', content)
         self.assertNotIn('while (pending.length) renderChunk(BATCH_SIZE);', content)
         # Huge conversations: push.apply throws RangeError past ~65k args,
         # which kills all filtering; reassignment avoids the argument limit.

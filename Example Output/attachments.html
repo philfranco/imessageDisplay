@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attachments</title>
+  <style>
+    body { min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; background: #f2f2f7; color: #111; }
+    .wrapper { width: calc(100% - 48px); max-width: 1400px; margin: 0 auto; padding: 28px 0 48px; }
+    .site-nav { display: flex; flex-wrap: wrap; gap: 10px; margin: -28px -24px 22px; padding: 14px 24px 12px; background: #f2f2f7; position: sticky; top: 0; z-index: 10; }
+    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #ffffff; transition: background .15s, color .15s, border-color .15s; }
+    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }
+    .page-header { padding: clamp(24px, 4vw, 48px); margin-bottom: 26px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }
+    .eyebrow { margin: 0 0 10px; color: #bfdbfe; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(30px, 4vw, 42px); letter-spacing: -.03em; }
+    .page-header p:last-child { max-width: 720px; margin: 10px 0 0; color: #e0f2fe; font-size: 16px; line-height: 1.55; }
+    .stat-note { margin: 0 0 14px; color: #64748b; font-size: 13px; }
+    .message-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+    .message-filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }
+    .message-filters input, .message-filters select { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; color: #172033; background: #fff; }
+    .message-result-count { color: #64748b; font-size: 13px; align-self: center; }
+    .message-filter-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+    .message-filter-actions button { border: 0; border-radius: 10px; padding: 10px 15px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }
+    .message-filter-actions button:disabled { background: #94a3b8; cursor: not-allowed; }
+    .message-filter-actions span { color: #64748b; font-size: 13px; }
+    .att-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin: 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }
+    .att-card { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #fff; cursor: zoom-in; }
+    .att-card.filtered-out { display: none; }
+    .att-card.window-hidden { display: none; }
+    .att-media { background: #0f172a; }
+    .att-media img, .att-media video { display: block; width: 100%; height: 170px; object-fit: cover; }
+    .att-media .attachment { margin: 0; padding: 12px; font-size: 13px; color: #334155; background: #fff; }
+    .att-caption { padding: 10px 12px; color: #475569; font-size: 12px; background: #fff; }
+    .att-info { font-weight: 600; color: #334155; overflow-wrap: anywhere; }
+    .att-when { margin-top: 3px; color: #64748b; }
+    .att-chain { display: inline-block; margin-top: 8px; padding: 7px 12px; border-radius: 8px; color: #fff; background: #2563eb; text-decoration: none; font-weight: 600; font-size: 12px; }
+    .att-chain:hover { background: #1d4ed8; }
+    .load-more { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 10px; color: #64748b; font-size: 13px; }
+    .load-more button { padding: 9px 14px; border: 0; border-radius: 8px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }
+    .lightbox { display: none; position: fixed; inset: 0; z-index: 60; align-items: center; justify-content: center; flex-direction: column; gap: 14px; padding: 24px; background: #0f172ae6; }
+    .lightbox.open { display: flex; }
+    .lightbox img, .lightbox video { max-width: 92vw; max-height: 80vh; border-radius: 12px; background: #000; }
+    .lightbox-caption { color: #e2e8f0; font-size: 14px; max-width: 92vw; text-align: center; overflow-wrap: anywhere; }
+    .lightbox-close { position: absolute; top: 18px; right: 22px; border: 0; border-radius: 8px; padding: 9px 14px; background: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    .empty-state { padding: 22px; color: #64748b; }
+    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } .att-grid { padding: 10px; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>
+    <header class="page-header">
+      <p class="eyebrow">Media archive • America/New_York</p>
+      <h1>Attachments</h1>
+      <p>Every photo, video, and file from the archive in chronological order. Click a thumbnail to enlarge it, and use "View in conversation" to jump to the message with 25 messages of context on each side.</p>
+    </header>
+    <p class="empty-state">No attachments were found in the extracted backups.</p>
+  </div>
+</body>
+</html>

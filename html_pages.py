@@ -12,7 +12,12 @@ from collections import Counter
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from export_media import format_attachment_html
+from export_media import (
+    format_attachment_html,
+    is_heic_type,
+    is_image_type,
+    is_video_type,
+)
 from sms_database import sanitize_filename
 from time_zone_utils import DEFAULT_TIME_ZONE, localize_message_datetime
 
@@ -85,6 +90,11 @@ def build_html(
         '    .message-filter-actions span { color: #64748b; font-size: 13px; }',
         '    .message { display: flex; margin-bottom: 14px; }',
         '    .message.filtered-out { display: none; }',
+        '    .jump-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; padding: 12px 16px; border: 1px solid #f59e0b; border-radius: 12px; background: #fef3c7; color: #78350f; font-size: 13px; font-weight: 600; }',
+        '    .jump-bar[hidden] { display: none; }',
+        '    .jump-bar button { border: 0; border-radius: 8px; padding: 9px 14px; color: #fff; background: #b45309; font: inherit; font-weight: 600; cursor: pointer; }',
+        '    .message.jump-hidden { display: none; }',
+        '    .message.jump-target .bubble { outline: 3px solid #f59e0b; box-shadow: 0 0 0 6px #fbbf2466; }',
         '    .message.me { justify-content: flex-end; }',
         '    .bubble { max-width: min(78%, 760px); padding: 12px 15px; border-radius: 20px; line-height: 1.5; position: relative; overflow-wrap: anywhere; box-shadow: 0 1px 3px #0f172a12; }',
         '    .bubble.me { background: #2563eb; color: white; border-bottom-right-radius: 6px; border-bottom-left-radius: 20px; }',
@@ -100,7 +110,7 @@ def build_html(
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         f'      <p class="eyebrow">iMessage conversation • {html.escape(time_zone)}</p>',
         f'      <h1>{html.escape(conversation_name)}</h1>',
@@ -123,6 +133,10 @@ def build_html(
         '        <button type="button" id="clearFiltersButton">Clear filters</button>',
         '        <span id="randomStatus" aria-live="polite"></span>',
         '      </div>',
+        '    </section>',
+        '    <section class="jump-bar" id="jumpBar" hidden>',
+        '      <span id="jumpStatus" aria-live="polite"></span>',
+        '      <button type="button" id="showAllMessagesButton">Show all messages</button>',
         '    </section>',
     ]
 
@@ -223,6 +237,7 @@ def build_html(
         if index < batch_size:
             html_content.append(
                 f'    <div class="message {bubble_class}" '
+                f'data-msg-idx="{index}" '
                 f'data-date="{html.escape(message_date, quote=True)}" '
                 f'data-time="{html.escape(message_time, quote=True)}" '
                 f'data-attachment-count="{len(msg["attachments"])}" '
@@ -238,6 +253,7 @@ def build_html(
         else:
             pending_entries.append({
                 'cls': bubble_class,
+                'i': index,
                 'd': message_date,
                 't': message_time,
                 'a': len(msg['attachments']),
@@ -296,7 +312,7 @@ def build_html(
         '        for (const m of entries) {',
         '          const textPart = activeCriteria.termHtml',
         '            ? highlightText(m.x, activeCriteria.termHtml) : m.x;',
-        '          markup += "<div class=\\"message " + m.cls + "\\" data-date=\\"" + m.d + "\\" data-time=\\"" + m.t + "\\" data-attachment-count=\\"" + m.a + "\\" data-search-text=\\"" + m.s + "\\" data-text-html=\\"" + m.x + "\\\">" +',
+        '          markup += "<div class=\\"message " + m.cls + "\\" data-date=\\"" + m.d + "\\" data-time=\\"" + m.t + "\\" data-msg-idx=\\"" + m.i + "\\" data-attachment-count=\\"" + m.a + "\\" data-search-text=\\"" + m.s + "\\" data-text-html=\\"" + m.x + "\\\">" +',
         '            "<div class=\\"bubble " + m.cls + "\\"><div>" + textPart + "</div>" + m.atts +',
         '            "<div class=\\"meta\\">" + m.who + " • " + m.dt + "</div></div></div>";',
         '        }',
@@ -494,6 +510,43 @@ def build_html(
         '        document.getElementById("messageTimeTo").value',
         '      );',
         '      filterMessages(initialFiltersActive);',
+        '      const jumpParam = messageQuery.get("msg");',
+        '      if (jumpParam !== null) {',
+        '        const jumpIndex = parseInt(jumpParam, 10);',
+        '        if (!isNaN(jumpIndex) && jumpIndex >= 0 && jumpIndex < totalMessages) {',
+        '          const renderLimit = Math.min(totalMessages, jumpIndex + 26);',
+        '          const findJumpTarget = function() {',
+        '            for (const el of messageItems) {',
+        '              if (Number(el.dataset.msgIdx) === jumpIndex) return el;',
+        '            }',
+        '            return null;',
+        '          };',
+        '          let jumpTarget = findJumpTarget();',
+        '          while (!jumpTarget && messageItems.length < renderLimit && pending.length) {',
+        '            renderChunk(BATCH_SIZE);',
+        '            jumpTarget = findJumpTarget();',
+        '          }',
+        '          if (jumpTarget) {',
+        '            const lowIndex = jumpIndex - 25;',
+        '            const highIndex = jumpIndex + 25;',
+        '            messageItems.forEach(function(el) {',
+        '              const idx = Number(el.dataset.msgIdx);',
+        '              el.classList.toggle("jump-hidden", idx < lowIndex || idx > highIndex);',
+        '            });',
+        '            jumpTarget.classList.add("jump-target");',
+        '            jumpTarget.scrollIntoView({ block: "center" });',
+        '            document.getElementById("jumpBar").hidden = false;',
+        '            document.getElementById("jumpStatus").textContent =',
+        '              "Jumped to message #" + (jumpIndex + 1) + ", showing 25 messages on each side.";',
+        '            document.getElementById("showAllMessagesButton").addEventListener("click", function() {',
+        '              messageItems.forEach(function(el) {',
+        '                el.classList.remove("jump-hidden", "jump-target");',
+        '              });',
+        '              document.getElementById("jumpBar").hidden = true;',
+        '            });',
+        '          }',
+        '        }',
+        '      }',
         '    </script>',
         '  </div>',
         '</body>',
@@ -1123,12 +1176,13 @@ def build_index(
         '    .activity-legend { margin: 12px 0 0; color: #64748b; font-size: 12px; }',
         '    .search-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 12px 18px; border-radius: 12px; color: #fff; background: #2563eb; text-decoration: none; font-size: 15px; font-weight: 600; box-shadow: 0 5px 14px #2563eb33; transition: background .15s, transform .15s; }',
         '    .search-link:hover { background: #1d4ed8; transform: translateY(-1px); }',
+        '    .link-row { display: flex; gap: 12px; flex-wrap: wrap; }',
         '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } }',
         '  </style>',
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Your conversations</h1>',
@@ -1164,7 +1218,10 @@ def build_index(
     ])
     content.extend(analytics_content)
     content.extend([
-        '    <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>',
+        '    <div class="link-row">',
+        '      <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>',
+        '      <a class="search-link" href="attachments.html">Browse all attachments <span aria-hidden="true">→</span></a>',
+        '    </div>',
         '    <script>',
         '      document.querySelectorAll(".line-chart").forEach(function(figure) {',
         '        const svg = figure.querySelector("svg");',
@@ -1312,7 +1369,7 @@ def build_search_index(
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Find a conversation</h1>',
@@ -1916,7 +1973,7 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <h1>Birthday calendar</h1>',
         f'      <p>{total_candidates:,} inferred date(s) for {len(unique_contacts):,} contact(s). Dates are inferred from outgoing “Happy Birthday” messages and may not be the actual birthday. Conflicting dates are shown separately; the number indicates supporting messages. Times and dates use {html.escape(time_zone)}.</p>',
@@ -2057,7 +2114,7 @@ def build_birthday_wishes(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <h1>Who wished you a happy birthday?</h1>',
         f'      <p>Enter your birthday to find incoming “Happy Birthday” messages on that month and day across all years. Searches all direct and group conversations; group wishes are attributed to the sender shown in the message. Dates use {html.escape(time_zone)}.</p>',
@@ -2220,7 +2277,7 @@ def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
         '    <header class="page-header">',
         '      <h1>Call history</h1>',
         f'      <p>{len(calls):,} calls • Times shown in {html.escape(time_zone)}. Call data is included only when present in an extracted backup.</p>',
@@ -2529,6 +2586,442 @@ def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
         content.append(
             '    <div class="table-wrap empty-state">No call history was found in the extracted backups.</div>'
         )
+
+    content.extend(['  </div>', '</body>', '</html>'])
+    with open(page_path, 'w', encoding='utf-8') as page:
+        page.write('\n'.join(content))
+    return page_path
+
+
+def build_attachments_page(
+    index_entries,
+    output_dir,
+    attachment_folder=None,
+    conversion_failures=None,
+    time_zone=DEFAULT_TIME_ZONE,
+    fallback_attachment_folders=(),
+):
+    """Render attachments.html: every attachment in chronological order."""
+    page_path = os.path.join(output_dir, 'attachments.html')
+    if conversion_failures is None:
+        conversion_failures = {}
+
+    raw_entries = []
+    for conv_name, output_filename, messages in index_entries:
+        for index, msg in enumerate(messages):
+            for att in msg.get('attachments') or []:
+                display_date = localize_message_datetime(msg.get('date'), time_zone)
+                att_date, att_time = _split_message_datetime(display_date)
+                mime_type = att.get('mime_type') or ''
+                filename = str(att.get('filename') or 'attachment')
+                if filename.casefold().endswith('.pluginpayloadattachment'):
+                    continue
+                if is_heic_type(mime_type, filename) or is_image_type(mime_type, filename):
+                    kind = 'img'
+                elif is_video_type(mime_type, filename):
+                    kind = 'video'
+                else:
+                    kind = 'other'
+                sender = 'Me' if msg.get('is_from_me') else str(msg.get('sender') or '')
+                preview_text = str(msg.get('text') or '')[:80]
+                searchable = ' '.join(
+                    (filename, sender, conv_name, display_date, preview_text)
+                ).casefold()
+                raw_entries.append((
+                    display_date, conv_name, index, sender, filename,
+                    searchable, att_date, att_time, kind, att, output_filename,
+                ))
+
+    raw_entries.sort(key=lambda item: (item[0], item[1], item[2]))
+
+    photo_count = sum(1 for item in raw_entries if item[8] == 'img')
+    video_count = sum(1 for item in raw_entries if item[8] == 'video')
+    file_count = len(raw_entries) - photo_count - video_count
+
+    content = [
+        '<!DOCTYPE html>',
+        '<html lang="en">',
+        '<head>',
+        '  <meta charset="UTF-8">',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+        '  <title>Attachments</title>',
+        '  <style>',
+        '    body { min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; background: #f2f2f7; color: #111; }',
+        '    .wrapper { width: calc(100% - 48px); max-width: 1400px; margin: 0 auto; padding: 28px 0 48px; }',
+        '    .site-nav { display: flex; flex-wrap: wrap; gap: 10px; margin: -28px -24px 22px; padding: 14px 24px 12px; background: #f2f2f7; position: sticky; top: 0; z-index: 10; }',
+        '    .site-nav a { color: #334155; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 14px; border: 1px solid #dbe3ef; border-radius: 999px; background: #ffffff; transition: background .15s, color .15s, border-color .15s; }',
+        '    .site-nav a:hover { color: #fff; background: #2563eb; border-color: #2563eb; }',
+        '    .page-header { padding: clamp(24px, 4vw, 48px); margin-bottom: 26px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }',
+        '    .eyebrow { margin: 0 0 10px; color: #bfdbfe; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }',
+        '    h1 { margin: 0; font-size: clamp(30px, 4vw, 42px); letter-spacing: -.03em; }',
+        '    .page-header p:last-child { max-width: 720px; margin: 10px 0 0; color: #e0f2fe; font-size: 16px; line-height: 1.55; }',
+        '    .stat-note { margin: 0 0 14px; color: #64748b; font-size: 13px; }',
+        '    .message-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }',
+        '    .message-filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }',
+        '    .message-filters input, .message-filters select { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; color: #172033; background: #fff; }',
+        '    .message-result-count { color: #64748b; font-size: 13px; align-self: center; }',
+        '    .message-filter-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }',
+        '    .message-filter-actions button { border: 0; border-radius: 10px; padding: 10px 15px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }',
+        '    .message-filter-actions button:disabled { background: #94a3b8; cursor: not-allowed; }',
+        '    .message-filter-actions span { color: #64748b; font-size: 13px; }',
+        '    .att-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin: 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }',
+        '    .att-card { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #fff; cursor: zoom-in; }',
+        '    .att-card.filtered-out { display: none; }',
+        '    .att-card.window-hidden { display: none; }',
+        '    .att-media { background: #0f172a; }',
+        '    .att-media img, .att-media video { display: block; width: 100%; height: 170px; object-fit: cover; }',
+        '    .att-media .attachment { margin: 0; padding: 12px; font-size: 13px; color: #334155; background: #fff; }',
+        '    .att-caption { padding: 10px 12px; color: #475569; font-size: 12px; background: #fff; }',
+        '    .att-info { font-weight: 600; color: #334155; overflow-wrap: anywhere; }',
+        '    .att-when { margin-top: 3px; color: #64748b; }',
+        '    .att-chain { display: inline-block; margin-top: 8px; padding: 7px 12px; border-radius: 8px; color: #fff; background: #2563eb; text-decoration: none; font-weight: 600; font-size: 12px; }',
+        '    .att-chain:hover { background: #1d4ed8; }',
+        '    .load-more { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 10px; color: #64748b; font-size: 13px; }',
+        '    .load-more button { padding: 9px 14px; border: 0; border-radius: 8px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }',
+        '    .lightbox { display: none; position: fixed; inset: 0; z-index: 60; align-items: center; justify-content: center; flex-direction: column; gap: 14px; padding: 24px; background: #0f172ae6; }',
+        '    .lightbox.open { display: flex; }',
+        '    .lightbox img, .lightbox video { max-width: 92vw; max-height: 80vh; border-radius: 12px; background: #000; }',
+        '    .lightbox-caption { color: #e2e8f0; font-size: 14px; max-width: 92vw; text-align: center; overflow-wrap: anywhere; }',
+        '    .lightbox-close { position: absolute; top: 18px; right: 22px; border: 0; border-radius: 8px; padding: 9px 14px; background: #fff; font: inherit; font-weight: 600; cursor: pointer; }',
+        '    .empty-state { padding: 22px; color: #64748b; }',
+        '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } .att-grid { padding: 10px; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }',
+        '  </style>',
+        '</head>',
+        '<body>',
+        '  <div class="wrapper">',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
+        '    <header class="page-header">',
+        f'      <p class="eyebrow">Media archive • {html.escape(time_zone)}</p>',
+        '      <h1>Attachments</h1>',
+        '      <p>Every photo, video, and file from the archive in chronological order. Click a thumbnail to enlarge it, and use "View in conversation" to jump to the message with 25 messages of context on each side.</p>',
+        '    </header>',
+    ]
+
+    if not raw_entries:
+        content.append(
+            '    <p class="empty-state">No attachments were found in the extracted backups.</p>'
+        )
+        content.extend(['  </div>', '</body>', '</html>'])
+        with open(page_path, 'w', encoding='utf-8') as page:
+            page.write('\n'.join(content))
+        return page_path
+
+    cards = []
+    for seq, item in enumerate(raw_entries):
+        display_date, conv_name, index, sender, filename, searchable, att_date, att_time, kind, att, output_filename = item
+        attachment_html = format_attachment_html(
+            att,
+            output_dir,
+            attachment_folder,
+            conversion_failures,
+            fallback_attachment_folders=fallback_attachment_folders,
+        )
+        page_link = html.escape(f'{output_filename}.html', quote=True) + f'?msg={index}'
+        e_date = html.escape(att_date, quote=True)
+        e_time = html.escape(att_time, quote=True)
+        e_search = html.escape(searchable, quote=True)
+        e_file = html.escape(filename, quote=True)
+        if sender == conv_name:
+            att_info = f'From {html.escape(sender)}'
+        else:
+            att_info = f'{html.escape(sender)} in {html.escape(conv_name)}'
+        card = (
+            f'<div class="att-card" data-date="{e_date}" data-time="{e_time}" '
+            f'data-media="{kind}" data-seq="{seq}" data-file="{e_file}" data-search="{e_search}">'
+            f'<div class="att-media">{attachment_html}</div>'
+            '<div class="att-caption">'
+            f'<div class="att-info">{att_info}</div>'
+            f'<div class="att-when">{html.escape(display_date)}</div>'
+            f'<a class="att-chain" href="{page_link}">View in conversation</a>'
+            '</div></div>'
+        )
+        cards.append({
+            'r': card,
+            's': e_search,
+            'd': att_date,
+            't': att_time,
+            'v': kind,
+        })
+
+    first_date = cards[0]['d']
+    last_date = cards[-1]['d']
+    range_note = (
+        f' • {html.escape(first_date)} to {html.escape(last_date)}'
+        if first_date and last_date else ''
+    )
+    content.append(
+        f'    <p class="stat-note">{len(cards):,} attachments • {photo_count:,} photos • '
+        f'{video_count:,} videos • {file_count:,} other files{range_note}</p>'
+    )
+
+    content.extend([
+        '    <section class="message-filters" aria-label="Filter attachments">',
+        '      <label>Search filename, sender, conversation<input id="attSearch" type="search" placeholder="Words, name, sender, or date"></label>',
+        '      <label>From date<input id="attDateFrom" type="date"></label>',
+        '      <label>To date<input id="attDateTo" type="date"></label>',
+        '      <label>Media type<select id="attMediaFilter">',
+        '        <option value="all">All media</option>',
+        '        <option value="img">Photos only</option>',
+        '        <option value="video">Videos only</option>',
+        '        <option value="other">Other files</option>',
+        '      </select></label>',
+        '      <div id="attCount" class="message-result-count" aria-live="polite"></div>',
+        '      <div class="message-filter-actions">',
+        '        <button type="button" id="randomDayButton">Go to a random day</button>',
+        '        <button type="button" id="randomWeekButton">Go to a random week</button>',
+        '        <button type="button" id="orderButton">Newest first</button>',
+        '        <button type="button" id="clearFiltersButton">Clear filters</button>',
+        '        <span id="randomStatus" aria-live="polite"></span>',
+        '      </div>',
+        '    </section>',
+    ])
+
+    batch_size = 2000
+    inline_cards = cards[:batch_size]
+    pending_cards = cards[batch_size:]
+
+    content.append('    <main class="att-grid" id="attGrid">')
+    for card in inline_cards:
+        content.append('    ' + card['r'])
+    if pending_cards:
+        content.append(
+            '      <div class="load-more" id="loadMoreSentinel">'
+            '<span id="loadMoreLabel">Loading more attachments…</span>'
+            '<button type="button" id="loadMoreButton">Load 2,000 more attachments</button></div>'
+        )
+    content.append('    </main>')
+    content.append('    <template id="attTemplate"></template>')
+    content.extend([
+        '    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Attachment viewer">',
+        '      <button type="button" class="lightbox-close" id="lightboxClose">Close</button>',
+        '      <div id="lightboxMedia"></div>',
+        '      <div class="lightbox-caption" id="lightboxCaption"></div>',
+        '    </div>',
+    ])
+    if pending_cards:
+        content.extend([
+            '    <script type="application/json" id="pendingData">',
+            json.dumps(pending_cards, separators=(',', ':')).replace('<', '\\u003c'),
+            '</script>',
+        ])
+
+    all_attachment_dates = sorted({card['d'] for card in cards if card['d']})
+    content.extend([
+        '    <script type="application/json" id="allDates">',
+        json.dumps(all_attachment_dates),
+        '</script>',
+    ])
+
+    content.extend([
+        '    <script>',
+        '      const attCards = Array.from(document.querySelectorAll(".att-card"));',
+        f'      const totalAttachments = {len(cards)};',
+        '      const attSearch = document.getElementById("attSearch");',
+        '      const attDateFrom = document.getElementById("attDateFrom");',
+        '      const attDateTo = document.getElementById("attDateTo");',
+        '      const attMediaFilter = document.getElementById("attMediaFilter");',
+        '      const attCount = document.getElementById("attCount");',
+        '      const BATCH_SIZE = 2000;',
+        '      const attTemplate = document.getElementById("attTemplate");',
+        '      const attGrid = document.getElementById("attGrid");',
+        '      const loadMoreSentinel = document.getElementById("loadMoreSentinel");',
+        '      const pendingDataEl = document.getElementById("pendingData");',
+        '      let pending = pendingDataEl ? JSON.parse(pendingDataEl.textContent) : [];',
+        '      const activeCriteria = { noFilters: true, text: "", dateFrom: "", dateTo: "", kind: "all" };',
+        '      let displayCount = attCards.length;',
+        '      function applyWindow() {',
+        '        attCards.forEach(function(card) {',
+        '          const seq = Number(card.dataset.seq);',
+        '          const inWindow = !newestFirst || !activeCriteria.noFilters || seq >= totalAttachments - displayCount;',
+        '          card.classList.toggle("window-hidden", !inWindow);',
+        '        });',
+        '      }',
+        '      function entryMatches(m) {',
+        '        const c = activeCriteria;',
+        '        if (c.noFilters) return true;',
+        '        if (c.text && !m.s.includes(c.text)) return false;',
+        '        if (c.kind !== "all" && m.v !== c.kind) return false;',
+        '        if (c.dateFrom && m.d < c.dateFrom) return false;',
+        '        if (c.dateTo && m.d > c.dateTo) return false;',
+        '        return true;',
+        '      }',
+        '      function renderCards(entries) {',
+        '        if (!entries.length) return;',
+        '        let markup = "";',
+        '        for (const m of entries) { markup += m.r; }',
+        '        attTemplate.innerHTML = markup;',
+        '        Array.from(attTemplate.content.children).forEach(function(card) {',
+        '          attGrid.insertBefore(card, loadMoreSentinel);',
+        '          attCards.push(card);',
+        '        });',
+        '        displayCount += entries.length;',
+        '        applyWindow();',
+        '        if (!pending.length && loadMoreSentinel) loadMoreSentinel.style.display = "none";',
+        '      }',
+        '      function renderChunk(count) {',
+        '        const slice = pending.splice(0, count);',
+        '        const matching = [];',
+        '        const rest = [];',
+        '        for (const m of slice) {',
+        '          if (entryMatches(m)) matching.push(m); else rest.push(m);',
+        '        }',
+        '        pending = rest.concat(pending);',
+        '        renderCards(matching);',
+        '      }',
+        '      const loadMoreButton = document.getElementById("loadMoreButton");',
+        '      if (loadMoreButton) loadMoreButton.addEventListener("click", function() { renderChunk(BATCH_SIZE); });',
+        '      if (loadMoreSentinel && typeof IntersectionObserver === "function") {',
+        '        const loadMoreObserver = new IntersectionObserver(function(entries) {',
+        '          if (!entries[0].isIntersecting) return;',
+        '          if (!pending.length) { loadMoreObserver.disconnect(); return; }',
+        '          renderChunk(BATCH_SIZE);',
+        '        }, { rootMargin: "400px" });',
+        '        loadMoreObserver.observe(loadMoreSentinel);',
+        '      }',
+        '      function filterAtt(materialize) {',
+        '        const text = attSearch.value.trim().toLocaleLowerCase();',
+        '        const dateFrom = attDateFrom.value;',
+        '        const dateTo = attDateTo.value;',
+        '        const kind = attMediaFilter.value;',
+        '        const noFilters = !text && !dateFrom && !dateTo && kind === "all";',
+        '        activeCriteria.noFilters = noFilters;',
+        '        activeCriteria.text = text;',
+        '        activeCriteria.dateFrom = dateFrom;',
+        '        activeCriteria.dateTo = dateTo;',
+        '        activeCriteria.kind = kind;',
+        '        if (materialize) {',
+        '          if (noFilters) {',
+        '            if (pending.length) renderChunk(BATCH_SIZE);',
+        '          } else {',
+        '            const matching = [];',
+        '            const rest = [];',
+        '            for (const m of pending) {',
+        '              if (entryMatches(m)) matching.push(m); else rest.push(m);',
+        '            }',
+        '            pending = rest;',
+        '            renderCards(matching);',
+        '          }',
+        '        }',
+        '        let visible = 0;',
+        '        attCards.forEach(function(card) {',
+        '          const matches = noFilters',
+        '            || card.dataset.search.includes(text)',
+        '            && (!dateFrom || card.dataset.date >= dateFrom)',
+        '            && (!dateTo || card.dataset.date <= dateTo)',
+        '            && (kind === "all" || card.dataset.media === kind);',
+        '          card.classList.toggle("filtered-out", !matches);',
+        '          if (matches) visible += 1;',
+        '        });',
+        '        if (noFilters) visible = totalAttachments;',
+        '        attCount.textContent = "Showing " + visible.toLocaleString() + " of " + totalAttachments.toLocaleString() + " attachments";',
+        '        applyWindow();',
+        '      }',
+        '      const allDatesEl = document.getElementById("allDates");',
+        '      const availableAttachmentDates = new Set(allDatesEl ? JSON.parse(allDatesEl.textContent) : []);',
+        '      const padDatePart = function(value) { return String(value).padStart(2, "0"); };',
+        '      const randomDayButton = document.getElementById("randomDayButton");',
+        '      const randomWeekButton = document.getElementById("randomWeekButton");',
+        '      const clearFiltersButton = document.getElementById("clearFiltersButton");',
+        '      const orderButton = document.getElementById("orderButton");',
+        '      const randomStatus = document.getElementById("randomStatus");',
+        '      const noAvailableDates = availableAttachmentDates.size === 0;',
+        '      randomDayButton.disabled = noAvailableDates;',
+        '      randomWeekButton.disabled = noAvailableDates;',
+        '      function setAttDateRange(start, end) {',
+        '        attSearch.value = "";',
+        '        attMediaFilter.value = "all";',
+        '        attDateFrom.value = start;',
+        '        attDateTo.value = end;',
+        '        filterAtt(true);',
+        '      }',
+        '      randomDayButton.addEventListener("click", function() {',
+        '        const dates = Array.from(availableAttachmentDates);',
+        '        if (!dates.length) return;',
+        '        const randomDate = dates[Math.floor(Math.random() * dates.length)];',
+        '        setAttDateRange(randomDate, randomDate);',
+        '        randomStatus.textContent = "Showing attachments from " + randomDate + ".";',
+        '      });',
+        '      randomWeekButton.addEventListener("click", function() {',
+        '        const dates = Array.from(availableAttachmentDates);',
+        '        if (!dates.length) return;',
+        '        const randomDate = dates[Math.floor(Math.random() * dates.length)];',
+        '        const parts = randomDate.split("-").map(Number);',
+        '        const picked = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));',
+        '        const dayNumber = (picked.getUTCDay() + 6) % 7;',
+        '        const monday = new Date(picked);',
+        '        monday.setUTCDate(picked.getUTCDate() - dayNumber);',
+        '        const sunday = new Date(monday);',
+        '        sunday.setUTCDate(monday.getUTCDate() + 6);',
+        '        const formatDate = function(d) { return d.getUTCFullYear() + "-" + padDatePart(d.getUTCMonth() + 1) + "-" + padDatePart(d.getUTCDate()); };',
+        '        setAttDateRange(formatDate(monday), formatDate(sunday));',
+        '        randomStatus.textContent = "Showing attachments from the week of " + formatDate(monday) + " to " + formatDate(sunday) + " (contains " + randomDate + ").";',
+        '      });',
+        '      clearFiltersButton.addEventListener("click", function() {',
+        '        attSearch.value = "";',
+        '        attMediaFilter.value = "all";',
+        '        attDateFrom.value = "";',
+        '        attDateTo.value = "";',
+        '        randomStatus.textContent = "";',
+        '        filterAtt(true);',
+        '      });',
+        '      let newestFirst = false;',
+        '      orderButton.addEventListener("click", function() {',
+        '        newestFirst = !newestFirst;',
+        '        pending.reverse();',
+        '        if (newestFirst) {',
+        '          while (pending.length && attCards.length < BATCH_SIZE) { renderChunk(BATCH_SIZE); }',
+        '          displayCount = Math.min(attCards.length, BATCH_SIZE);',
+        '        } else {',
+        '          displayCount = attCards.length;',
+        '        }',
+        '        attCards.sort(function(a, b) {',
+        '          const seqA = Number(a.dataset.seq);',
+        '          const seqB = Number(b.dataset.seq);',
+        '          return newestFirst ? seqB - seqA : seqA - seqB;',
+        '        });',
+        '        attCards.forEach(function(card) { attGrid.appendChild(card); });',
+        '        if (loadMoreSentinel) attGrid.appendChild(loadMoreSentinel);',
+        '        applyWindow();',
+        '        orderButton.textContent = newestFirst ? "Oldest first" : "Newest first";',
+        '      });',
+        '      const lightbox = document.getElementById("lightbox");',
+        '      const lightboxMedia = document.getElementById("lightboxMedia");',
+        '      const lightboxCaption = document.getElementById("lightboxCaption");',
+        '      function closeLightbox() {',
+        '        lightbox.classList.remove("open");',
+        '        lightboxMedia.innerHTML = "";',
+        '      }',
+        '      attGrid.addEventListener("click", function(event) {',
+        '        if (event.target.closest("a")) return;',
+        '        const card = event.target.closest(".att-card");',
+        '        if (!card) return;',
+        '        const media = card.querySelector("img") || card.querySelector("video");',
+        '        if (!media) return;',
+        '        lightboxMedia.innerHTML = "";',
+        '        if (media.tagName === "IMG") {',
+        '          const bigImage = document.createElement("img");',
+        '          bigImage.src = media.src;',
+        '          lightboxMedia.appendChild(bigImage);',
+        '        } else {',
+        '          const bigVideo = document.createElement("video");',
+        '          bigVideo.controls = true;',
+        '          const source = media.querySelector("source");',
+        '          bigVideo.src = source ? source.src : media.src;',
+        '          lightboxMedia.appendChild(bigVideo);',
+        '        }',
+        '        lightboxCaption.textContent = card.querySelector(".att-caption").textContent.trim() + " • " + card.dataset.file;',
+        '        lightbox.classList.add("open");',
+        '      });',
+        '      document.getElementById("lightboxClose").addEventListener("click", closeLightbox);',
+        '      lightbox.addEventListener("click", function(event) { if (event.target === lightbox) closeLightbox(); });',
+        '      document.addEventListener("keydown", function(event) { if (event.key === "Escape") closeLightbox(); });',
+        '      [attSearch, attDateFrom, attDateTo, attMediaFilter].forEach(function(field) {',
+        '        field.addEventListener("input", filterAtt);',
+        '        field.addEventListener("change", filterAtt);',
+        '      });',
+        '      filterAtt(false);',
+        '    </script>',
+    ])
 
     content.extend(['  </div>', '</body>', '</html>'])
     with open(page_path, 'w', encoding='utf-8') as page:

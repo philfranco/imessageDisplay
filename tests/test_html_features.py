@@ -68,6 +68,26 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertEqual(stats['busiest_count'], 2)
         self.assertEqual(stats['daily_counts']['2025-02-03'], 1)
 
+    def test_conversation_page_supports_jump_from_attachments_page(self):
+        path = build_html('Alex', self.messages, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('data-msg-idx="0"', content)
+        self.assertIn('data-msg-idx="2"', content)
+        self.assertIn('data-msg-idx=\\"" + m.i + "\\"', content)
+        self.assertIn('<section class="jump-bar" id="jumpBar" hidden>', content)
+        self.assertIn('id="showAllMessagesButton"', content)
+        self.assertIn('const jumpParam = messageQuery.get("msg");', content)
+        self.assertIn('const renderLimit = Math.min(totalMessages, jumpIndex + 26);', content)
+        self.assertIn('el.classList.toggle("jump-hidden", idx < lowIndex || idx > highIndex);', content)
+        self.assertIn('jumpTarget.classList.add("jump-target");', content)
+        self.assertIn('jumpTarget.scrollIntoView({ block: "center" });', content)
+        self.assertIn('.message.jump-hidden { display: none; }', content)
+        self.assertIn('.message.jump-target .bubble', content)
+        self.assertIn('<a href="attachments.html">Attachments</a>', content)
+
     def test_conversation_page_has_text_date_and_time_filters(self):
         path = build_html('Alex', self.messages, self.output_dir)
 
@@ -591,6 +611,7 @@ class HtmlFeatureTests(unittest.TestCase):
         pending = json.loads(content[payload_start:payload_end])
         self.assertEqual(len(pending), 3005)
         self.assertEqual(pending[0]['x'], 'message 2000')
+        self.assertEqual(pending[0]['i'], 2000)
         self.assertEqual(pending[4]['d'], '2024-01-01')
 
         dates_start = content.index('id="allDates">') + len('id="allDates">')

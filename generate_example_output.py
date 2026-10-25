@@ -3,6 +3,7 @@
 import os
 
 from html_pages import (
+    build_attachments_page,
     build_birthdays,
     build_birthday_wishes,
     build_call_history,
@@ -200,6 +201,7 @@ def main():
 
     for display_name, filename, messages in entries:
         build_html(display_name, messages, output_dir, output_filename=filename)
+    build_attachments_page(entries, output_dir, None, {}, DEFAULT_TIME_ZONE, ())
     conversation_metrics = collect_conversation_metrics(entries, DEFAULT_TIME_ZONE)
     build_index(
         entries,

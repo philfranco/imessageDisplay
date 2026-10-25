@@ -60,12 +60,13 @@
     .activity-legend { margin: 12px 0 0; color: #64748b; font-size: 12px; }
     .search-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 12px 18px; border-radius: 12px; color: #fff; background: #2563eb; text-decoration: none; font-size: 15px; font-weight: 600; box-shadow: 0 5px 14px #2563eb33; transition: background .15s, transform .15s; }
     .search-link:hover { background: #1d4ed8; transform: translateY(-1px); }
+    .link-row { display: flex; gap: 12px; flex-wrap: wrap; }
     @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } }
   </style>
 </head>
 <body>
   <div class="wrapper">
-    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>
+    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>
     <header class="page-header">
       <p class="eyebrow">iMessage archive</p>
       <h1>Your conversations</h1>
@@ -1837,7 +1838,10 @@
 </svg>
 </figure>
 </section>
-    <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>
+    <div class="link-row">
+      <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>
+      <a class="search-link" href="attachments.html">Browse all attachments <span aria-hidden="true">→</span></a>
+    </div>
     <script>
       document.querySelectorAll(".line-chart").forEach(function(figure) {
         const svg = figure.querySelector("svg");

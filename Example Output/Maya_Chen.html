@@ -47,6 +47,11 @@
     .message-filter-actions span { color: #64748b; font-size: 13px; }
     .message { display: flex; margin-bottom: 14px; }
     .message.filtered-out { display: none; }
+    .jump-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; padding: 12px 16px; border: 1px solid #f59e0b; border-radius: 12px; background: #fef3c7; color: #78350f; font-size: 13px; font-weight: 600; }
+    .jump-bar[hidden] { display: none; }
+    .jump-bar button { border: 0; border-radius: 8px; padding: 9px 14px; color: #fff; background: #b45309; font: inherit; font-weight: 600; cursor: pointer; }
+    .message.jump-hidden { display: none; }
+    .message.jump-target .bubble { outline: 3px solid #f59e0b; box-shadow: 0 0 0 6px #fbbf2466; }
     .message.me { justify-content: flex-end; }
     .bubble { max-width: min(78%, 760px); padding: 12px 15px; border-radius: 20px; line-height: 1.5; position: relative; overflow-wrap: anywhere; box-shadow: 0 1px 3px #0f172a12; }
     .bubble.me { background: #2563eb; color: white; border-bottom-right-radius: 6px; border-bottom-left-radius: 20px; }
@@ -62,7 +67,7 @@
 </head>
 <body>
   <div class="wrapper">
-    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="calls.html">Call history</a></nav>
+    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>
     <header class="page-header">
       <p class="eyebrow">iMessage conversation • America/New_York</p>
       <h1>Maya Chen</h1>
@@ -85,6 +90,10 @@
         <button type="button" id="clearFiltersButton">Clear filters</button>
         <span id="randomStatus" aria-live="polite"></span>
       </div>
+    </section>
+    <section class="jump-bar" id="jumpBar" hidden>
+      <span id="jumpStatus" aria-live="polite"></span>
+      <button type="button" id="showAllMessagesButton">Show all messages</button>
     </section>
     <section class="activity-card" aria-label="Conversation daily message activity">
       <div class="activity-heading"><h2>Messages per day in this conversation</h2>
@@ -1641,49 +1650,49 @@
       <p class="activity-legend">Darker squares indicate more messages that day; select a day to filter this conversation.</p>
     </section>
     <main class="message-list" id="messages">
-    <div class="message me" data-date="2022-02-21" data-time="08:00" data-attachment-count="0" data-search-text="happy birthday, maya! hope you get to relax today. me 2022-02-21 08:00:00">
+    <div class="message me" data-msg-idx="0" data-date="2022-02-21" data-time="08:00" data-attachment-count="0" data-search-text="happy birthday, maya! hope you get to relax today. me 2022-02-21 08:00:00">
       <div class="bubble me">
         <div>Happy birthday, Maya! Hope you get to relax today.</div>
         <div class="meta">Me • 2022-02-21 08:00:00</div>
       </div>
     </div>
-    <div class="message other" data-date="2022-02-21" data-time="08:20" data-attachment-count="0" data-search-text="thank you! relaxing with a book right now. maya 2022-02-21 08:20:00">
+    <div class="message other" data-msg-idx="1" data-date="2022-02-21" data-time="08:20" data-attachment-count="0" data-search-text="thank you! relaxing with a book right now. maya 2022-02-21 08:20:00">
       <div class="bubble other">
         <div>Thank you! Relaxing with a book right now.</div>
         <div class="meta">Maya • 2022-02-21 08:20:00</div>
       </div>
     </div>
-    <div class="message other" data-date="2023-06-10" data-time="07:30" data-attachment-count="0" data-search-text="happy birthday! hope you have a lovely day. maya 2023-06-10 07:30:00">
+    <div class="message other" data-msg-idx="2" data-date="2023-06-10" data-time="07:30" data-attachment-count="0" data-search-text="happy birthday! hope you have a lovely day. maya 2023-06-10 07:30:00">
       <div class="bubble other">
         <div>Happy birthday! Hope you have a lovely day.</div>
         <div class="meta">Maya • 2023-06-10 07:30:00</div>
       </div>
     </div>
-    <div class="message me" data-date="2023-02-21" data-time="07:00" data-attachment-count="0" data-search-text="happy birthday! wishing you a brilliant year. me 2023-02-21 07:00:00">
+    <div class="message me" data-msg-idx="3" data-date="2023-02-21" data-time="07:00" data-attachment-count="0" data-search-text="happy birthday! wishing you a brilliant year. me 2023-02-21 07:00:00">
       <div class="bubble me">
         <div>Happy birthday! Wishing you a brilliant year.</div>
         <div class="meta">Me • 2023-02-21 07:00:00</div>
       </div>
     </div>
-    <div class="message me" data-date="2024-02-21" data-time="07:15" data-attachment-count="0" data-search-text="happy birthday, maya! let me know when you are free for lunch. me 2024-02-21 07:15:00">
+    <div class="message me" data-msg-idx="4" data-date="2024-02-21" data-time="07:15" data-attachment-count="0" data-search-text="happy birthday, maya! let me know when you are free for lunch. me 2024-02-21 07:15:00">
       <div class="bubble me">
         <div>Happy birthday, Maya! Let me know when you are free for lunch.</div>
         <div class="meta">Me • 2024-02-21 07:15:00</div>
       </div>
     </div>
-    <div class="message other" data-date="2024-06-10" data-time="06:00" data-attachment-count="0" data-search-text="happy birthday! hope we can catch up soon. maya 2024-06-10 06:00:00">
+    <div class="message other" data-msg-idx="5" data-date="2024-06-10" data-time="06:00" data-attachment-count="0" data-search-text="happy birthday! hope we can catch up soon. maya 2024-06-10 06:00:00">
       <div class="bubble other">
         <div>Happy birthday! Hope we can catch up soon.</div>
         <div class="meta">Maya • 2024-06-10 06:00:00</div>
       </div>
     </div>
-    <div class="message other" data-date="2025-06-10" data-time="07:30" data-attachment-count="0" data-search-text="happy birthday! hope your day is off to a great start. maya 2025-06-10 07:30:00">
+    <div class="message other" data-msg-idx="6" data-date="2025-06-10" data-time="07:30" data-attachment-count="0" data-search-text="happy birthday! hope your day is off to a great start. maya 2025-06-10 07:30:00">
       <div class="bubble other">
         <div>Happy birthday! Hope your day is off to a great start.</div>
         <div class="meta">Maya • 2025-06-10 07:30:00</div>
       </div>
     </div>
-    <div class="message me" data-date="2025-06-10" data-time="07:42" data-attachment-count="0" data-search-text="it is now. thanks for the message! me 2025-06-10 07:42:00">
+    <div class="message me" data-msg-idx="7" data-date="2025-06-10" data-time="07:42" data-attachment-count="0" data-search-text="it is now. thanks for the message! me 2025-06-10 07:42:00">
       <div class="bubble me">
         <div>It is now. Thanks for the message!</div>
         <div class="meta">Me • 2025-06-10 07:42:00</div>
@@ -1719,7 +1728,7 @@
         for (const m of entries) {
           const textPart = activeCriteria.termHtml
             ? highlightText(m.x, activeCriteria.termHtml) : m.x;
-          markup += "<div class=\"message " + m.cls + "\" data-date=\"" + m.d + "\" data-time=\"" + m.t + "\" data-attachment-count=\"" + m.a + "\" data-search-text=\"" + m.s + "\" data-text-html=\"" + m.x + "\">" +
+          markup += "<div class=\"message " + m.cls + "\" data-date=\"" + m.d + "\" data-time=\"" + m.t + "\" data-msg-idx=\"" + m.i + "\" data-attachment-count=\"" + m.a + "\" data-search-text=\"" + m.s + "\" data-text-html=\"" + m.x + "\">" +
             "<div class=\"bubble " + m.cls + "\"><div>" + textPart + "</div>" + m.atts +
             "<div class=\"meta\">" + m.who + " • " + m.dt + "</div></div></div>";
         }
@@ -1917,6 +1926,43 @@
         document.getElementById("messageTimeTo").value
       );
       filterMessages(initialFiltersActive);
+      const jumpParam = messageQuery.get("msg");
+      if (jumpParam !== null) {
+        const jumpIndex = parseInt(jumpParam, 10);
+        if (!isNaN(jumpIndex) && jumpIndex >= 0 && jumpIndex < totalMessages) {
+          const renderLimit = Math.min(totalMessages, jumpIndex + 26);
+          const findJumpTarget = function() {
+            for (const el of messageItems) {
+              if (Number(el.dataset.msgIdx) === jumpIndex) return el;
+            }
+            return null;
+          };
+          let jumpTarget = findJumpTarget();
+          while (!jumpTarget && messageItems.length < renderLimit && pending.length) {
+            renderChunk(BATCH_SIZE);
+            jumpTarget = findJumpTarget();
+          }
+          if (jumpTarget) {
+            const lowIndex = jumpIndex - 25;
+            const highIndex = jumpIndex + 25;
+            messageItems.forEach(function(el) {
+              const idx = Number(el.dataset.msgIdx);
+              el.classList.toggle("jump-hidden", idx < lowIndex || idx > highIndex);
+            });
+            jumpTarget.classList.add("jump-target");
+            jumpTarget.scrollIntoView({ block: "center" });
+            document.getElementById("jumpBar").hidden = false;
+            document.getElementById("jumpStatus").textContent =
+              "Jumped to message #" + (jumpIndex + 1) + ", showing 25 messages on each side.";
+            document.getElementById("showAllMessagesButton").addEventListener("click", function() {
+              messageItems.forEach(function(el) {
+                el.classList.remove("jump-hidden", "jump-target");
+              });
+              document.getElementById("jumpBar").hidden = true;
+            });
+          }
+        }
+      }
     </script>
   </div>
 </body>

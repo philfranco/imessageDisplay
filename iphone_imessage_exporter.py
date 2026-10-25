@@ -15,6 +15,7 @@ from backup_extractor import CALL_HISTORY_DB_PATH, extract_iphone_backup
 from call_history import fetch_call_history
 from export_media import discover_attachment_folders
 from html_pages import (
+    build_attachments_page,
     build_birthdays,
     build_birthday_wishes,
     build_call_history,
@@ -287,6 +288,16 @@ def _render_html(
         index_entries.append((conv_name, output_filename, conv_data['messages']))
         if idx == 1 or idx % report_interval == 0 or idx == total_convs:
             report(f'Exported conversations: {idx}/{total_convs} ({conv_name})')
+
+    report('Building the attachments page...')
+    build_attachments_page(
+        index_entries,
+        output_dir,
+        attachment_folder,
+        conversion_failures,
+        time_zone,
+        fallback_attachment_folders,
+    )
 
     overall_stats = summarize_messages(messages, time_zone)
     overall_stats['conversations'] = total_convs

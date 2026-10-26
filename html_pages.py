@@ -69,7 +69,13 @@ DARK_CSS = '\n'.join([
     '    html.dark .chart-y-label, html.dark .chart-x-label { fill: #9ca3af; }',
     '    html.dark .chart-focus-line { stroke: #cbd5e1; }',
     '    html.dark .chart-tooltip rect { fill: #1e293b; stroke: #475569; }',
-    '    html.dark .activity-day.level-1 { background: #1e3a8a; box-shadow: none; }',
+    '    html.dark .activity-day.level-1 { background: #1d4ed8; box-shadow: none; }',
+    '    html.dark .activity-day.level-2 { background: #3b82f6; box-shadow: none; }',
+    '    html.dark .activity-day.level-3 { background: #60a5fa; box-shadow: none; }',
+    '    html.dark .activity-day.level-4 { background: #bfdbfe; box-shadow: none; }',
+    '    .legend-dark { display: none; }',
+    '    html.dark .legend-light { display: none; }',
+    '    html.dark .legend-dark { display: inline; }',
     '    html.dark td { color: #d1d9e2; }',
     '    html.dark .participants { color: #9ca3af; }',
     '    html.dark .stat-value { color: #60a5fa; }',
@@ -100,6 +106,7 @@ THEME_SCRIPT = '\n'.join([
     '    </script>',
 ])
 
+THEME_HEAD = '  <script>if (localStorage.getItem("imsg-theme") === "dark") { document.documentElement.classList.add("dark"); }</script>'
 
 
 def build_html(
@@ -125,6 +132,7 @@ def build_html(
         '<html lang="en">',
         '<head>',
         '  <meta charset="UTF-8">',
+        THEME_HEAD,
         f'  <title>{html.escape(conversation_name)}</title>',
         '  <style>',
         '    body { min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; background: #f2f2f7; }',
@@ -281,7 +289,10 @@ def build_html(
                 current_day += timedelta(days=1)
             html_content.append('</div></div></section>')
         html_content.extend([
-            '      <p class="activity-legend">Darker squares indicate more messages that day; select a day to filter this conversation.</p>',
+            '      <p class="activity-legend">'
+            '<span class="legend-light">Darker squares indicate more messages that day; select a day to filter this conversation.</span>'
+            '<span class="legend-dark">Brighter squares indicate more messages that day; dark squares mean no messages.</span>'
+            '</p>',
             '    </section>',
         ])
     html_content.append('    <main class="message-list" id="messages">')
@@ -1344,6 +1355,7 @@ def build_index(
         '<html lang="en">',
         '<head>',
         '  <meta charset="UTF-8">',
+        THEME_HEAD,
         '  <title>iMessage Conversations</title>',
         '  <style>',
         '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; padding: 0; }',
@@ -1440,7 +1452,10 @@ def build_index(
     else:
         content.append('<p>No dated messages are available for the activity chart.</p>')
     content.extend([
-        '      <p class="activity-legend">Darker squares indicate more messages that day; white means no messages.</p>',
+        '      <p class="activity-legend">'
+        '<span class="legend-light">Darker squares indicate more messages that day; white means no messages.</span>'
+        '<span class="legend-dark">Brighter squares indicate more messages that day; dark squares mean no messages.</span>'
+        '</p>',
         '    </section>',
     ])
     content.extend(analytics_content)
@@ -1547,6 +1562,7 @@ def build_search_index(
         '<html lang="en">',
         '<head>',
         '  <meta charset="UTF-8">',
+        THEME_HEAD,
         '  <title>Search iMessage Conversations</title>',
         '  <style>',
         '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f2f2f7; margin: 0; padding: 0; }',
@@ -2171,6 +2187,7 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '<html lang="en">',
         '<head>',
         '  <meta charset="UTF-8">',
+        THEME_HEAD,
         '  <meta name="viewport" content="width=device-width, initial-scale=1">',
         '  <title>Inferred birthdays</title>',
         '  <style>',
@@ -2317,6 +2334,7 @@ def build_birthday_wishes(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE
         '<html lang="en">',
         '<head>',
         '  <meta charset="UTF-8">',
+        THEME_HEAD,
         '  <meta name="viewport" content="width=device-width, initial-scale=1">',
         '  <title>Birthday wishes</title>',
         '  <style>',
@@ -2467,6 +2485,7 @@ def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '<html lang="en">',
         '<head>',
         '  <meta charset="UTF-8">',
+        THEME_HEAD,
         '  <meta name="viewport" content="width=device-width, initial-scale=1">',
         '  <title>Call history</title>',
         '  <style>',
@@ -2878,6 +2897,7 @@ def build_attachments_page(
         '<html lang="en">',
         '<head>',
         '  <meta charset="UTF-8">',
+        THEME_HEAD,
         '  <meta name="viewport" content="width=device-width, initial-scale=1">',
         '  <title>Attachments</title>',
         '  <style>',

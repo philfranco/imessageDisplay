@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <script>if (localStorage.getItem("imsg-theme") === "dark") { document.documentElement.classList.add("dark"); }</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Attachments</title>
   <style>
@@ -91,7 +92,13 @@
     html.dark .chart-y-label, html.dark .chart-x-label { fill: #9ca3af; }
     html.dark .chart-focus-line { stroke: #cbd5e1; }
     html.dark .chart-tooltip rect { fill: #1e293b; stroke: #475569; }
-    html.dark .activity-day.level-1 { background: #1e3a8a; box-shadow: none; }
+    html.dark .activity-day.level-1 { background: #1d4ed8; box-shadow: none; }
+    html.dark .activity-day.level-2 { background: #3b82f6; box-shadow: none; }
+    html.dark .activity-day.level-3 { background: #60a5fa; box-shadow: none; }
+    html.dark .activity-day.level-4 { background: #bfdbfe; box-shadow: none; }
+    .legend-dark { display: none; }
+    html.dark .legend-light { display: none; }
+    html.dark .legend-dark { display: inline; }
     html.dark td { color: #d1d9e2; }
     html.dark .participants { color: #9ca3af; }
     html.dark .stat-value { color: #60a5fa; }

@@ -719,7 +719,7 @@ class HtmlFeatureTests(unittest.TestCase):
             '<span>Longest silence · 398d 2h (2024-01-02 → 2025-02-03)</span></div>',
             content,
         )
-        self.assertIn('<h2>Words and senders by year</h2>', content)
+        self.assertIn('<h2>Top Words and Senders by Year</h2>', content)
         self.assertIn('<h3>2024</h3>', content)
         self.assertIn('<h3>2025</h3>', content)
         self.assertIn('<div class="year-columns">', content)

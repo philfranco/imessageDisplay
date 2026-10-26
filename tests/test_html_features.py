@@ -88,6 +88,42 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('.message.jump-target .bubble', content)
         self.assertIn('<a href="attachments.html">Attachments</a>', content)
 
+    def test_dark_mode_toggle_shared_across_pages(self):
+        path = build_html('Alex', self.messages, self.output_dir)
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('<button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button>', content)
+        self.assertIn('html.dark body { background: #121417; color: #e5e7eb; }', content)
+        self.assertIn(
+            'html.dark .stat, html.dark .stats-table, html.dark .line-chart, '
+            'html.dark .stat-card, html.dark .filters, html.dark .table-wrap, '
+            'html.dark .birthday-search { background: #1c2025; border-color: #3a414d; }',
+            content,
+        )
+        self.assertIn('html.dark .chart-gridline { stroke: #3a414d; }', content)
+        self.assertIn('html.dark td { color: #d1d9e2; }', content)
+        self.assertIn('html.dark .stat-value { color: #60a5fa; }', content)
+        self.assertIn(
+            'html.dark .stat span, html.dark .filters label, html.dark .birthday-search label, '
+            'html.dark .message-filters label, html.dark .search-filters label { color: #9ca3af; }',
+            content,
+        )
+        self.assertIn('const themeKey = "imsg-theme";', content)
+        self.assertIn('document.documentElement.classList.toggle("dark", mode === "dark");', content)
+        self.assertIn('localStorage.setItem(themeKey, mode)', content)
+
+        index_stats = summarize_messages(self.messages)
+        index_stats['conversations'] = 1
+        for path in (
+            build_index([], self.output_dir, index_stats),
+            build_birthdays([], self.output_dir),
+        ):
+            with open(path, encoding='utf-8') as page:
+                content = page.read()
+            self.assertIn('<button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button>', content)
+            self.assertIn('document.documentElement.classList.toggle("dark"', content)
+
     def test_conversation_page_has_text_date_and_time_filters(self):
         path = build_html('Alex', self.messages, self.output_dir)
 
@@ -114,6 +150,7 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('id="conversationNextYear"', content)
         self.assertIn('data-calendar-date="2024-01-01"', content)
         self.assertIn('messageDateFrom").value = day.dataset.calendarDate', content)
+        self.assertIn('<button type="button" id="clearFiltersButton">Clear filters</button>\n        <div id="messageResultCount" class="message-result-count" aria-live="polite"></div>', content)
 
     def test_sticker_cache_attachment_is_rendered_as_conversation_image(self):
         sticker_root = os.path.join(
@@ -352,8 +389,8 @@ class HtmlFeatureTests(unittest.TestCase):
         )
         self.assertIn('Alex &lt;Friend&gt;', content)
         self.assertEqual(content.count('href="Alex_Friend.html?'), 2)
-        self.assertIn('grid-template-columns: repeat(3, minmax(0, 1fr))', content)
-        self.assertIn('@media (max-width: 1000px)', content)
+        self.assertIn('grid-template-columns: repeat(2, minmax(0, 1fr))', content)
+        self.assertIn('@media (max-width: 640px)', content)
         self.assertIn('@media (max-width: 640px)', content)
         self.assertNotIn('href="Group_chat.html"', content)
 
@@ -576,7 +613,7 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertEqual(content.count('<div class="message '), 2000)
         self.assertIn('<div class="load-more" id="loadMoreSentinel">', content)
         self.assertIn('<button type="button" id="loadMoreButton">Load 2,000 more messages</button>', content)
-        self.assertIn('Loading more messages', content)
+        self.assertNotIn('Loading more messages', content)
         self.assertIn('const BATCH_SIZE = 2000;', content)
         self.assertIn('function highlightText(source, termHtml)', content)
         self.assertIn('mark { background: #fde68a; color: inherit; padding: 0 1px; border-radius: 3px; }', content)

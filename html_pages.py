@@ -21,6 +21,85 @@ from export_media import (
 from sms_database import sanitize_filename
 from time_zone_utils import DEFAULT_TIME_ZONE, localize_message_datetime
 
+DARK_CSS = '\n'.join([
+    '    .site-nav button { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; font-size: 16px; line-height: 1; padding: 9px 12px; border: 1px solid #dbe3ef; border-radius: 999px; background: #ffffff; color: #334155; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }',
+    '    .site-nav button:hover { color: #fff; background: #2563eb; border-color: #2563eb; }',
+    '    html.dark { color-scheme: dark; }',
+    '    html.dark body { background: #121417; color: #e5e7eb; }',
+    '    html.dark .site-nav { background: #121417; }',
+    '    html.dark a { color: #60a5fa; }',
+    '    html.dark .site-nav a, html.dark .site-nav button { background: #1c2025; border-color: #3a414d; color: #d1d5db; }',
+    '    html.dark .site-nav a:hover, html.dark .site-nav button:hover { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }',
+    '    html.dark h1, html.dark h2, html.dark h3 { color: #e5e7eb; }',
+    '    html.dark .page-header h1 { color: #fff; }',
+    '    html.dark .page-header { box-shadow: none; }',
+    '    html.dark .page-header p, html.dark .page-header p:last-child { color: #cbd5e1; }',
+    '    html.dark .eyebrow { color: #93c5fd; }',
+    '    html.dark .stat-note, html.dark .results-count, html.dark .call-count, html.dark .message-result-count, html.dark .message-filter-actions span, html.dark .load-more, html.dark .activity-legend, html.dark .month-labels, html.dark .evidence, html.dark .wish-meta, html.dark .weekday { color: #9ca3af; }',
+    '    html.dark .message-filters, html.dark .search-filters, html.dark .activity-card, html.dark .month, html.dark .att-grid, html.dark .att-card, html.dark .att-caption, html.dark .wish-card, html.dark .empty-state { background: #1c2025; border-color: #3a414d; color: #cbd5e1; }',
+    '    html.dark label { color: #9ca3af; }',
+    '    html.dark input, html.dark select { background: #121417; border: 1px solid #3a414d; color: #e5e7eb; }',
+    '    html.dark .message-list { background: #1c2025; border-color: #3a414d; }',
+    '    html.dark .bubble.other { background: #2a2f36; color: #e5e7eb; }',
+    '    html.dark .bubble.me { background: #1d4ed8; color: #fff; }',
+    '    html.dark .meta { color: #9ca3af; }',
+    '    html.dark .bubble.me .meta { color: #bfdbfe; }',
+    '    html.dark .attachment, html.dark .attachment-meta { color: #cbd5e1; }',
+    '    html.dark .att-media { background: #0b0d10; border-color: #3a414d; }',
+    '    html.dark .att-media .attachment { background: #1c2025; color: #cbd5e1; }',
+    '    html.dark .att-info { color: #e5e7eb; }',
+    '    html.dark mark { background: #fbbf24; color: #111827; }',
+    '    html.dark .jump-bar { background: #3b2a12; border-color: #b45309; color: #fde68a; }',
+    '    html.dark .year-controls button { background: #1c2025; border-color: #3a414d; color: #e5e7eb; }',
+    '    html.dark .activity-day { background: #21262d; box-shadow: inset 0 0 0 1px #3a414d; }',
+    '    html.dark table { background: #1c2025; }',
+    '    html.dark th { background: #262b33; color: #cbd5e1; }',
+    '    html.dark th, html.dark td { border-bottom: 1px solid #3a414d; }',
+    '    html.dark tbody tr:hover { background: #262b33; }',
+    '    html.dark .day { background: #21262d; }',
+    '    html.dark .day.has-birthday { background: #1e3a5f; box-shadow: inset 0 0 0 1px #3b82f6; }',
+    '    html.dark .day-number, html.dark .month h2 { color: #cbd5e1; }',
+    '    html.dark .lightbox { background: #000000e6; }',
+    '    html.dark .lightbox-caption, html.dark .lightbox-close { color: #e5e7eb; }',
+    '    html.dark .lightbox-close { background: #1c2025; border-color: #3a414d; }',
+    '    html.dark .stat, html.dark .stats-table, html.dark .line-chart, html.dark .stat-card, html.dark .filters, html.dark .table-wrap, html.dark .birthday-search { background: #1c2025; border-color: #3a414d; }',
+    '    html.dark .stat strong, html.dark .stat-group h2, html.dark .stat-group h3, html.dark .wish-card summary, html.dark .activity-heading h2, html.dark .stat-card h2 { color: #e5e7eb; }',
+    '    html.dark .stat span, html.dark .filters label, html.dark .birthday-search label, html.dark .message-filters label, html.dark .search-filters label { color: #9ca3af; }',
+    '    html.dark .chart-gridline { stroke: #3a414d; }',
+    '    html.dark .chart-y-label, html.dark .chart-x-label { fill: #9ca3af; }',
+    '    html.dark .chart-focus-line { stroke: #cbd5e1; }',
+    '    html.dark .chart-tooltip rect { fill: #1e293b; stroke: #475569; }',
+    '    html.dark .activity-day.level-1 { background: #1e3a8a; box-shadow: none; }',
+    '    html.dark td { color: #d1d9e2; }',
+    '    html.dark .participants { color: #9ca3af; }',
+    '    html.dark .stat-value { color: #60a5fa; }',
+    '    html.dark .top-list li, html.dark .top-list strong { color: #cbd5e1; }',
+    '    html.dark .sort-indicator, html.dark .sortable:hover, html.dark th button:hover { color: #60a5fa; }',
+    '    html.dark #randomDayStatus, html.dark .filters span, html.dark .random-day-control span { color: #9ca3af; }',
+    '  </style>',
+])
+
+THEME_SCRIPT = '\n'.join([
+    '    <script>',
+    '      (function() {',
+    '        const themeKey = "imsg-theme";',
+    '        const themeButton = document.getElementById("themeToggle");',
+    '        function applyTheme(mode) {',
+    '          document.documentElement.classList.toggle("dark", mode === "dark");',
+    '          themeButton.textContent = mode === "dark" ? "☀" : "☾";',
+    '        }',
+    '        let mode = "light";',
+    '        try { mode = localStorage.getItem(themeKey) === "dark" ? "dark" : "light"; } catch (storageError) {}',
+    '        applyTheme(mode);',
+    '        themeButton.addEventListener("click", function() {',
+    '          mode = document.documentElement.classList.contains("dark") ? "light" : "dark";',
+    '          applyTheme(mode);',
+    '          try { localStorage.setItem(themeKey, mode); } catch (storageError) {}',
+    '        });',
+    '      })();',
+    '    </script>',
+])
+
 
 
 def build_html(
@@ -83,7 +162,7 @@ def build_html(
         '    .message-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }',
         '    .message-filters label, .search-filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }',
         '    .message-filters input, .search-filters input { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }',
-        '    .message-result-count { color: #64748b; font-size: 13px; }',
+        '    .message-result-count { color: #64748b; font-size: 13px; align-self: center; }',
         '    .message-filter-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }',
         '    .message-filter-actions button { border: 0; border-radius: 10px; padding: 10px 15px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }',
         '    .message-filter-actions button:disabled { background: #94a3b8; cursor: not-allowed; }',
@@ -106,11 +185,11 @@ def build_html(
         '    .attachment video { max-width: 100%; max-height: 480px; border-radius: 12px; margin-top: 4px; }',
         '    .attachment-meta { font-size: 11px; color: #666; margin-top: 4px; }',
         '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } .message-list { padding: 12px 8px; border-radius: 14px; } .bubble { max-width: 88%; padding: 10px 12px; } }',
-        '  </style>',
+        DARK_CSS,
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a><button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button></nav>',
         '    <header class="page-header">',
         f'      <p class="eyebrow">iMessage conversation • {html.escape(time_zone)}</p>',
         f'      <h1>{html.escape(conversation_name)}</h1>',
@@ -126,11 +205,11 @@ def build_html(
         '      <label>To date<input id="messageDateTo" type="date"></label>',
         '      <label>From time<input id="messageTimeFrom" type="time"></label>',
         '      <label>To time<input id="messageTimeTo" type="time"></label>',
-        '      <div id="messageResultCount" class="message-result-count" aria-live="polite"></div>',
         '      <div class="message-filter-actions">',
         '        <button type="button" id="randomDayButton">Go to a random day</button>',
         '        <button type="button" id="randomWeekButton">Go to a random week</button>',
         '        <button type="button" id="clearFiltersButton">Clear filters</button>',
+        '        <div id="messageResultCount" class="message-result-count" aria-live="polite"></div>',
         '        <span id="randomStatus" aria-live="polite"></span>',
         '      </div>',
         '    </section>',
@@ -267,7 +346,6 @@ def build_html(
     if pending_entries:
         html_content.append(
             '    <div class="load-more" id="loadMoreSentinel">'
-            '<span id="loadMoreLabel">Loading more messages…</span>'
             '<button type="button" id="loadMoreButton">Load 2,000 more messages</button></div>'
         )
 
@@ -349,7 +427,6 @@ def build_html(
         '          }, { rootMargin: "400px" });',
         '          loadMoreObserver.observe(loadMoreSentinel);',
         '        } else {',
-        '          document.getElementById("loadMoreLabel").hidden = true;',
         '          loadMoreButton.addEventListener("click", function() {',
         '            renderChunk(BATCH_SIZE);',
         '            finishLoadMore();',
@@ -549,6 +626,7 @@ def build_html(
         '      }',
         '    </script>',
         '  </div>',
+        THEME_SCRIPT,
         '</body>',
         '</html>'
     ])
@@ -1178,11 +1256,11 @@ def build_index(
         '    .search-link:hover { background: #1d4ed8; transform: translateY(-1px); }',
         '    .link-row { display: flex; gap: 12px; flex-wrap: wrap; }',
         '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } }',
-        '  </style>',
+        DARK_CSS,
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a><button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Your conversations</h1>',
@@ -1294,6 +1372,7 @@ def build_index(
         '    </script>',
         '    </main>',
         '  </div>',
+        THEME_SCRIPT,
         '</body>',
         '</html>'
     ])
@@ -1365,11 +1444,11 @@ def build_search_index(
         '    tr:last-child td { border-bottom: 0; }',
         '    .hidden { display: none; }',
         '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } th, td { padding: 9px 7px; font-size: 12px; } td a { font-size: 13px; } td.participants { min-width: 160px; } }',
-        '  </style>',
+        DARK_CSS,
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a><button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button></nav>',
         '    <header class="page-header">',
         '      <p class="eyebrow">iMessage archive</p>',
         '      <h1>Find a conversation</h1>',
@@ -1870,6 +1949,7 @@ def build_search_index(
         '      filterConversations();',
         '    </script>',
         '  </div>',
+        THEME_SCRIPT,
         '</body>',
         '</html>'
     ])
@@ -1953,7 +2033,7 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '    .page-header { padding: clamp(24px, 4vw, 42px); margin-bottom: 20px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #102a56, #2563eb 68%, #38bdf8); box-shadow: 0 14px 32px #1e3a8a24; }',
         '    .page-header p { margin: 10px 0 0; color: #e0f2fe; line-height: 1.5; }',
         '    h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); }',
-        '    .calendar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }',
+        '    .calendar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }',
         '    .month { padding: 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px #0f172a0d; }',
         '    .month h2 { margin: 0 0 12px; color: #102a56; font-size: 18px; }',
         '    .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }',
@@ -1967,13 +2047,12 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '    .birthday-list a:hover { text-decoration: underline; }',
         '    .evidence { color: #64748b; font-size: 10px; line-height: 1.3; }',
         '    .empty-state { padding: 22px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #64748b; }',
-        '    @media (max-width: 1000px) { .calendar { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
         '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .calendar { grid-template-columns: 1fr; } .month { padding: 10px; } .day { min-height: 58px; padding: 3px; } }',
-        '  </style>',
+        DARK_CSS,
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a><button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button></nav>',
         '    <header class="page-header">',
         '      <h1>Birthday calendar</h1>',
         f'      <p>{total_candidates:,} inferred date(s) for {len(unique_contacts):,} contact(s). Dates are inferred from outgoing “Happy Birthday” messages and may not be the actual birthday. Conflicting dates are shown separately; the number indicates supporting messages. Times and dates use {html.escape(time_zone)}.</p>',
@@ -2030,7 +2109,7 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
             content.append('</div></section>')
         content.append('    </main>')
 
-    content.extend(['  </div>', '</body>', '</html>'])
+    content.extend(['  </div>', THEME_SCRIPT, '</body>', '</html>'])
     with open(page_path, 'w', encoding='utf-8') as page:
         page.write('\n'.join(content))
     return page_path
@@ -2110,11 +2189,11 @@ def build_birthday_wishes(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE
         '    .wish-card a:hover { text-decoration: underline; }',
         '    .empty-state { padding: 22px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #64748b; }',
         '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } }',
-        '  </style>',
+        DARK_CSS,
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a><button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button></nav>',
         '    <header class="page-header">',
         '      <h1>Who wished you a happy birthday?</h1>',
         f'      <p>Enter your birthday to find incoming “Happy Birthday” messages on that month and day across all years. Searches all direct and group conversations; group wishes are attributed to the sender shown in the message. Dates use {html.escape(time_zone)}.</p>',
@@ -2177,6 +2256,7 @@ def build_birthday_wishes(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE
         '      });',
         '    </script>',
         '  </div>',
+        THEME_SCRIPT,
         '</body>',
         '</html>',
     ]
@@ -2273,11 +2353,11 @@ def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '    .sort-desc::after { content: " ▼"; color: #2563eb; }',
         '    .empty-state { padding: 22px; color: #64748b; }',
         '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } th, td { padding: 9px 7px; font-size: 12px; } }',
-        '  </style>',
+        DARK_CSS,
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a><button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button></nav>',
         '    <header class="page-header">',
         '      <h1>Call history</h1>',
         f'      <p>{len(calls):,} calls • Times shown in {html.escape(time_zone)}. Call data is included only when present in an extracted backup.</p>',
@@ -2382,7 +2462,6 @@ def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
             content.append(
                 '        <tr class="load-more-row" id="loadMoreSentinel">'
                 '<td colspan="5"><div class="load-more">'
-                '<span id="loadMoreLabel">Loading more calls…</span>'
                 '<button type="button" id="loadMoreButton">Load 2,000 more calls</button>'
                 '</div></td></tr>'
             )
@@ -2587,7 +2666,7 @@ def build_call_history(calls, output_dir, time_zone=DEFAULT_TIME_ZONE):
             '    <div class="table-wrap empty-state">No call history was found in the extracted backups.</div>'
         )
 
-    content.extend(['  </div>', '</body>', '</html>'])
+    content.extend(['  </div>', THEME_SCRIPT, '</body>', '</html>'])
     with open(page_path, 'w', encoding='utf-8') as page:
         page.write('\n'.join(content))
     return page_path
@@ -2685,11 +2764,11 @@ def build_attachments_page(
         '    .lightbox-close { position: absolute; top: 18px; right: 22px; border: 0; border-radius: 8px; padding: 9px 14px; background: #fff; font: inherit; font-weight: 600; cursor: pointer; }',
         '    .empty-state { padding: 22px; color: #64748b; }',
         '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } .att-grid { padding: 10px; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }',
-        '  </style>',
+        DARK_CSS,
         '</head>',
         '<body>',
         '  <div class="wrapper">',
-        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>',
+        '    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a><button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button></nav>',
         '    <header class="page-header">',
         f'      <p class="eyebrow">Media archive • {html.escape(time_zone)}</p>',
         '      <h1>Attachments</h1>',
@@ -2701,7 +2780,7 @@ def build_attachments_page(
         content.append(
             '    <p class="empty-state">No attachments were found in the extracted backups.</p>'
         )
-        content.extend(['  </div>', '</body>', '</html>'])
+        content.extend(['  </div>', THEME_SCRIPT, '</body>', '</html>'])
         with open(page_path, 'w', encoding='utf-8') as page:
             page.write('\n'.join(content))
         return page_path
@@ -2786,7 +2865,6 @@ def build_attachments_page(
     if pending_cards:
         content.append(
             '      <div class="load-more" id="loadMoreSentinel">'
-            '<span id="loadMoreLabel">Loading more attachments…</span>'
             '<button type="button" id="loadMoreButton">Load 2,000 more attachments</button></div>'
         )
     content.append('    </main>')
@@ -3023,7 +3101,7 @@ def build_attachments_page(
         '    </script>',
     ])
 
-    content.extend(['  </div>', '</body>', '</html>'])
+    content.extend(['  </div>', THEME_SCRIPT, '</body>', '</html>'])
     with open(page_path, 'w', encoding='utf-8') as page:
         page.write('\n'.join(content))
     return page_path

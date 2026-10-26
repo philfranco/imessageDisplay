@@ -40,7 +40,7 @@
     .message-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
     .message-filters label, .search-filters label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }
     .message-filters input, .search-filters input { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
-    .message-result-count { color: #64748b; font-size: 13px; }
+    .message-result-count { color: #64748b; font-size: 13px; align-self: center; }
     .message-filter-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
     .message-filter-actions button { border: 0; border-radius: 10px; padding: 10px 15px; color: #fff; background: #2563eb; font: inherit; font-weight: 600; cursor: pointer; }
     .message-filter-actions button:disabled { background: #94a3b8; cursor: not-allowed; }
@@ -63,11 +63,65 @@
     .attachment video { max-width: 100%; max-height: 480px; border-radius: 12px; margin-top: 4px; }
     .attachment-meta { font-size: 11px; color: #666; margin-top: 4px; }
     @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .page-header { border-radius: 16px; } .message-list { padding: 12px 8px; border-radius: 14px; } .bubble { max-width: 88%; padding: 10px 12px; } }
+    .site-nav button { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; font-size: 16px; line-height: 1; padding: 9px 12px; border: 1px solid #dbe3ef; border-radius: 999px; background: #ffffff; color: #334155; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+    .site-nav button:hover { color: #fff; background: #2563eb; border-color: #2563eb; }
+    html.dark { color-scheme: dark; }
+    html.dark body { background: #121417; color: #e5e7eb; }
+    html.dark .site-nav { background: #121417; }
+    html.dark a { color: #60a5fa; }
+    html.dark .site-nav a, html.dark .site-nav button { background: #1c2025; border-color: #3a414d; color: #d1d5db; }
+    html.dark .site-nav a:hover, html.dark .site-nav button:hover { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+    html.dark h1, html.dark h2, html.dark h3 { color: #e5e7eb; }
+    html.dark .page-header h1 { color: #fff; }
+    html.dark .page-header { box-shadow: none; }
+    html.dark .page-header p, html.dark .page-header p:last-child { color: #cbd5e1; }
+    html.dark .eyebrow { color: #93c5fd; }
+    html.dark .stat-note, html.dark .results-count, html.dark .call-count, html.dark .message-result-count, html.dark .message-filter-actions span, html.dark .load-more, html.dark .activity-legend, html.dark .month-labels, html.dark .evidence, html.dark .wish-meta, html.dark .weekday { color: #9ca3af; }
+    html.dark .message-filters, html.dark .search-filters, html.dark .activity-card, html.dark .month, html.dark .att-grid, html.dark .att-card, html.dark .att-caption, html.dark .wish-card, html.dark .empty-state { background: #1c2025; border-color: #3a414d; color: #cbd5e1; }
+    html.dark label { color: #9ca3af; }
+    html.dark input, html.dark select { background: #121417; border: 1px solid #3a414d; color: #e5e7eb; }
+    html.dark .message-list { background: #1c2025; border-color: #3a414d; }
+    html.dark .bubble.other { background: #2a2f36; color: #e5e7eb; }
+    html.dark .bubble.me { background: #1d4ed8; color: #fff; }
+    html.dark .meta { color: #9ca3af; }
+    html.dark .bubble.me .meta { color: #bfdbfe; }
+    html.dark .attachment, html.dark .attachment-meta { color: #cbd5e1; }
+    html.dark .att-media { background: #0b0d10; border-color: #3a414d; }
+    html.dark .att-media .attachment { background: #1c2025; color: #cbd5e1; }
+    html.dark .att-info { color: #e5e7eb; }
+    html.dark mark { background: #fbbf24; color: #111827; }
+    html.dark .jump-bar { background: #3b2a12; border-color: #b45309; color: #fde68a; }
+    html.dark .year-controls button { background: #1c2025; border-color: #3a414d; color: #e5e7eb; }
+    html.dark .activity-day { background: #21262d; box-shadow: inset 0 0 0 1px #3a414d; }
+    html.dark table { background: #1c2025; }
+    html.dark th { background: #262b33; color: #cbd5e1; }
+    html.dark th, html.dark td { border-bottom: 1px solid #3a414d; }
+    html.dark tbody tr:hover { background: #262b33; }
+    html.dark .day { background: #21262d; }
+    html.dark .day.has-birthday { background: #1e3a5f; box-shadow: inset 0 0 0 1px #3b82f6; }
+    html.dark .day-number, html.dark .month h2 { color: #cbd5e1; }
+    html.dark .lightbox { background: #000000e6; }
+    html.dark .lightbox-caption, html.dark .lightbox-close { color: #e5e7eb; }
+    html.dark .lightbox-close { background: #1c2025; border-color: #3a414d; }
+    html.dark .stat, html.dark .stats-table, html.dark .line-chart, html.dark .stat-card, html.dark .filters, html.dark .table-wrap, html.dark .birthday-search { background: #1c2025; border-color: #3a414d; }
+    html.dark .stat strong, html.dark .stat-group h2, html.dark .stat-group h3, html.dark .wish-card summary, html.dark .activity-heading h2, html.dark .stat-card h2 { color: #e5e7eb; }
+    html.dark .stat span, html.dark .filters label, html.dark .birthday-search label, html.dark .message-filters label, html.dark .search-filters label { color: #9ca3af; }
+    html.dark .chart-gridline { stroke: #3a414d; }
+    html.dark .chart-y-label, html.dark .chart-x-label { fill: #9ca3af; }
+    html.dark .chart-focus-line { stroke: #cbd5e1; }
+    html.dark .chart-tooltip rect { fill: #1e293b; stroke: #475569; }
+    html.dark .activity-day.level-1 { background: #1e3a8a; box-shadow: none; }
+    html.dark td { color: #d1d9e2; }
+    html.dark .participants { color: #9ca3af; }
+    html.dark .stat-value { color: #60a5fa; }
+    html.dark .top-list li, html.dark .top-list strong { color: #cbd5e1; }
+    html.dark .sort-indicator, html.dark .sortable:hover, html.dark th button:hover { color: #60a5fa; }
+    html.dark #randomDayStatus, html.dark .filters span, html.dark .random-day-control span { color: #9ca3af; }
   </style>
 </head>
 <body>
   <div class="wrapper">
-    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a></nav>
+    <nav class="site-nav"><a href="index.html">Index</a><a href="search.html">Search conversations</a><a href="birthdays.html">Birthdays</a><a href="birthday_wishes.html">Birthday wishes</a><a href="attachments.html">Attachments</a><a href="calls.html">Call history</a><button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button></nav>
     <header class="page-header">
       <p class="eyebrow">iMessage conversation • America/New_York</p>
       <h1>Jordan Lee</h1>
@@ -83,11 +137,11 @@
       <label>To date<input id="messageDateTo" type="date"></label>
       <label>From time<input id="messageTimeFrom" type="time"></label>
       <label>To time<input id="messageTimeTo" type="time"></label>
-      <div id="messageResultCount" class="message-result-count" aria-live="polite"></div>
       <div class="message-filter-actions">
         <button type="button" id="randomDayButton">Go to a random day</button>
         <button type="button" id="randomWeekButton">Go to a random week</button>
         <button type="button" id="clearFiltersButton">Clear filters</button>
+        <div id="messageResultCount" class="message-result-count" aria-live="polite"></div>
         <span id="randomStatus" aria-live="polite"></span>
       </div>
     </section>
@@ -1765,7 +1819,6 @@
           }, { rootMargin: "400px" });
           loadMoreObserver.observe(loadMoreSentinel);
         } else {
-          document.getElementById("loadMoreLabel").hidden = true;
           loadMoreButton.addEventListener("click", function() {
             renderChunk(BATCH_SIZE);
             finishLoadMore();
@@ -1965,5 +2018,23 @@
       }
     </script>
   </div>
+    <script>
+      (function() {
+        const themeKey = "imsg-theme";
+        const themeButton = document.getElementById("themeToggle");
+        function applyTheme(mode) {
+          document.documentElement.classList.toggle("dark", mode === "dark");
+          themeButton.textContent = mode === "dark" ? "☀" : "☾";
+        }
+        let mode = "light";
+        try { mode = localStorage.getItem(themeKey) === "dark" ? "dark" : "light"; } catch (storageError) {}
+        applyTheme(mode);
+        themeButton.addEventListener("click", function() {
+          mode = document.documentElement.classList.contains("dark") ? "light" : "dark";
+          applyTheme(mode);
+          try { localStorage.setItem(themeKey, mode); } catch (storageError) {}
+        });
+      })();
+    </script>
 </body>
 </html>

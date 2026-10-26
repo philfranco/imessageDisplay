@@ -69,7 +69,7 @@ class AttachmentPageTests(unittest.TestCase):
         ])
 
         self.assertIn('No attachments were found in the extracted backups.', content)
-        self.assertNotIn('<script>', content)
+        self.assertNotIn('const attCards', content)
         self.assertNotIn('id="attGrid"', content)
 
     def test_attachment_card_links_back_to_the_conversation_message(self):
@@ -94,7 +94,7 @@ class AttachmentPageTests(unittest.TestCase):
         self.assertNotIn('<div class="att-file">', content)
         self.assertIn('<img loading="lazy"', content)
         self.assertIn('<a href="attachments.html">Attachments</a>', content)
-        self.assertIn('1 attachments • 1 photos • 0 videos • 0 other files', content)
+        self.assertIn('2 attachments • 2 photos • 0 videos • 0 other files', content)
 
     def test_video_attachment_is_classified_as_video(self):
         content = self.page_content([
@@ -201,6 +201,8 @@ class AttachmentPageTests(unittest.TestCase):
         self.assertIn('" • " + card.dataset.file', content)
         self.assertIn('bigImage.src = media.src;', content)
         self.assertIn('if (event.key === "Escape") closeLightbox();', content)
+        self.assertIn('<button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button>', content)
+        self.assertIn('html.dark .att-media { background: #0b0d10; border-color: #3a414d; }', content)
         self.assertIn('<button type="button" id="orderButton">Newest first</button>', content)
         self.assertIn('<option value="img">Photos only</option>', content)
         self.assertIn('<button type="button" id="clearFiltersButton">Clear filters</button>', content)

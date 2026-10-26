@@ -137,6 +137,7 @@ class CallHistoryTests(unittest.TestCase):
         self.assertIn('setCallDateRange(randomDate, randomDate);', content)
         self.assertIn('setCallDateRange(formatDate(monday), formatDate(sunday));', content)
         self.assertIn('<button type="button" id="clearFiltersButton">Clear filters</button>', content)
+        self.assertIn('<button type="button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button>', content)
 
         payload_start = content.index('id="pendingData">') + len('id="pendingData">')
         payload_end = content.index('</script>', payload_start)

@@ -118,6 +118,7 @@ def build_html(
     safe_name = output_filename or sanitize_filename(conversation_name)
     filename = os.path.join(output_dir, f'{safe_name}.html')
     stats = summarize_messages(messages, time_zone)
+    silence = _longest_silence(messages, time_zone)
 
     html_content = [
         '<!DOCTYPE html>',
@@ -197,6 +198,7 @@ def build_html(
         f'        <span><strong id="messageCount">{stats["messages"]:,}</strong> messages</span>',
         f'        <span><strong id="attachmentCount">{stats["attachments"]:,}</strong> attachments</span>',
         f'        <span>{html.escape(stats["first_date"])} – {html.escape(stats["last_date"])}</span>',
+        f'        <span>Longest silence · {_format_elapsed(silence[0])} ({silence[1]} → {silence[2]})</span>' if silence else '',
         '      </div>',
         '    </header>',
         '    <section class="message-filters" aria-label="Filter messages in this conversation">',
@@ -727,6 +729,37 @@ def _format_elapsed(seconds):
     return f'{seconds}s'
 
 
+def _longest_silence(messages, time_zone):
+    stamps = []
+    for message in messages:
+        local_datetime = localize_message_datetime(message.get('date'), time_zone)
+        try:
+            stamps.append(datetime.strptime(local_datetime, '%Y-%m-%d %H:%M:%S'))
+        except ValueError:
+            continue
+    stamps.sort()
+    best = None
+    for previous, current in zip(stamps, stamps[1:]):
+        seconds = (current - previous).total_seconds()
+        if best is None or seconds > best[0]:
+            best = (seconds, previous.date().isoformat(), current.date().isoformat())
+    return best
+
+
+STOP_WORDS = frozenset([
+    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'can', 'did', 'do',
+    'don', 'for', 'from', 'get', 'had', 'has', 'have', 'how', 'i', 'if', 'in',
+    'is', 'it', 'just', 'me', 'my', 'no', 'not', 'of', 'on', 'or', 'so', 'the',
+    'this', 'to', 'too', 'up', 'was', 'we', 'what', 'when', 'where', 'which',
+    'who', 'with', 'you', 'your',
+])
+
+EMOJI_PATTERN = re.compile(
+    r'[\U0001F300-\U0001F5FF\U0001F600-\U0001F64F\U0001F680-\U0001F6FF'
+    r'\U0001F900-\U0001F9FF\U0001FA70-\U0001FAFF\u2600-\u26FF\u2700-\u27BF]'
+)
+
+
 def _conversation_activity_metrics(messages, time_zone):
     dated_messages = []
     participants = Counter()
@@ -770,6 +803,8 @@ def _conversation_activity_metrics(messages, time_zone):
             'busiest_week': ('—', 0),
             'busiest_month': ('—', 0),
             'longest_gap': None,
+            'longest_gap_start': None,
+            'longest_gap_end': None,
             'active_streak': 0,
             'reply_sent_minutes': None,
             'reply_received_minutes': None,
@@ -799,13 +834,15 @@ def _conversation_activity_metrics(messages, time_zone):
         active_streak = max(active_streak, current_streak)
         previous_date = active_date
 
-    longest_gap = max(
-        (
-            (current[0] - previous[0]).total_seconds()
-            for previous, current in zip(dated_messages, dated_messages[1:])
-        ),
-        default=None,
-    )
+    longest_gap = None
+    longest_gap_start = None
+    longest_gap_end = None
+    for previous, current in zip(dated_messages, dated_messages[1:]):
+        gap_seconds = (current[0] - previous[0]).total_seconds()
+        if longest_gap is None or gap_seconds > longest_gap:
+            longest_gap = gap_seconds
+            longest_gap_start = previous[0].date().isoformat()
+            longest_gap_end = current[0].date().isoformat()
     reply_minutes = {'sent': [], 'received': []}
     previous_message = None
     for current_message in dated_messages:
@@ -824,6 +861,8 @@ def _conversation_activity_metrics(messages, time_zone):
         'busiest_week': busiest_week,
         'busiest_month': busiest_month,
         'longest_gap': longest_gap,
+        'longest_gap_start': longest_gap_start,
+        'longest_gap_end': longest_gap_end,
         'active_streak': active_streak,
         'reply_sent_minutes': statistics.median(reply_minutes['sent']) if reply_minutes['sent'] else None,
         'reply_received_minutes': statistics.median(reply_minutes['received']) if reply_minutes['received'] else None,
@@ -877,6 +916,9 @@ def build_index(
     }
     parsed_dates = []
     group_participants = Counter()
+    yearly_words = defaultdict(Counter)
+    yearly_senders = defaultdict(Counter)
+    emoji_counts = Counter()
 
     for conversation_name, filename, messages in conversations:
         metrics = metrics_by_filename[filename]
@@ -894,6 +936,15 @@ def build_index(
             month_of_year_counts[timestamp.month] += 1
             hourly_counts[timestamp.hour] += 1
             weekday_counts[timestamp.weekday()] += 1
+            sender = message.get('sender')
+            sender = str(sender) if sender else ('Me' if message.get('is_from_me') else 'Unknown')
+            yearly_senders[timestamp.year][sender] += 1
+            text = str(message.get('text') or '')
+            for word in re.findall(r"[A-Za-z][A-Za-z']+", text.lower()):
+                if len(word) > 1 and word.strip("'") and word not in STOP_WORDS:
+                    yearly_words[timestamp.year][word] += 1
+            for emoji_char in EMOJI_PATTERN.findall(text):
+                emoji_counts[emoji_char] += 1
 
     active_days = len(daily_counts)
     average_per_active_day = (
@@ -1110,6 +1161,103 @@ def build_index(
                 f'<tr><td>{html.escape(participant)}</td><td>{count:,}</td></tr>'
             )
         analytics_content.append('</tbody></table></div>')
+    streak = 0
+    current_streak = 0
+    previous_day = None
+    for day_key in sorted(daily_counts):
+        current_day = date.fromisoformat(day_key)
+        current_streak = (
+            current_streak + 1
+            if previous_day and current_day == previous_day + timedelta(days=1)
+            else 1
+        )
+        streak = max(streak, current_streak)
+        previous_day = current_day
+    night_count = hourly_counts[2] + hourly_counts[3]
+    top_emoji = emoji_counts.most_common(1)[0] if emoji_counts else None
+    most_silence = max(
+        (item for item in conversation_metrics if item[3]['longest_gap']),
+        key=lambda item: (item[3]['longest_gap'], item[0].casefold()),
+        default=None,
+    )
+
+    analytics_content.extend([
+        '<section class="stat-group" aria-label="Conversation habits">',
+        '<h2>Conversation habits</h2>',
+        '<section class="stats">',
+        f'<div class="stat"><strong>{streak:,}</strong><span>Longest streak of consecutive active days</span></div>',
+        f'<div class="stat"><strong>{night_count:,}</strong><span>Late-night messages (2–4 AM)</span></div>',
+    ])
+    if top_emoji:
+        analytics_content.append(
+            f'<div class="stat"><strong>{html.escape(top_emoji[0])}</strong>'
+            f'<span>Most used emoji · {top_emoji[1]:,} uses</span></div>'
+        )
+    if most_silence:
+        silence_metrics = most_silence[3]
+        analytics_content.append(
+            f'<div class="stat"><strong><a href="{html.escape(most_silence[1], quote=True)}.html">'
+            f'{html.escape(most_silence[0])}</a></strong><span>Longest silence · '
+            f'{_format_elapsed(silence_metrics["longest_gap"])} '
+            f'({silence_metrics["longest_gap_start"]} → {silence_metrics["longest_gap_end"]})</span></div>'
+        )
+    analytics_content.append('</section>')
+    if emoji_counts:
+        analytics_content.append('<h3>Most used emoji</h3><div class="table-wrap">')
+        analytics_content.append(
+            '<table class="stats-table"><thead><tr><th>Emoji</th><th>Uses</th></tr></thead><tbody>'
+        )
+        for emoji_char, count in emoji_counts.most_common(10):
+            analytics_content.append(
+                f'<tr><td>{html.escape(emoji_char)}</td><td>{count:,}</td></tr>'
+            )
+        analytics_content.append('</tbody></table></div>')
+    silences = [item for item in conversation_metrics if item[3]['longest_gap']]
+    if silences:
+        analytics_content.append('<h3>Longest silences between messages</h3><div class="table-wrap">')
+        analytics_content.append(
+            '<table class="stats-table"><thead><tr><th>Conversation</th><th>Longest silence</th>'
+            '<th>Dates</th></tr></thead><tbody>'
+        )
+        for name, filename, _count, metrics in sorted(
+            silences,
+            key=lambda item: (-item[3]['longest_gap'], item[0].casefold()),
+        )[:10]:
+            analytics_content.append(
+                f'<tr><td><a href="{html.escape(filename, quote=True)}.html">{html.escape(name)}</a></td>'
+                f'<td>{_format_elapsed(metrics["longest_gap"])}</td>'
+                f'<td>{metrics["longest_gap_start"]} → {metrics["longest_gap_end"]}</td></tr>'
+            )
+        analytics_content.append('</tbody></table></div>')
+    analytics_content.append('</section>')
+    analytics_content.extend([
+        '<section class="stat-group" aria-label="Top Words and Senders By Year">',
+        '<h2>Top Words and Senders by Year</h2>',
+    ])
+    if not yearly_words:
+        analytics_content.append('<p class="stat-note">No qualifying words recorded in the archive.</p>')
+    for year in sorted(yearly_words):
+        analytics_content.append(f'<h3>{year}</h3>')
+        analytics_content.append('<div class="year-columns">')
+        analytics_content.append(
+            '<div class="table-wrap"><table class="stats-table">'
+            '<thead><tr><th>Word</th><th>Uses</th></tr></thead><tbody>'
+        )
+        for word, count in yearly_words[year].most_common(10):
+            analytics_content.append(
+                f'<tr><td>{html.escape(word)}</td><td>{count:,}</td></tr>'
+            )
+        analytics_content.append('</tbody></table></div>')
+        analytics_content.append(
+            '<div class="table-wrap"><table class="stats-table">'
+            '<thead><tr><th>Sender</th><th>Messages</th></tr></thead><tbody>'
+        )
+        for sender, count in yearly_senders.get(year, Counter()).most_common(10):
+            analytics_content.append(
+                f'<tr><td>{html.escape(sender)}</td><td>{count:,}</td></tr>'
+            )
+        analytics_content.append('</tbody></table></div>')
+        analytics_content.append('</div>')
     analytics_content.append('</section>')
 
     answered_call_average = (
@@ -1208,6 +1356,7 @@ def build_index(
         '    h1 { margin: 0; font-size: clamp(30px, 4vw, 42px); letter-spacing: -.03em; }',
         '    .page-header p:last-child { max-width: 680px; margin: 10px 0 0; color: #e0f2fe; font-size: 16px; line-height: 1.55; }',
         '    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0; }',
+        '    .year-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 10px 0 18px; }',
         '    .stat { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px #0001; }',
         '    .stat strong { display: block; font-size: 22px; color: #111; }',
         '    .stat span { color: #666; font-size: 13px; }',
@@ -2046,6 +2195,7 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
         '    .birthday-list a { color: #1d4ed8; font-weight: 600; overflow-wrap: anywhere; text-decoration: none; }',
         '    .birthday-list a:hover { text-decoration: underline; }',
         '    .evidence { color: #64748b; font-size: 10px; line-height: 1.3; }',
+        '    .share-link { display: inline-block; margin: 2px 0; color: #2563eb; font-size: 10px; font-weight: 700; text-decoration: none; }',
         '    .empty-state { padding: 22px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #64748b; }',
         '    @media (max-width: 640px) { .wrapper { width: calc(100% - 24px); padding-top: 16px; } .calendar { grid-template-columns: 1fr; } .month { padding: 10px; } .day { min-height: 58px; padding: 3px; } }',
         DARK_CSS,
@@ -2103,6 +2253,10 @@ def build_birthdays(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE):
                             )
                             content.append(
                                 f'<span class="evidence">{html.escape(years)}</span>'
+                            )
+                            content.append(
+                                f'<a class="share-link" href="birthday_wishes.html?date={observed_date}"'
+                                f' title="Share birthday wishes for {observed_date}">share</a>'
                             )
                         content.append('</div>')
                     content.append('</div>')
@@ -2254,6 +2408,8 @@ def build_birthday_wishes(conversations, output_dir, time_zone=DEFAULT_TIME_ZONE
         '        event.preventDefault();',
         '        showBirthdayWishes(birthdayDateInput.value);',
         '      });',
+        '      const shareParams = new URLSearchParams(location.search);',
+        '      if (shareParams.get("date")) { birthdayDateInput.value = shareParams.get("date"); showBirthdayWishes(shareParams.get("date")); }',
         '    </script>',
         '  </div>',
         THEME_SCRIPT,

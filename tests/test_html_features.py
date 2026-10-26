@@ -393,6 +393,11 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('@media (max-width: 640px)', content)
         self.assertIn('@media (max-width: 640px)', content)
         self.assertNotIn('href="Group_chat.html"', content)
+        self.assertIn(
+            'class="share-link" href="birthday_wishes.html?date=2024-06-10" '
+            'title="Share birthday wishes for 2024-06-10"',
+            content,
+        )
 
     def test_birthday_wishes_searches_incoming_direct_and_group_messages(self):
         conversations = [
@@ -452,6 +457,12 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('heading.textContent = sender + " (" + senderWishes.length + " wishes)"', content)
         self.assertIn('wish[2].slice(5) === monthDay', content)
         self.assertIn('link.href = encodeURIComponent(wish[1]) + ".html?"', content)
+        self.assertIn('const shareParams = new URLSearchParams(location.search);', content)
+        self.assertIn(
+            'if (shareParams.get("date")) { birthdayDateInput.value = shareParams.get("date"); '
+            'showBirthdayWishes(shareParams.get("date")); }',
+            content,
+        )
 
     def test_index_has_per_year_activity_and_overall_stats(self):
         stats = summarize_messages(self.messages)
@@ -664,6 +675,60 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertNotIn('id="pendingData"', content)
         self.assertNotIn('id="loadMoreSentinel"', content)
         self.assertIn('<strong id="messageCount">3</strong> messages', content)
+
+    def test_conversation_header_shows_longest_silence(self):
+        path = build_html('Alex', self.messages, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('<span>Longest silence · 399d 1h (2024-01-01 → 2025-02-03)</span>', content)
+
+    def test_index_has_fun_analytics_sections(self):
+        messages = [dict(message) for message in self.messages]
+        messages[1]['date'] = '2024-01-02 07:30:00'
+        messages[2]['text'] = 'party time 🎉 🎉'
+        stats = summarize_messages(messages)
+        stats['conversations'] = 1
+        path = build_index([('Alex', 'alex', messages)], self.output_dir, stats)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('<h2>Conversation habits</h2>', content)
+        # 2024-01-01 (messages[0] 03:30 EST) + 2024-01-02 (messages[1] 02:30 EST) are consecutive
+        self.assertIn(
+            '<div class="stat"><strong>2</strong><span>Longest streak of consecutive active days</span></div>',
+            content,
+        )
+        # hour 2 (messages[1] 02:30 EST) + hour 3 (messages[0] 03:30 EST) = 2
+        self.assertIn(
+            '<div class="stat"><strong>2</strong><span>Late-night messages (2–4 AM)</span></div>',
+            content,
+        )
+        self.assertIn(
+            '<div class="stat"><strong>🎉</strong><span>Most used emoji · 2 uses</span></div>',
+            content,
+        )
+        self.assertIn('<h3>Most used emoji</h3>', content)
+        self.assertIn('<td>🎉</td><td>2</td>', content)
+        self.assertIn('<h3>Longest silences between messages</h3>', content)
+        self.assertIn('<td>398d 2h</td><td>2024-01-02 → 2025-02-03</td>', content)
+        self.assertIn(
+            '<div class="stat"><strong><a href="alex.html">Alex</a></strong>'
+            '<span>Longest silence · 398d 2h (2024-01-02 → 2025-02-03)</span></div>',
+            content,
+        )
+        self.assertIn('<h2>Words and senders by year</h2>', content)
+        self.assertIn('<h3>2024</h3>', content)
+        self.assertIn('<h3>2025</h3>', content)
+        self.assertIn('<div class="year-columns">', content)
+        self.assertIn('<tr><td>hello</td><td>1</td></tr>', content)
+        self.assertIn('<tr><td>reply</td><td>1</td></tr>', content)
+        self.assertIn('<tr><td>party</td><td>1</td></tr>', content)
+        self.assertIn('<tr><td>time</td><td>1</td></tr>', content)
+        self.assertIn('<tr><td>Me</td><td>1</td></tr>', content)
+        self.assertIn('<tr><td>Alex</td><td>1</td></tr>', content)
 
 
 if __name__ == '__main__':

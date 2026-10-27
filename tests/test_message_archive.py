@@ -215,7 +215,9 @@ class MessageArchiveTests(unittest.TestCase):
             index_content = page.read()
         self.assertIn('You (+1 (555) 123-4567)', index_content)
         self.assertNotIn('<tr><td>Me</td>', index_content)
-        self.assertIn('<tr><td>Alex</td><td>1</td></tr>', index_content)
+        # Sender rows in the per-year section carry the share of that year's received texts.
+        self.assertIn('<th>% of received</th>', index_content)
+        self.assertIn('<tr><td>Alex</td><td>1</td><td>100.0%</td></tr>', index_content)
 
     def test_export_fallback_uses_shared_outgoing_handles(self):
         database = os.path.join(self.output_dir, 'fallback_sms.db')
@@ -243,7 +245,7 @@ class MessageArchiveTests(unittest.TestCase):
             index_content = page.read()
 
         self.assertNotIn('<tr><td>Me</td>', index_content)
-        self.assertIn('<tr><td>Alex</td><td>1</td></tr>', index_content)
+        self.assertIn('<tr><td>Alex</td><td>1</td><td>100.0%</td></tr>', index_content)
 
     def test_legacy_message_is_upgraded_to_guid_without_duplication(self):
         legacy = message(None, 'hello', '2025-01-01 10:00:00', id=12)

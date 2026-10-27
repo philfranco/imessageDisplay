@@ -35,8 +35,8 @@ DARK_CSS = '\n'.join([
     '    html.dark .page-header { box-shadow: none; }',
     '    html.dark .page-header p, html.dark .page-header p:last-child { color: #cbd5e1; }',
     '    html.dark .eyebrow { color: #93c5fd; }',
-    '    html.dark .stat-note, html.dark .results-count, html.dark .call-count, html.dark .message-result-count, html.dark .message-filter-actions span, html.dark .load-more, html.dark .activity-legend, html.dark .month-labels, html.dark .evidence, html.dark .wish-meta, html.dark .weekday { color: #9ca3af; }',
-    '    html.dark .message-filters, html.dark .search-filters, html.dark .activity-card, html.dark .month, html.dark .att-grid, html.dark .att-card, html.dark .att-caption, html.dark .wish-card, html.dark .empty-state { background: #1c2025; border-color: #3a414d; color: #cbd5e1; }',
+    '    html.dark .stat-note, html.dark .results-count, html.dark .call-count, html.dark .message-result-count, html.dark .message-filter-actions span, html.dark .load-more, html.dark .activity-legend, html.dark .month-labels, html.dark .evidence, html.dark .wish-meta, html.dark .weekday, html.dark .stats-filter-label { color: #9ca3af; }',
+    '    html.dark .message-filters, html.dark .search-filters, html.dark .stats-filter, html.dark .activity-card, html.dark .month, html.dark .att-grid, html.dark .att-card, html.dark .att-caption, html.dark .wish-card, html.dark .empty-state { background: #1c2025; border-color: #3a414d; color: #cbd5e1; }',
     '    html.dark label { color: #9ca3af; }',
     '    html.dark input, html.dark select { background: #121417; border: 1px solid #3a414d; color: #e5e7eb; }',
     '    html.dark .message-list { background: #1c2025; border-color: #3a414d; }',
@@ -914,18 +914,203 @@ def _render_sortable_headers(columns):
     ]
 
 
-def build_index(
-    conversations,
-    output_dir,
-    overall_stats,
-    time_zone=DEFAULT_TIME_ZONE,
-    calls=(),
-    conversation_metrics=None,
-    owner_phone=None,
-):
-    index_path = os.path.join(output_dir, 'index.html')
-    daily_counts = overall_stats.get('daily_counts', {})
+def _is_group_message(message):
+    chat_id = message.get('chat_id')
+    return bool(chat_id and chat_id[0] == 'group')
+
+
+def _conversations_without_groups(conversations):
+    filtered = []
+    for conversation_name, filename, messages in conversations:
+        kept = [message for message in messages if not _is_group_message(message)]
+        if kept:
+            filtered.append((conversation_name, filename, kept))
+    return filtered
+
+
+def _months_between(dates):
+    months = []
+    if dates:
+        month_cursor = date(min(dates).year, min(dates).month, 1)
+        last_month = date(max(dates).year, max(dates).month, 1)
+    else:
+        return months
+    while month_cursor <= last_month:
+        months.append(month_cursor.strftime('%Y-%m'))
+        if month_cursor.month == 12:
+            month_cursor = date(month_cursor.year + 1, 1, 1)
+        else:
+            month_cursor = date(month_cursor.year, month_cursor.month + 1, 1)
+    return months
+
+
+def _append_line_chart(content, title, points, label_formatter, unit):
+    if not points:
+        content.append('<p class="stat-note">No data available.</p>')
+        return
+
+    chart_width = 960
+    chart_height = 300
+    left = 64
+    right = 24
+    top = 24
+    bottom = 52
+    plot_width = chart_width - left - right
+    plot_height = chart_height - top - bottom
+    maximum = max((value for _, value in points), default=0)
+    scale_maximum = max(4, ((maximum + 3) // 4) * 4)
+    x_step = plot_width / max(1, len(points) - 1)
+
+    def y_coordinate(value):
+        return top + plot_height * (1 - value / scale_maximum)
+
+    coordinates = [
+        (left + index * x_step, y_coordinate(value))
+        for index, (_, value) in enumerate(points)
+    ]
+    line_points = ' '.join(
+        f'{x:.1f},{y:.1f}' for x, y in coordinates
+    )
+    label_step = max(1, (len(points) + 7) // 8)
+    label_indices = set(range(0, len(points), label_step))
+    label_indices.add(len(points) - 1)
+    content.append(f'<h3>{title}</h3>')
+    content.append(
+        f'<figure class="line-chart" aria-label="{html.escape(title, quote=True)}" '
+        f'data-unit-singular="{html.escape(unit[:-1], quote=True)}" '
+        f'data-unit-plural="{html.escape(unit, quote=True)}">'
+        f'<svg viewBox="0 0 {chart_width} {chart_height}" '
+        f'preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
+        f'<title>{html.escape(title)}: {maximum:,} {unit} maximum</title>'
+    )
+    for tick in range(5):
+        value = scale_maximum * tick / 4
+        y = y_coordinate(value)
+        content.append(
+            f'<line class="chart-gridline" x1="{left}" y1="{y:.1f}" '
+            f'x2="{chart_width - right}" y2="{y:.1f}"></line>'
+            f'<text class="chart-y-label" x="{left - 10}" y="{y + 4:.1f}" '
+            f'text-anchor="end">{value:,.0f}</text>'
+        )
+    content.append(
+        f'<polyline class="chart-line" points="{line_points}"></polyline>'
+    )
+    for index, ((key, value), (x, y)) in enumerate(zip(points, coordinates)):
+        label = label_formatter(key)
+        count_label = f'{value:,} {unit if value != 1 else unit[:-1]}'
+        content.append(
+            f'<circle class="chart-point" data-label="{html.escape(label, quote=True)}" '
+            f'data-value="{value}" data-x="{x:.1f}" data-y="{y:.1f}" '
+            f'cx="{x:.1f}" cy="{y:.1f}" r="4">'
+            f'<title>{html.escape(label)}: {html.escape(count_label)}</title></circle>'
+        )
+        if index in label_indices:
+            content.append(
+                f'<text class="chart-x-label" x="{x:.1f}" '
+                f'y="{chart_height - 16}" text-anchor="middle">'
+                f'{html.escape(label_formatter(key))}</text>'
+            )
+    content.extend([
+        f'<g class="chart-focus" visibility="hidden" pointer-events="none">'
+        f'<line class="chart-focus-line" x1="{left}" y1="{top}" '
+        f'x2="{left}" y2="{top + plot_height}"></line>'
+        f'<circle class="chart-focus-point" cx="{left}" cy="{top}" r="7"></circle>'
+        '</g>',
+        '<g class="chart-tooltip" visibility="hidden" pointer-events="none">'
+        '<rect x="0" y="0" width="220" height="34" rx="8"></rect>'
+        '<text x="10" y="22"></text></g>',
+        f'<rect class="chart-interaction" x="{left}" y="{top}" '
+        f'width="{plot_width}" height="{plot_height}" tabindex="0" role="slider" '
+        f'aria-label="Explore {html.escape(title, quote=True)} values" '
+        f'aria-valuemin="0" aria-valuemax="{maximum}" aria-valuenow="0" '
+        f'data-left="{left}" data-right="{left + plot_width}"></rect>',
+    ])
+    content.extend(['</svg>', '</figure>'])
+
+
+def _activity_card_content(daily_counts, ids=None):
     years = sorted({day[:4] for day in daily_counts if len(day) >= 4})
+    prev_id = f' id="{ids[0]}"' if ids else ''
+    label_id = f' id="{ids[1]}"' if ids else ''
+    next_id = f' id="{ids[2]}"' if ids else ''
+
+    def control_button(cls, id_part, label, glyph):
+        return f'<button type="button" class="{cls}"{id_part} aria-label="{label}">{glyph}</button>'
+
+    card = [
+        '<section class="activity-card" aria-label="Daily message activity">',
+        '  <div class="activity-heading"><h2>Messages per day</h2>',
+        '    <div class="year-controls">',
+        f'      {control_button("year-prev", prev_id, "Previous year", "←")}',
+        f'      <strong class="activity-year-label"{label_id}></strong>',
+        f'      {control_button("year-next", next_id, "Next year", "→")}',
+        '    </div>',
+        '  </div>',
+    ]
+    grid = []
+    for year in years:
+        year_number = int(year)
+        first_day = date(year_number, 1, 1)
+        last_day = date(year_number, 12, 31)
+        grid_start = first_day - timedelta(days=first_day.weekday())
+        grid_end = last_day + timedelta(days=6 - last_day.weekday())
+        max_count = max(
+            (count for day, count in daily_counts.items() if day.startswith(year)),
+            default=0,
+        )
+        grid.append(
+            f'<section class="activity-year" data-year="{year}" '
+            f'{" " if year == years[-1] else "hidden"}>'
+            f'<h3>{year}</h3><div class="activity-scroll"><div class="month-labels">'
+        )
+        for month in range(1, 13):
+            month_start = date(year_number, month, 1)
+            week_column = (month_start - grid_start).days // 7 + 1
+            grid.append(
+                f'<span style="grid-column: {week_column}">{month_start.strftime("%b")}</span>'
+            )
+        grid.append('</div><div class="activity-grid" role="group" '
+                    f'aria-label="Daily message counts for {year}">')
+        current_day = grid_start
+        while current_day <= grid_end:
+            day_key = current_day.isoformat()
+            count = daily_counts.get(day_key, 0) if current_day.year == year_number else 0
+            level = 0 if not count or not max_count else min(4, (count * 4 + max_count - 1) // max_count)
+            day_label = f'{day_key}: {count:,} messages'
+            if current_day.year == year_number:
+                grid.append(
+                    f'<a class="activity-day level-{level}" href="search.html?date={day_key}" '
+                    f'title="{day_label}" aria-label="Search messages from {day_label}"></a>'
+                )
+            else:
+                grid.append(
+                    '<span class="activity-day level-0" aria-hidden="true"></span>'
+                )
+            current_day += timedelta(days=1)
+        grid.append('</div></div></section>')
+
+    if grid:
+        card.extend(grid)
+    else:
+        card.append('<p>No dated messages are available for the activity chart.</p>')
+    card.extend([
+        '      <p class="activity-legend">'
+        '<span class="legend-light">Darker squares indicate more messages that day; white means no messages.</span>'
+        '<span class="legend-dark">Brighter squares indicate more messages that day; dark squares mean no messages.</span>'
+        '</p>',
+        '    </section>',
+    ])
+    return card
+
+
+def _message_stats_content(
+    conversations,
+    overall_stats,
+    time_zone,
+    ids=None,
+    conversation_metrics=None,
+):
+    daily_counts = overall_stats.get('daily_counts', {})
     yearly_counts = Counter()
     monthly_counts = Counter()
     month_of_year_counts = Counter()
@@ -942,6 +1127,7 @@ def build_index(
     group_participants = Counter()
     yearly_words = defaultdict(Counter)
     yearly_senders = defaultdict(Counter)
+    yearly_received = defaultdict(int)
     emoji_counts = Counter()
 
     for conversation_name, filename, messages in conversations:
@@ -962,8 +1148,9 @@ def build_index(
             weekday_counts[timestamp.weekday()] += 1
             sender = message.get('sender')
             sender = str(sender) if sender else ('Me' if message.get('is_from_me') else 'Unknown')
-            if not (owner_phone and message.get('is_from_me') and sender == 'Me'):
+            if not message.get('is_from_me'):
                 yearly_senders[timestamp.year][sender] += 1
+                yearly_received[timestamp.year] += 1
             text = str(message.get('text') or '')
             for word in re.findall(r"[A-Za-z][A-Za-z']+", text.lower()):
                 if len(word) > 1 and word.strip("'") and word not in STOP_WORDS:
@@ -987,29 +1174,19 @@ def build_index(
         default=None,
     )
 
-    call_yearly_counts = Counter()
-    call_monthly_counts = Counter()
-    call_durations = []
-    parsed_call_dates = []
-    missed_calls = 0
-    for call in calls:
-        if call.get('direction') == 'Missed':
-            missed_calls += 1
-        else:
-            try:
-                duration = max(0, float(call.get('duration') or 0))
-            except (TypeError, ValueError, OverflowError):
-                duration = 0
-            call_durations.append(duration)
-
-        local_call_date = localize_message_datetime(call.get('date'), time_zone)
-        try:
-            call_date = datetime.strptime(local_call_date, '%Y-%m-%d %H:%M:%S')
-        except ValueError:
-            continue
-        parsed_call_dates.append(call_date)
-        call_yearly_counts[str(call_date.year)] += 1
-        call_monthly_counts[call_date.strftime('%Y-%m')] += 1
+    content = [
+        '    <section class="stats" aria-label="Database statistics">',
+        f'      <div class="stat"><strong>{overall_stats["conversations"]:,}</strong><span>Conversations</span></div>',
+        f'      <div class="stat"><strong>{overall_stats["messages"]:,}</strong><span>Messages</span></div>',
+        f'      <div class="stat"><strong>{overall_stats["attachments"]:,}</strong><span>Attachments</span></div>',
+        f'      <div class="stat"><strong>{overall_stats["sent"]:,}</strong><span>Sent messages</span></div>',
+        f'      <div class="stat"><strong>{overall_stats["received"]:,}</strong><span>Received messages</span></div>',
+        f'      <div class="stat"><strong>{overall_stats["busiest_count"]:,}</strong><span>Most messages in one day ({html.escape(overall_stats["busiest_date"])})</span></div>',
+        f'      <div class="stat"><strong>{html.escape(overall_stats["first_date"])}</strong><span>First message</span></div>',
+        f'      <div class="stat"><strong>{html.escape(overall_stats["last_date"])}</strong><span>Last message</span></div>',
+        '    </section>',
+    ]
+    content.extend(_activity_card_content(daily_counts, ids))
 
     analytics_content = [
         '<section class="stat-group" aria-label="Archive overview statistics">',
@@ -1042,110 +1219,13 @@ def build_index(
         )
     analytics_content.append('</tbody></table></div>')
 
-    def append_line_chart(title, points, label_formatter, unit):
-        if not points:
-            analytics_content.append('<p class="stat-note">No data available.</p>')
-            return
-
-        chart_width = 960
-        chart_height = 300
-        left = 64
-        right = 24
-        top = 24
-        bottom = 52
-        plot_width = chart_width - left - right
-        plot_height = chart_height - top - bottom
-        maximum = max((value for _, value in points), default=0)
-        scale_maximum = max(4, ((maximum + 3) // 4) * 4)
-        x_step = plot_width / max(1, len(points) - 1)
-
-        def y_coordinate(value):
-            return top + plot_height * (1 - value / scale_maximum)
-
-        coordinates = [
-            (left + index * x_step, y_coordinate(value))
-            for index, (_, value) in enumerate(points)
-        ]
-        line_points = ' '.join(
-            f'{x:.1f},{y:.1f}' for x, y in coordinates
-        )
-        label_step = max(1, (len(points) + 7) // 8)
-        label_indices = set(range(0, len(points), label_step))
-        label_indices.add(len(points) - 1)
-        analytics_content.append(f'<h3>{title}</h3>')
-        analytics_content.append(
-            f'<figure class="line-chart" aria-label="{html.escape(title, quote=True)}" '
-            f'data-unit-singular="{html.escape(unit[:-1], quote=True)}" '
-            f'data-unit-plural="{html.escape(unit, quote=True)}">'
-            f'<svg viewBox="0 0 {chart_width} {chart_height}" '
-            f'preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
-            f'<title>{html.escape(title)}: {maximum:,} {unit} maximum</title>'
-        )
-        for tick in range(5):
-            value = scale_maximum * tick / 4
-            y = y_coordinate(value)
-            analytics_content.append(
-                f'<line class="chart-gridline" x1="{left}" y1="{y:.1f}" '
-                f'x2="{chart_width - right}" y2="{y:.1f}"></line>'
-                f'<text class="chart-y-label" x="{left - 10}" y="{y + 4:.1f}" '
-                f'text-anchor="end">{value:,.0f}</text>'
-            )
-        analytics_content.append(
-            f'<polyline class="chart-line" points="{line_points}"></polyline>'
-        )
-        for index, ((key, value), (x, y)) in enumerate(zip(points, coordinates)):
-            label = label_formatter(key)
-            count_label = f'{value:,} {unit if value != 1 else unit[:-1]}'
-            analytics_content.append(
-                f'<circle class="chart-point" data-label="{html.escape(label, quote=True)}" '
-                f'data-value="{value}" data-x="{x:.1f}" data-y="{y:.1f}" '
-                f'cx="{x:.1f}" cy="{y:.1f}" r="4">'
-                f'<title>{html.escape(label)}: {html.escape(count_label)}</title></circle>'
-            )
-            if index in label_indices:
-                analytics_content.append(
-                    f'<text class="chart-x-label" x="{x:.1f}" '
-                    f'y="{chart_height - 16}" text-anchor="middle">'
-                    f'{html.escape(label_formatter(key))}</text>'
-                )
-        analytics_content.extend([
-            f'<g class="chart-focus" visibility="hidden" pointer-events="none">'
-            f'<line class="chart-focus-line" x1="{left}" y1="{top}" '
-            f'x2="{left}" y2="{top + plot_height}"></line>'
-            f'<circle class="chart-focus-point" cx="{left}" cy="{top}" r="7"></circle>'
-            '</g>',
-            '<g class="chart-tooltip" visibility="hidden" pointer-events="none">'
-            '<rect x="0" y="0" width="220" height="34" rx="8"></rect>'
-            '<text x="10" y="22"></text></g>',
-            f'<rect class="chart-interaction" x="{left}" y="{top}" '
-            f'width="{plot_width}" height="{plot_height}" tabindex="0" role="slider" '
-            f'aria-label="Explore {html.escape(title, quote=True)} values" '
-            f'aria-valuemin="0" aria-valuemax="{maximum}" aria-valuenow="0" '
-            f'data-left="{left}" data-right="{left + plot_width}"></rect>',
-        ])
-        analytics_content.extend(['</svg>', '</figure>'])
-
-    def months_between(dates):
-        months = []
-        if dates:
-            month_cursor = date(min(dates).year, min(dates).month, 1)
-            last_month = date(max(dates).year, max(dates).month, 1)
-        else:
-            return months
-        while month_cursor <= last_month:
-            months.append(month_cursor.strftime('%Y-%m'))
-            if month_cursor.month == 12:
-                month_cursor = date(month_cursor.year + 1, 1, 1)
-            else:
-                month_cursor = date(month_cursor.year, month_cursor.month + 1, 1)
-        return months
-
     if yearly_counts:
         years_range = range(
             min(map(int, yearly_counts)),
             max(map(int, yearly_counts)) + 1,
         )
-        append_line_chart(
+        _append_line_chart(
+            analytics_content,
             'Messages by year',
             [(str(year), yearly_counts.get(str(year), 0)) for year in years_range],
             str,
@@ -1155,7 +1235,8 @@ def build_index(
         analytics_content.append('<h3>Messages by year</h3>')
         analytics_content.append('<p class="stat-note">No dated messages are available.</p>')
 
-    append_line_chart(
+    _append_line_chart(
+        analytics_content,
         'Messages by month',
         [
             (month, month_of_year_counts.get(month, 0))
@@ -1164,13 +1245,15 @@ def build_index(
         lambda month: calendar.month_name[month],
         'messages',
     )
-    append_line_chart(
+    _append_line_chart(
+        analytics_content,
         'Messages by day of week',
         [(day, weekday_counts.get(day, 0)) for day in range(7)],
         lambda day: calendar.day_name[day],
         'messages',
     )
-    append_line_chart(
+    _append_line_chart(
+        analytics_content,
         'Messages by hour of day',
         [(hour, hourly_counts.get(hour, 0)) for hour in range(24)],
         lambda hour: f'{hour:02d}:00',
@@ -1186,6 +1269,7 @@ def build_index(
                 f'<tr><td>{html.escape(participant)}</td><td>{count:,}</td></tr>'
             )
         analytics_content.append('</tbody></table></div>')
+
     streak = 0
     current_streak = 0
     previous_day = None
@@ -1273,22 +1357,93 @@ def build_index(
                 f'<tr><td>{html.escape(word)}</td><td>{count:,}</td></tr>'
             )
         analytics_content.append('</tbody></table></div>')
+        year_received = yearly_received.get(year, 0)
         analytics_content.append(
             '<div class="table-wrap"><table class="stats-table">'
-            '<thead><tr><th>Sender</th><th>Messages</th></tr></thead><tbody>'
+            '<thead><tr><th>Sender</th><th>Messages</th>'
+            '<th>% of received</th></tr></thead><tbody>'
         )
         for sender, count in yearly_senders.get(year, Counter()).most_common(10):
+            share = f'{(count / year_received * 100):.1f}%' if year_received else '—'
             analytics_content.append(
-                f'<tr><td>{html.escape(sender)}</td><td>{count:,}</td></tr>'
+                f'<tr><td>{html.escape(sender)}</td><td>{count:,}</td>'
+                f'<td>{share}</td></tr>'
             )
         analytics_content.append('</tbody></table></div>')
         analytics_content.append('</div>')
     analytics_content.append('</section>')
 
+    content.extend(analytics_content)
+    return content
+
+
+def build_index(
+    conversations,
+    output_dir,
+    overall_stats,
+    time_zone=DEFAULT_TIME_ZONE,
+    calls=(),
+    conversation_metrics=None,
+    owner_phone=None,
+):
+    index_path = os.path.join(output_dir, 'index.html')
+
+    call_yearly_counts = Counter()
+    call_monthly_counts = Counter()
+    call_durations = []
+    parsed_call_dates = []
+    missed_calls = 0
+    for call in calls:
+        if call.get('direction') == 'Missed':
+            missed_calls += 1
+        else:
+            try:
+                duration = max(0, float(call.get('duration') or 0))
+            except (TypeError, ValueError, OverflowError):
+                duration = 0
+            call_durations.append(duration)
+
+        local_call_date = localize_message_datetime(call.get('date'), time_zone)
+        try:
+            call_date = datetime.strptime(local_call_date, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            continue
+        parsed_call_dates.append(call_date)
+        call_yearly_counts[str(call_date.year)] += 1
+        call_monthly_counts[call_date.strftime('%Y-%m')] += 1
+
+    solo_conversations = _conversations_without_groups(conversations)
+    has_group_messages = any(
+        _is_group_message(message)
+        for _, _, messages in conversations
+        for message in messages
+    )
+    if has_group_messages:
+        solo_messages = [
+            message
+            for _, _, messages in solo_conversations
+            for message in messages
+        ]
+        solo_overall_stats = summarize_messages(solo_messages, time_zone)
+        solo_overall_stats['conversations'] = len(solo_conversations)
+        variant_solo = _message_stats_content(
+            solo_conversations,
+            solo_overall_stats,
+            time_zone,
+        )
+
+    variant_all = _message_stats_content(
+        conversations,
+        overall_stats,
+        time_zone,
+        ids=('previousYear', 'activityYear', 'nextYear'),
+        conversation_metrics=conversation_metrics,
+    )
+
     answered_call_average = (
         statistics.mean(call_durations) if call_durations else None
     )
-    analytics_content.extend([
+    calls_content = [
         '<section class="stat-group" aria-label="Call statistics">',
         '<h2>Call statistics</h2>',
         '<section class="stats">',
@@ -1296,73 +1451,33 @@ def build_index(
         f'<div class="stat"><strong>{missed_calls:,}</strong><span>Missed calls</span></div>',
         f'<div class="stat"><strong>{_format_elapsed(answered_call_average)}</strong><span>Average duration of non-missed calls</span></div>',
         '</section>',
-    ])
+    ]
     if call_yearly_counts:
         call_years = range(
             min(map(int, call_yearly_counts)),
             max(map(int, call_yearly_counts)) + 1,
         )
-        append_line_chart(
+        _append_line_chart(
+            calls_content,
             'Calls by year',
             [(str(year), call_yearly_counts.get(str(year), 0)) for year in call_years],
             str,
             'calls',
         )
-        append_line_chart(
+        _append_line_chart(
+            calls_content,
             'Calls by month',
             [
                 (month, call_monthly_counts.get(month, 0))
-                for month in months_between(parsed_call_dates)
+                for month in _months_between(parsed_call_dates)
             ],
             str,
             'calls',
         )
     else:
-        analytics_content.append('<h3>Calls by year</h3>')
-        analytics_content.append('<p class="stat-note">No call records are available.</p>')
-    analytics_content.append('</section>')
-
-    activity_content = []
-    for year in years:
-        year_number = int(year)
-        first_day = date(year_number, 1, 1)
-        last_day = date(year_number, 12, 31)
-        grid_start = first_day - timedelta(days=first_day.weekday())
-        grid_end = last_day + timedelta(days=6 - last_day.weekday())
-        max_count = max(
-            (count for day, count in daily_counts.items() if day.startswith(year)),
-            default=0,
-        )
-        activity_content.append(
-            f'<section class="activity-year" data-year="{year}" '
-            f'{" " if year == years[-1] else "hidden"}>'
-            f'<h3>{year}</h3><div class="activity-scroll"><div class="month-labels">'
-        )
-        for month in range(1, 13):
-            month_start = date(year_number, month, 1)
-            week_column = (month_start - grid_start).days // 7 + 1
-            activity_content.append(
-                f'<span style="grid-column: {week_column}">{month_start.strftime("%b")}</span>'
-            )
-        activity_content.append('</div><div class="activity-grid" role="group" '
-                                f'aria-label="Daily message counts for {year}">')
-        current_day = grid_start
-        while current_day <= grid_end:
-            day_key = current_day.isoformat()
-            count = daily_counts.get(day_key, 0) if current_day.year == year_number else 0
-            level = 0 if not count or not max_count else min(4, (count * 4 + max_count - 1) // max_count)
-            day_label = f'{day_key}: {count:,} messages'
-            if current_day.year == year_number:
-                activity_content.append(
-                    f'<a class="activity-day level-{level}" href="search.html?date={day_key}" '
-                    f'title="{day_label}" aria-label="Search messages from {day_label}"></a>'
-                )
-            else:
-                activity_content.append(
-                    '<span class="activity-day level-0" aria-hidden="true"></span>'
-                )
-            current_day += timedelta(days=1)
-        activity_content.append('</div></div></section>')
+        calls_content.append('<h3>Calls by year</h3>')
+        calls_content.append('<p class="stat-note">No call records are available.</p>')
+    calls_content.append('</section>')
 
     content = [
         '<!DOCTYPE html>',
@@ -1427,6 +1542,11 @@ def build_index(
         '    .activity-day.level-3 { background: #3b82f6; box-shadow: none; }',
         '    .activity-day.level-4 { background: #1e3a8a; box-shadow: none; }',
         '    .activity-legend { margin: 12px 0 0; color: #64748b; font-size: 12px; }',
+        '    .stats-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 18px; padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 1px 4px #0001; }',
+        '    .stats-filter-label { display: flex; align-items: center; gap: 8px; color: #334155; font-size: 14px; font-weight: 600; cursor: pointer; }',
+        '    .stats-filter-label input { width: 16px; height: 16px; accent-color: #2563eb; }',
+        '    .stats-filter .stat-note { margin: 0; flex-basis: 100%; }',
+        '    .stats-variant[hidden] { display: none; }',
         '    .search-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 12px 18px; border-radius: 12px; color: #fff; background: #2563eb; text-decoration: none; font-size: 15px; font-weight: 600; box-shadow: 0 5px 14px #2563eb33; transition: background .15s, transform .15s; }',
         '    .search-link:hover { background: #1d4ed8; transform: translateY(-1px); }',
         '    .link-row { display: flex; gap: 12px; flex-wrap: wrap; }',
@@ -1442,37 +1562,23 @@ def build_index(
         f'      <p>All message times shown in {html.escape(time_zone)}. Search the archive to find a specific conversation.</p>',
         '    </header>',
         '    <main>',
-        '    <section class="stats" aria-label="Database statistics">',
-        f'      <div class="stat"><strong>{overall_stats["conversations"]:,}</strong><span>Conversations</span></div>',
-        f'      <div class="stat"><strong>{overall_stats["messages"]:,}</strong><span>Messages</span></div>',
-        f'      <div class="stat"><strong>{overall_stats["attachments"]:,}</strong><span>Attachments</span></div>',
-        f'      <div class="stat"><strong>{overall_stats["sent"]:,}</strong><span>Sent messages</span></div>',
-        f'      <div class="stat"><strong>{overall_stats["received"]:,}</strong><span>Received messages</span></div>',
-        f'      <div class="stat"><strong>{overall_stats["busiest_count"]:,}</strong><span>Most messages in one day ({html.escape(overall_stats["busiest_date"])})</span></div>',
-        f'      <div class="stat"><strong>{html.escape(overall_stats["first_date"])}</strong><span>First message</span></div>',
-        f'      <div class="stat"><strong>{html.escape(overall_stats["last_date"])}</strong><span>Last message</span></div>',
-        '    </section>',
-        '    <section class="activity-card" aria-label="Daily message activity">',
-        '      <div class="activity-heading"><h2>Messages per day</h2>',
-        '        <div class="year-controls">',
-        '          <button type="button" id="previousYear" aria-label="Previous year">←</button>',
-        '          <strong id="activityYear"></strong>',
-        '          <button type="button" id="nextYear" aria-label="Next year">→</button>',
-        '        </div>',
-        '      </div>',
     ]
-    if activity_content:
-        content.extend(activity_content)
-    else:
-        content.append('<p>No dated messages are available for the activity chart.</p>')
-    content.extend([
-        '      <p class="activity-legend">'
-        '<span class="legend-light">Darker squares indicate more messages that day; white means no messages.</span>'
-        '<span class="legend-dark">Brighter squares indicate more messages that day; dark squares mean no messages.</span>'
-        '</p>',
-        '    </section>',
-    ])
-    content.extend(analytics_content)
+    if has_group_messages:
+        content.extend([
+            '    <section class="stats-filter" aria-label="Statistics filters">',
+            '      <label class="stats-filter-label"><input type="checkbox" id="hideGroupStats">'
+            ' <span>Exclude group chats from statistics</span></label>',
+            '      <p class="stat-note">The toggle affects message statistics only; call statistics are always shown.</p>',
+            '    </section>',
+        ])
+    content.extend(['    <div class="stats-variant" data-variant="all">'])
+    content.extend(variant_all)
+    content.extend(['    </div>'])
+    if has_group_messages:
+        content.extend(['    <div class="stats-variant" data-variant="solo" hidden>'])
+        content.extend(variant_solo)
+        content.extend(['    </div>'])
+    content.extend(calls_content)
     content.extend([
         '    <div class="link-row">',
         '      <a class="search-link" href="search.html">Search conversations <span aria-hidden="true">→</span></a>',
@@ -1536,17 +1642,38 @@ def build_index(
         '          else if (event.key === "End") { event.preventDefault(); showPoint(points.length - 1); }',
         '        });',
         '      });',
-        '      const activityYears = Array.from(document.querySelectorAll(".activity-year"));',
-        '      let activeYearIndex = Math.max(0, activityYears.length - 1);',
-        '      function showActivityYear() {',
-        '        activityYears.forEach(function(section, index) { section.hidden = index !== activeYearIndex; });',
-        '        document.getElementById("activityYear").textContent = activityYears.length ? activityYears[activeYearIndex].dataset.year : "—";',
-        '        document.getElementById("previousYear").disabled = activeYearIndex <= 0;',
-        '        document.getElementById("nextYear").disabled = activeYearIndex >= activityYears.length - 1;',
+        '      document.querySelectorAll(".activity-card").forEach(function(card) {',
+        '        const years = Array.from(card.querySelectorAll(".activity-year"));',
+        '        let activeIndex = Math.max(0, years.length - 1);',
+        '        const label = card.querySelector(".activity-year-label");',
+        '        const prev = card.querySelector(".year-prev");',
+        '        const next = card.querySelector(".year-next");',
+        '        function showYear() {',
+        '          years.forEach(function(section, index) { section.hidden = index !== activeIndex; });',
+        '          if (label) label.textContent = years.length ? years[activeIndex].dataset.year : "—";',
+        '          if (prev) prev.disabled = activeIndex <= 0;',
+        '          if (next) next.disabled = activeIndex >= years.length - 1;',
+        '        }',
+        '        if (prev) prev.addEventListener("click", function() {',
+        '          if (activeIndex > 0) { activeIndex--; showYear(); }',
+        '        });',
+        '        if (next) next.addEventListener("click", function() {',
+        '          if (activeIndex < years.length - 1) { activeIndex++; showYear(); }',
+        '        });',
+        '        showYear();',
+        '      });',
+        '      const groupToggle = document.getElementById("hideGroupStats");',
+        '      function applyStatsFilter() {',
+        '        document.querySelectorAll(".stats-variant").forEach(function(variant) {',
+        '          const showSolo = groupToggle.checked && variant.dataset.variant === "solo";',
+        '          const showAll = !groupToggle.checked && variant.dataset.variant === "all";',
+        '          variant.hidden = !(showSolo || showAll);',
+        '        });',
         '      }',
-        '      document.getElementById("previousYear").addEventListener("click", function() { if (activeYearIndex > 0) { activeYearIndex--; showActivityYear(); } });',
-        '      document.getElementById("nextYear").addEventListener("click", function() { if (activeYearIndex < activityYears.length - 1) { activeYearIndex++; showActivityYear(); } });',
-        '      showActivityYear();',
+        '      if (groupToggle) {',
+        '        groupToggle.addEventListener("change", applyStatsFilter);',
+        '        applyStatsFilter();',
+        '      }',
         '    </script>',
         '    </main>',
         '  </div>',

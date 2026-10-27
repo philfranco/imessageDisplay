@@ -743,8 +743,10 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('<tr><td>reply</td><td>1</td></tr>', content)
         self.assertIn('<tr><td>party</td><td>1</td></tr>', content)
         self.assertIn('<tr><td>time</td><td>1</td></tr>', content)
-        self.assertIn('<tr><td>Me</td><td>1</td></tr>', content)
-        self.assertIn('<tr><td>Alex</td><td>1</td></tr>', content)
+        self.assertIn('<th>% of received</th>', content)
+        # The sender table counts only incoming texts, so Alex is 100% of 2024's received.
+        self.assertIn('<tr><td>Alex</td><td>1</td><td>100.0%</td></tr>', content)
+        self.assertNotIn('<tr><td>Me</td>', content)
 
     def test_self_chat_header_shows_detected_number(self):
         self_chat = [dict(self.messages[0]), dict(self.messages[2])]
@@ -768,8 +770,77 @@ class HtmlFeatureTests(unittest.TestCase):
         with open(path, encoding='utf-8') as page:
             content = page.read()
 
-        self.assertIn('<tr><td>Alex</td><td>1</td></tr>', content)
+        self.assertIn('<tr><td>Alex</td><td>1</td><td>100.0%</td></tr>', content)
         self.assertNotIn('<tr><td>Me</td>', content)
+
+
+    def test_index_stats_toggle_excludes_group_messages(self):
+        direct = [dict(message) for message in self.messages]
+        group = [
+            {
+                'id': 4,
+                'guid': 'group-first',
+                'text': 'pizza plans 🍕',
+                'date': '2024-03-01 12:00:00',
+                'is_from_me': False,
+                'sender': 'Sam',
+                'chat_id': ('group', 'family'),
+                'attachments': [],
+            },
+        ]
+        conversations = [('Alex', 'alex', direct), ('Family_group', 'family_group', group)]
+        stats = summarize_messages(direct + group)
+        stats['conversations'] = len(conversations)
+
+        path = build_index(conversations, self.output_dir, stats)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        solo_marker = 'data-variant="solo"'
+        all_marker = 'data-variant="all"'
+        self.assertIn('id="hideGroupStats"', content)
+        self.assertIn('<span>Exclude group chats from statistics</span>', content)
+        self.assertIn(
+            'document.getElementById("hideGroupStats")',
+            content,
+        )
+        all_section = content[
+            content.index(all_marker) + len(all_marker):
+            content.index(solo_marker)
+        ]
+        solo_section = content[content.index(solo_marker) + len(solo_marker):]
+
+        # Group messages are counted in the "all" variant.
+        self.assertIn('<tr><td>Sam</td><td>1</td>', all_section)
+        self.assertIn('<td>pizza</td>', all_section)
+        self.assertIn('<h3>Most active group-chat participants</h3>', all_section)
+        self.assertIn('<td>🍕</td>', all_section)
+
+        # The "solo" variant excludes every group message.
+        self.assertNotIn('<tr><td>Sam</td>', solo_section)
+        self.assertNotIn('<td>pizza</td>', solo_section)
+        self.assertNotIn('<h3>Most active group-chat participants</h3>', solo_section)
+        self.assertNotIn('<td>🍕</td>', solo_section)
+        self.assertIn('<div class="stat"><strong>1</strong><span>Conversations</span></div>', solo_section)
+        self.assertIn('<div class="stat"><strong>3</strong><span>Messages</span></div>', solo_section)
+
+    def test_index_stats_toggle_hidden_without_group_chats(self):
+        stats = summarize_messages(self.messages)
+        stats['conversations'] = 1
+
+        path = build_index(
+            [('Alex', 'alex', self.messages)],
+            self.output_dir,
+            stats,
+        )
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('data-variant="all"', content)
+        self.assertNotIn('data-variant="solo"', content)
+        self.assertNotIn('id="hideGroupStats"', content)
 
 
 if __name__ == '__main__':

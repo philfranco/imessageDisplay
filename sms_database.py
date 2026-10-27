@@ -176,6 +176,73 @@ def conversation_key_for_address(address):
     return None
 
 
+def detect_owner_phone(messages, min_outgoing_conversations=2):
+    phone_chats = defaultdict(
+        lambda: {'sent': 0, 'received': 0, 'own_handle': 0, 'known_handle': 0}
+    )
+    outgoing = defaultdict(lambda: {'sent': 0, 'chats': set()})
+    incoming_numbers = set()
+
+    for message in messages:
+        is_from_me = bool(message.get('is_from_me'))
+        chat_id = message.get('chat_id')
+        handle_number = normalize_phone_number(message.get('handle_address'))
+        chat_number = normalize_phone_number(chat_id[1]) if chat_id and chat_id[0] == 'phone' else ''
+        if is_from_me:
+            if chat_number:
+                phone_chats[chat_number]['sent'] += 1
+                if handle_number:
+                    phone_chats[chat_number]['known_handle'] += 1
+                    if handle_number == chat_number:
+                        phone_chats[chat_number]['own_handle'] += 1
+            if handle_number:
+                outgoing[handle_number]['sent'] += 1
+                outgoing[handle_number]['chats'].add(chat_id)
+        else:
+            if chat_number:
+                phone_chats[chat_number]['received'] += 1
+            if handle_number:
+                incoming_numbers.add(handle_number)
+
+    # An all-outgoing phone chat is a self chat only when it carries no
+    # counter-evidence: the outgoing messages state the chat's own number as
+    # their handle, or no handles are recorded at all. A never-replied peer
+    # chat sends your own number as the handle, so it is rejected here.
+    candidates = [
+        (phone_chat['sent'], phone_number)
+        for phone_number, phone_chat in phone_chats.items()
+        if phone_chat['sent']
+        and not phone_chat['received']
+        and (not phone_chat['known_handle']
+             or phone_chat['own_handle'] == phone_chat['sent'])
+    ]
+    if candidates:
+        return max(candidates)[1]
+
+    # Fallback: the handle used to send messages in several conversations that
+    # never appears as the sender of an incoming message. In backup tables such
+    # as ZChatMessage, outgoing rows carry the owner's own handle, so a number
+    # used as the sender in multiple conversations can only be the owner.
+    peer_numbers = {
+        phone_number
+        for phone_number, phone_chat in phone_chats.items()
+        if phone_chat['received']
+    }
+    fallback = [
+        (data['sent'], number)
+        for number, data in outgoing.items()
+        if number not in incoming_numbers
+        and number not in peer_numbers
+        and len(data['chats']) >= min_outgoing_conversations
+    ]
+    if not fallback:
+        return None
+    fallback.sort(reverse=True)
+    if len(fallback) > 1 and fallback[0][0] == fallback[1][0]:
+        return None
+    return fallback[0][1]
+
+
 def fetch_contacts(address_book_db_path):
     conn = connect_db(address_book_db_path)
     try:

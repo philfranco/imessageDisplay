@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from iphone_imessage_exporter import export_messages, regenerate_html
 from message_archive import ARCHIVE_FILENAME, merge_messages
-from sms_database import fetch_sms_messages
+from sms_database import detect_owner_phone, fetch_sms_messages
 
 
 def message(guid, text, date, chat_id=('phone', '15551234567'), **extra):
@@ -114,6 +114,136 @@ class MessageArchiveTests(unittest.TestCase):
         messages, _, _, _ = merge_messages(self.output_dir, [], {})
 
         self.assertEqual([item['guid'] for item in messages], ['GUID-1', 'GUID-2'])
+
+    def test_detect_owner_phone_from_self_only_chat(self):
+        messages = [
+            message('GUID-1', 'note to self', '2025-01-01 10:00:00', ('phone', '15551234567'),
+                    is_from_me=True, sender='Me'),
+            message('GUID-2', 'from alex', '2025-01-02 10:00:00', ('phone', '15559876543')),
+        ]
+        self.assertEqual(detect_owner_phone(messages), '5551234567')
+
+    def test_detect_owner_phone_ignores_mixed_chats(self):
+        messages = [
+            message('GUID-1', 'from alex', '2025-01-01 10:00:00', ('phone', '15551234567')),
+            message('GUID-2', 'my reply', '2025-01-02 10:00:00', ('phone', '15551234567'),
+                    is_from_me=True, sender='Me'),
+        ]
+        self.assertIsNone(detect_owner_phone(messages))
+
+    def test_detect_owner_phone_falls_back_to_shared_outgoing_handle(self):
+        messages = [
+            message('GUID-1', 'hi alex', '2025-01-01 10:00:00', ('phone', '15559876543'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567'),
+            message('GUID-2', 'from alex', '2025-01-02 10:00:00', ('phone', '15559876543'),
+                    handle_address='+15559876543'),
+            message('GUID-3', 'hi sam', '2025-01-03 10:00:00', ('phone', '15558675309'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567'),
+            message('GUID-4', 'from sam', '2025-01-04 10:00:00', ('phone', '15558675309'),
+                    handle_address='+15558675309'),
+        ]
+        self.assertEqual(detect_owner_phone(messages), '5551234567')
+
+    def test_detect_owner_phone_fallback_needs_several_conversations(self):
+        messages = [
+            message('GUID-1', 'hi alex', '2025-01-01 10:00:00', ('phone', '15559876543'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567'),
+            message('GUID-2', 'hi alex again', '2025-01-02 10:00:00', ('phone', '15559876543'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567'),
+        ]
+        self.assertIsNone(detect_owner_phone(messages))
+
+    def test_detect_owner_phone_fallback_stays_silent_on_ties(self):
+        messages = [
+            message('GUID-1', 'hi alex', '2025-01-01 10:00:00', ('phone', '15559876543'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567'),
+            message('GUID-2', 'hi sam', '2025-01-02 10:00:00', ('phone', '15558675309'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567'),
+            message('GUID-3', 'hi alex again', '2025-01-03 10:00:00', ('phone', '15559876543'),
+                    is_from_me=True, sender='Me', handle_address='+15552223333'),
+            message('GUID-4', 'hi sam again', '2025-01-04 10:00:00', ('phone', '15558675309'),
+                    is_from_me=True, sender='Me', handle_address='+15552223333'),
+        ]
+        self.assertIsNone(detect_owner_phone(messages))
+
+    def test_self_chat_wins_over_outgoing_handle_fallback(self):
+        messages = [
+            message('GUID-1', 'note to self', '2025-01-01 10:00:00', ('phone', '15551111111'),
+                    is_from_me=True, sender='Me', handle_address='+15551111111'),
+            message('GUID-2', 'hi alex', '2025-01-02 10:00:00', ('phone', '15559876543'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567'),
+            message('GUID-3', 'hi sam', '2025-01-03 10:00:00', ('phone', '15558675309'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567'),
+            message('GUID-4', 'from alex', '2025-01-04 10:00:00', ('phone', '15559876543'),
+                    handle_address='+15559876543'),
+        ]
+        self.assertEqual(detect_owner_phone(messages), '5551111111')
+
+    def test_export_labels_self_chat_with_detected_number(self):
+        database = os.path.join(self.output_dir, 'self_sms.db')
+        with open(database, 'wb') as database_file:
+            database_file.write(b'test database')
+        messages = [
+            message('GUID-1', 'note to self', '2025-01-01 10:00:00', ('phone', '15551234567'),
+                    is_from_me=True, sender='Me', id=1),
+            message('GUID-2', 'reminder', '2025-01-02 10:00:00', ('phone', '15551234567'),
+                    is_from_me=True, sender='Me', id=2),
+            message('GUID-3', 'from alex', '2025-01-03 10:00:00', ('phone', '15559876543'),
+                    sender='Alex', id=3),
+        ]
+
+        with ExitStack() as patches:
+            patches.enter_context(patch('iphone_imessage_exporter.fetch_contacts', return_value={}))
+            patches.enter_context(
+                patch('iphone_imessage_exporter.fetch_sms_messages', return_value=(messages, {}))
+            )
+            patches.enter_context(patch('iphone_imessage_exporter.fetch_attachments', return_value={}))
+            patches.enter_context(patch('iphone_imessage_exporter.fetch_group_participants', return_value={}))
+            export_messages(database, None, None, None, self.output_dir)
+
+        self_chat_path = os.path.join(self.output_dir, 'You_(+1_(555)_123-4567).html')
+        self.assertTrue(
+            os.path.isfile(self_chat_path),
+            f'output files: {sorted(os.listdir(self.output_dir))}',
+        )
+        with open(self_chat_path, encoding='utf-8') as page:
+            content = page.read()
+        self.assertIn('You (+1 (555) 123-4567)', content)
+        self.assertIn('<span>Your number · +1 (555) 123-4567</span>', content)
+
+        with open(os.path.join(self.output_dir, 'index.html'), encoding='utf-8') as page:
+            index_content = page.read()
+        self.assertIn('You (+1 (555) 123-4567)', index_content)
+        self.assertNotIn('<tr><td>Me</td>', index_content)
+        self.assertIn('<tr><td>Alex</td><td>1</td></tr>', index_content)
+
+    def test_export_fallback_uses_shared_outgoing_handles(self):
+        database = os.path.join(self.output_dir, 'fallback_sms.db')
+        with open(database, 'wb') as database_file:
+            database_file.write(b'test database')
+        messages = [
+            message('GUID-1', 'hi alex', '2025-01-01 10:00:00', ('phone', '15559876543'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567', id=1),
+            message('GUID-2', 'hi sam', '2025-01-02 10:00:00', ('phone', '15558675309'),
+                    is_from_me=True, sender='Me', handle_address='+15551234567', id=2),
+            message('GUID-3', 'from alex', '2025-01-03 10:00:00', ('phone', '15559876543'),
+                    sender='Alex', handle_address='+15559876543', id=3),
+        ]
+
+        with ExitStack() as patches:
+            patches.enter_context(patch('iphone_imessage_exporter.fetch_contacts', return_value={}))
+            patches.enter_context(
+                patch('iphone_imessage_exporter.fetch_sms_messages', return_value=(messages, {}))
+            )
+            patches.enter_context(patch('iphone_imessage_exporter.fetch_attachments', return_value={}))
+            patches.enter_context(patch('iphone_imessage_exporter.fetch_group_participants', return_value={}))
+            export_messages(database, None, None, None, self.output_dir)
+
+        with open(os.path.join(self.output_dir, 'index.html'), encoding='utf-8') as page:
+            index_content = page.read()
+
+        self.assertNotIn('<tr><td>Me</td>', index_content)
+        self.assertIn('<tr><td>Alex</td><td>1</td></tr>', index_content)
 
     def test_legacy_message_is_upgraded_to_guid_without_duplication(self):
         legacy = message(None, 'hello', '2025-01-01 10:00:00', id=12)

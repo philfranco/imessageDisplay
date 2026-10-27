@@ -746,6 +746,31 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('<tr><td>Me</td><td>1</td></tr>', content)
         self.assertIn('<tr><td>Alex</td><td>1</td></tr>', content)
 
+    def test_self_chat_header_shows_detected_number(self):
+        self_chat = [dict(self.messages[0]), dict(self.messages[2])]
+        path = build_html('Me', self_chat, self.output_dir, owner_phone='15551234567')
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('<span>Your number · +1 (555) 123-4567</span>', content)
+
+    def test_index_top_senders_exclude_own_messages(self):
+        stats = summarize_messages(self.messages)
+        stats['conversations'] = 1
+        path = build_index(
+            [('Alex', 'alex', self.messages)],
+            self.output_dir,
+            stats,
+            owner_phone='15551234567',
+        )
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('<tr><td>Alex</td><td>1</td></tr>', content)
+        self.assertNotIn('<tr><td>Me</td>', content)
+
 
 if __name__ == '__main__':
     unittest.main()

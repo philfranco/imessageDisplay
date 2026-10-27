@@ -118,6 +118,7 @@ def build_html(
     output_filename=None,
     time_zone=DEFAULT_TIME_ZONE,
     fallback_attachment_folders=(),
+    owner_phone=None,
 ):
     if conversion_failures is None:
         conversion_failures = {}
@@ -126,6 +127,7 @@ def build_html(
     filename = os.path.join(output_dir, f'{safe_name}.html')
     stats = summarize_messages(messages, time_zone)
     silence = _longest_silence(messages, time_zone)
+    is_self_chat = bool(messages) and all(bool(message.get('is_from_me')) for message in messages)
 
     html_content = [
         '<!DOCTYPE html>',
@@ -207,6 +209,7 @@ def build_html(
         f'        <span><strong id="attachmentCount">{stats["attachments"]:,}</strong> attachments</span>',
         f'        <span>{html.escape(stats["first_date"])} – {html.escape(stats["last_date"])}</span>',
         f'        <span>Longest silence · {_format_elapsed(silence[0])} ({silence[1]} → {silence[2]})</span>' if silence else '',
+        f'        <span>Your number · {html.escape(format_phone_number(owner_phone))}</span>' if is_self_chat and owner_phone else '',
         '      </div>',
         '    </header>',
         '    <section class="message-filters" aria-label="Filter messages in this conversation">',
@@ -724,6 +727,15 @@ def _split_message_datetime(value):
     return '', ''
 
 
+def format_phone_number(phone_number):
+    digits = re.sub(r'\D', '', str(phone_number or ''))
+    if len(digits) == 11 and digits.startswith('1'):
+        digits = digits[1:]
+    if len(digits) == 10:
+        return f'+1 ({digits[:3]}) {digits[3:6]}-{digits[6:]}'
+    return digits
+
+
 def _format_elapsed(seconds):
     if seconds is None:
         return '—'
@@ -909,6 +921,7 @@ def build_index(
     time_zone=DEFAULT_TIME_ZONE,
     calls=(),
     conversation_metrics=None,
+    owner_phone=None,
 ):
     index_path = os.path.join(output_dir, 'index.html')
     daily_counts = overall_stats.get('daily_counts', {})
@@ -949,7 +962,8 @@ def build_index(
             weekday_counts[timestamp.weekday()] += 1
             sender = message.get('sender')
             sender = str(sender) if sender else ('Me' if message.get('is_from_me') else 'Unknown')
-            yearly_senders[timestamp.year][sender] += 1
+            if not (owner_phone and message.get('is_from_me') and sender == 'Me'):
+                yearly_senders[timestamp.year][sender] += 1
             text = str(message.get('text') or '')
             for word in re.findall(r"[A-Za-z][A-Za-z']+", text.lower()):
                 if len(word) > 1 and word.strip("'") and word not in STOP_WORDS:
@@ -1551,6 +1565,7 @@ def build_search_index(
     output_dir,
     time_zone=DEFAULT_TIME_ZONE,
     conversation_metrics=None,
+    owner_phone=None,
 ):
     search_path = os.path.join(output_dir, 'search.html')
 
@@ -2875,6 +2890,7 @@ def build_attachments_page(
     conversion_failures=None,
     time_zone=DEFAULT_TIME_ZONE,
     fallback_attachment_folders=(),
+    owner_phone=None,
 ):
     """Render attachments.html: every attachment in chronological order."""
     page_path = os.path.join(output_dir, 'attachments.html')
@@ -2883,6 +2899,7 @@ def build_attachments_page(
 
     raw_entries = []
     for conv_name, output_filename, messages in index_entries:
+        self_chat = bool(messages) and all(bool(message.get('is_from_me')) for message in messages)
         for index, msg in enumerate(messages):
             for att in msg.get('attachments') or []:
                 display_date = localize_message_datetime(msg.get('date'), time_zone)
@@ -2897,7 +2914,9 @@ def build_attachments_page(
                     kind = 'video'
                 else:
                     kind = 'other'
-                sender = 'Me' if msg.get('is_from_me') else str(msg.get('sender') or '')
+                sender = conv_name if msg.get('is_from_me') and self_chat else (
+                    'Me' if msg.get('is_from_me') else str(msg.get('sender') or '')
+                )
                 preview_text = str(msg.get('text') or '')[:80]
                 searchable = ' '.join(
                     (filename, sender, conv_name, display_date, preview_text)

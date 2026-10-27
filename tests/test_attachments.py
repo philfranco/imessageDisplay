@@ -96,6 +96,16 @@ class AttachmentPageTests(unittest.TestCase):
         self.assertIn('<a href="attachments.html">Attachments</a>', content)
         self.assertIn('2 attachments • 2 photos • 0 videos • 0 other files', content)
 
+    def test_self_chat_card_shows_from_label(self):
+        self.write_photo('note.png')
+        self_message = attachment_message(2, '2024-01-02 09:00:00', 'note.png')
+        content = self.page_content([
+            ('You (+1 (555) 123-4567)', 'You_+1_(555)_123-4567', [self_message]),
+        ])
+
+        self.assertIn('<div class="att-info">From You (+1 (555) 123-4567)</div>', content)
+        self.assertNotIn('Me in You', content)
+
     def test_video_attachment_is_classified_as_video(self):
         content = self.page_content([
             ('Alex', 'alex', [

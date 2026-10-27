@@ -24,6 +24,7 @@ from html_pages import (
     build_index,
     build_search_index,
     collect_conversation_metrics,
+    format_phone_number,
     summarize_messages,
 )
 from gui_preferences import load_preferences, save_preferences
@@ -31,12 +32,14 @@ from message_archive import archive_is_empty, merge_messages
 from sms_database import (
     apply_contact_names,
     attach_to_messages,
+    detect_owner_phone,
     fetch_attachments,
     fetch_contacts,
     fetch_group_participants,
     fetch_sms_messages,
     group_messages_by_conversation,
     normalize_attachment_paths,
+    normalize_phone_number,
 )
 from sticker_database import extract_sticker_previews, resolve_missing_sticker_previews
 from time_zone_utils import DEFAULT_TIME_ZONE, available_time_zones, get_time_zone
@@ -215,6 +218,9 @@ def export_messages(
         f'Merged {imported_count} messages from this backup; '
         f'{archived_count} messages retained in the archive.'
     )
+    owner_phone = detect_owner_phone(messages)
+    if owner_phone:
+        report(f'Detected your phone number from your self-chat: {owner_phone}')
     result = _render_html(
         messages,
         chat_names,
@@ -222,6 +228,7 @@ def export_messages(
         attachment_folder,
         progress,
         time_zone,
+        owner_phone,
     )
     return result
 
@@ -236,7 +243,8 @@ def regenerate_html(output_dir, progress=None, time_zone=DEFAULT_TIME_ZONE):
         raise ValueError(f'No messages found in the archive at: {output_dir}')
 
     messages, chat_names, _, _ = merge_messages(output_dir, [], {})
-    return _render_html(messages, chat_names, output_dir, None, progress, time_zone)
+    owner_phone = detect_owner_phone(messages)
+    return _render_html(messages, chat_names, output_dir, None, progress, time_zone, owner_phone)
 
 
 def _render_html(
@@ -246,6 +254,7 @@ def _render_html(
     attachment_folder,
     progress=None,
     time_zone=DEFAULT_TIME_ZONE,
+    owner_phone=None,
 ):
     def report(message):
         if progress:
@@ -255,6 +264,17 @@ def _render_html(
 
     get_time_zone(time_zone)
     conversations, id_to_sender = group_messages_by_conversation(messages, chat_names)
+
+    if owner_phone:
+        normalized = normalize_phone_number(owner_phone)
+        self_key = next(
+            (key for key in conversations
+             if key[0] == 'phone' and normalize_phone_number(key[1]) == normalized),
+            None,
+        )
+        self_chat = conversations.get(self_key)
+        if self_chat and all(bool(message.get('is_from_me')) for message in self_chat['messages']):
+            self_chat['name'] = f'You ({format_phone_number(owner_phone)})'
 
     if not conversations:
         raise ValueError('No conversations were found in the provided database files.')
@@ -284,6 +304,7 @@ def _render_html(
             output_filename,
             time_zone,
             fallback_attachment_folders,
+            owner_phone,
         )
         index_entries.append((conv_name, output_filename, conv_data['messages']))
         if idx == 1 or idx % report_interval == 0 or idx == total_convs:
@@ -297,6 +318,7 @@ def _render_html(
         conversion_failures,
         time_zone,
         fallback_attachment_folders,
+        owner_phone=owner_phone,
     )
 
     overall_stats = summarize_messages(messages, time_zone)
@@ -332,12 +354,14 @@ def _render_html(
         time_zone,
         calls=calls,
         conversation_metrics=conversation_metrics,
+        owner_phone=owner_phone,
     )
     build_search_index(
         index_entries,
         output_dir,
         time_zone,
         conversation_metrics=conversation_metrics,
+        owner_phone=owner_phone,
     )
     build_birthdays(index_entries, output_dir, time_zone)
     build_birthday_wishes(index_entries, output_dir, time_zone)

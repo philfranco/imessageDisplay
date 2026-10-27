@@ -256,6 +256,22 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('data-sort-reply-sent=', content)
         self.assertIn('Median sent reply', content)
         self.assertIn('Longest active streak', content)
+        self.assertIn('let activeSortKey = "last-date";', content)
+        self.assertIn('let sortAscending = false;', content)
+        self.assertIn('initialIndicator.textContent = "▼"', content)
+
+    def test_search_page_defaults_to_last_message_order(self):
+        older = [dict(self.messages[0])]
+        path = build_search_index(
+            [('Zoe', 'Zoe', older), ('Alex', 'Alex', self.messages)],
+            self.output_dir,
+        )
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        direct_table = content.split('<tbody id="conversationList">', 1)[1].split('</tbody>', 1)[0]
+        self.assertLess(direct_table.index('>Alex</a>'), direct_table.index('>Zoe</a>'))
 
     def test_search_page_splits_direct_and_group_tables(self):
         group_messages = [

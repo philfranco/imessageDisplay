@@ -1553,7 +1553,22 @@ def build_search_index(
     conversation_metrics=None,
 ):
     search_path = os.path.join(output_dir, 'search.html')
-    conv_list = sorted(conversations, key=lambda entry: entry[0].lower())
+
+    def _last_message_key(entry):
+        stamps = [
+            stamp
+            for stamp in (
+                localize_message_datetime(message.get('date'), time_zone)
+                for message in entry[2]
+            )
+            if stamp and stamp != 'Unknown'
+        ]
+        if not stamps:
+            return (0, entry[0].casefold())
+        last_dt = datetime.fromisoformat(max(stamps))
+        return (-last_dt.timestamp(), entry[0].casefold())
+
+    conv_list = sorted(conversations, key=_last_message_key)
     if conversation_metrics is None:
         conversation_metrics = collect_conversation_metrics(conversations, time_zone)
 
@@ -1938,9 +1953,15 @@ def build_search_index(
         '        if (pageQuery.has(key)) searchFields[key].value = pageQuery.get(key);',
         '      });',
         '      document.querySelectorAll(".conversation-table").forEach(function(table) {',
-        '        let activeSortKey = "";',
-        '        let sortAscending = true;',
+        '        let activeSortKey = "last-date";',
+        '        let sortAscending = false;',
         '        const sortButtons = table.querySelectorAll("th button[data-sort-key]");',
+        '        const initialButton = table.querySelector(\'th button[data-sort-key="last-date"]\');',
+        '        if (initialButton) {',
+        '          initialButton.setAttribute("aria-sort", "descending");',
+        '          const initialIndicator = initialButton.querySelector(".sort-indicator");',
+        '          if (initialIndicator) initialIndicator.textContent = "▼";',
+        '        }',
         '        sortButtons.forEach(function(button) {',
         '          button.addEventListener("click", function() {',
         '            const sortKey = button.dataset.sortKey;',

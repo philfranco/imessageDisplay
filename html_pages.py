@@ -50,7 +50,7 @@ DARK_CSS = '\n'.join([
     '    html.dark .att-info { color: #e5e7eb; }',
     '    html.dark mark { background: #fbbf24; color: #111827; }',
     '    html.dark .jump-bar { background: #3b2a12; border-color: #b45309; color: #fde68a; }',
-    '    html.dark .year-controls button, html.dark .year-edit { background: #1c2025; border-color: #3a414d; color: #e5e7eb; }',
+    '    html.dark .year-controls button, html.dark .year-edit, html.dark .collapse-toggle { background: #1c2025; border-color: #3a414d; color: #e5e7eb; }',
     '    html.dark .activity-day { background: #21262d; box-shadow: inset 0 0 0 1px #3a414d; }',
     '    html.dark table { background: #1c2025; }',
     '    html.dark th { background: #262b33; color: #cbd5e1; }',
@@ -1794,6 +1794,11 @@ def build_search_index(
         '    .sort-indicator { margin-left: 4px; }',
         '    .conversation-section { margin-top: 24px; }',
         '    .conversation-section h2 { margin: 0 0 10px; color: #102a56; font-size: 21px; }',
+        '    .section-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }',
+        '    .section-heading h2 { margin-bottom: 0; }',
+        '    .collapse-toggle { padding: 8px 14px; margin-left: auto; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #334155; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }',
+        '    .collapse-toggle:hover { color: #2563eb; border-color: #2563eb; }',
+        '    .collapsible-body[hidden] { display: none; }',
         '    .conversation-table { min-width: 900px; }',
         '    .conversation-table th button { font-size: 12px; }',
         '    .conversation-table .sort-indicator { color: #2563eb; }',
@@ -1857,7 +1862,11 @@ def build_search_index(
     )
     content.extend([
         '    <section class="conversation-section" aria-labelledby="directConversationsHeading">',
-        '      <h2 id="directConversationsHeading">Conversations</h2>',
+        '      <div class="section-heading">',
+        '        <h2 id="directConversationsHeading">Conversations</h2>',
+        '        <button type="button" class="collapse-toggle" aria-expanded="true" aria-controls="directSectionBody">Collapse</button>',
+        '      </div>',
+        '      <div class="collapsible-body" id="directSectionBody">',
         '      <div class="table-wrap"><table class="conversation-table"><thead><tr>',
     ])
     content.extend(_render_sortable_headers(direct_columns))
@@ -1988,9 +1997,14 @@ def build_search_index(
     content.extend([
         *direct_rows,
         '      </tbody></table></div>',
+        '      </div>',
         '    </section>',
         '    <section class="conversation-section" aria-labelledby="groupConversationsHeading">',
-        '      <h2 id="groupConversationsHeading">Group conversations</h2>',
+        '      <div class="section-heading">',
+        '        <h2 id="groupConversationsHeading">Group conversations</h2>',
+        '        <button type="button" class="collapse-toggle" aria-expanded="true" aria-controls="groupSectionBody">Collapse</button>',
+        '      </div>',
+        '      <div class="collapsible-body" id="groupSectionBody">',
         '      <div class="table-wrap"><table class="conversation-table"><thead><tr>',
     ])
     content.extend(_render_sortable_headers(group_columns))
@@ -1998,6 +2012,7 @@ def build_search_index(
         '</tr></thead><tbody id="groupConversationList">',
         *group_rows,
         '      </tbody></table></div>',
+        '      </div>',
         '    </section>',
     ])
     content.extend([
@@ -2313,6 +2328,15 @@ def build_search_index(
         '        }',
         '        input.addEventListener("input", handleFilterChange);',
         '        input.addEventListener("change", handleFilterChange);',
+        '      });',
+        '      document.querySelectorAll(".collapse-toggle").forEach(function(button) {',
+        '        const body = document.getElementById(button.getAttribute("aria-controls"));',
+        '        button.addEventListener("click", function() {',
+        '          const expanded = button.getAttribute("aria-expanded") === "true";',
+        '          button.setAttribute("aria-expanded", String(!expanded));',
+        '          button.textContent = expanded ? "Expand" : "Collapse";',
+        '          if (body) body.hidden = expanded;',
+        '        });',
         '      });',
         '      window.addEventListener("pageshow", function() { filterConversations(); });',
         '      filterConversations();',

@@ -305,6 +305,61 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('data-sort-key="participants"', content)
         self.assertLess(content.index('id="conversationList"'), content.index('id="groupConversationList"'))
 
+    def test_search_page_sections_are_collapsible(self):
+        group_messages = [
+            {
+                **self.messages[0],
+                'id': 4,
+                'chat_id': ('group', 'chat-1'),
+                'group_participants': ['Alex', 'Jordan'],
+                'attachments': [{'filename': 'photo.jpg'}],
+            }
+        ]
+        conversations = [
+            ('Alex', 'Alex', self.messages),
+            ('Weekend group', 'Weekend_group', group_messages),
+        ]
+        path = build_search_index(conversations, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        # Each section has a heading row with its own collapse button.
+        self.assertIn(
+            '<button type="button" class="collapse-toggle" aria-expanded="true" aria-controls="directSectionBody">Collapse</button>',
+            content,
+        )
+        self.assertIn(
+            '<button type="button" class="collapse-toggle" aria-expanded="true" aria-controls="groupSectionBody">Collapse</button>',
+            content,
+        )
+        self.assertEqual(content.count('<div class="section-heading">'), 2)
+        direct_heading_row = content.split('<div class="section-heading">', 1)[1].split('</div>', 1)[0]
+        self.assertIn('<h2 id="directConversationsHeading">Conversations</h2>', direct_heading_row)
+        self.assertIn('class="collapse-toggle"', direct_heading_row)
+
+        # The tables live inside the collapsible bodies, which close before the section ends.
+        self.assertIn('<div class="collapsible-body" id="directSectionBody">', content)
+        self.assertIn('<div class="collapsible-body" id="groupSectionBody">', content)
+        direct_body = content.split('<div class="collapsible-body" id="directSectionBody">', 1)[1].split('</section>', 1)[0]
+        self.assertIn('<tbody id="conversationList">', direct_body)
+        self.assertIn('</tbody></table></div>', direct_body)
+        self.assertTrue(direct_body.rstrip().endswith('</div>'))
+        group_body = content.split('<div class="collapsible-body" id="groupSectionBody">', 1)[1].split('</section>', 1)[0]
+        self.assertIn('<tbody id="groupConversationList">', group_body)
+        self.assertIn('Weekend group', group_body)
+        self.assertTrue(group_body.rstrip().endswith('</div>'))
+
+        # CSS keeps the hidden body off screen; JS flips the button's state and label.
+        self.assertIn('.collapsible-body[hidden] { display: none; }', content)
+        # The button is pushed to the right edge of the heading row.
+        self.assertIn('.collapse-toggle { padding: 8px 14px; margin-left: auto;', content)
+        self.assertIn('.collapse-toggle {', content)
+        self.assertIn('document.querySelectorAll(".collapse-toggle")', content)
+        self.assertIn('button.setAttribute("aria-expanded", String(!expanded))', content)
+        self.assertIn('body.hidden = expanded', content)
+        self.assertIn('button.textContent = expanded ? "Expand" : "Collapse"', content)
+
     def test_search_page_applies_message_filters_to_row_counts_and_dates(self):
         messages = sample_messages()
         messages[0]['attachments'] = [{'filename': 'one.jpg'}, {'filename': 'two.jpg'}]

@@ -44,13 +44,16 @@ DARK_CSS = '\n'.join([
     '    html.dark .bubble.me { background: #1d4ed8; color: #fff; }',
     '    html.dark .meta { color: #9ca3af; }',
     '    html.dark .bubble.me .meta { color: #bfdbfe; }',
+    '    html.dark a.meta-date { border-bottom-color: #4b5563; }',
+    '    html.dark a.meta-date:hover { color: #60a5fa; }',
     '    html.dark .attachment, html.dark .attachment-meta { color: #cbd5e1; }',
     '    html.dark .att-media { background: #0b0d10; border-color: #3a414d; }',
     '    html.dark .att-media .attachment { background: #1c2025; color: #cbd5e1; }',
     '    html.dark .att-info { color: #e5e7eb; }',
     '    html.dark mark { background: #fbbf24; color: #111827; }',
-    '    html.dark .jump-bar { background: #3b2a12; border-color: #b45309; color: #fde68a; }',
     '    html.dark .year-controls button, html.dark .year-edit, html.dark .collapse-toggle { background: #1c2025; border-color: #3a414d; color: #e5e7eb; }',
+    '    html.dark td .cell-link { color: #cbd5e1; border-bottom-color: #4b5563; }',
+    '    html.dark td .cell-link:hover { color: #60a5fa; border-bottom-color: #60a5fa; }',
     '    html.dark .activity-day { background: #21262d; box-shadow: inset 0 0 0 1px #3a414d; }',
     '    html.dark table { background: #1c2025; }',
     '    html.dark th { background: #262b33; color: #cbd5e1; }',
@@ -180,10 +183,6 @@ def build_html(
         '    .message-filter-actions span { color: #64748b; font-size: 13px; }',
         '    .message { display: flex; margin-bottom: 14px; }',
         '    .message.filtered-out { display: none; }',
-        '    .jump-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; padding: 12px 16px; border: 1px solid #f59e0b; border-radius: 12px; background: #fef3c7; color: #78350f; font-size: 13px; font-weight: 600; }',
-        '    .jump-bar[hidden] { display: none; }',
-        '    .jump-bar button { border: 0; border-radius: 8px; padding: 9px 14px; color: #fff; background: #b45309; font: inherit; font-weight: 600; cursor: pointer; }',
-        '    .message.jump-hidden { display: none; }',
         '    .message.jump-target .bubble { outline: 3px solid #f59e0b; box-shadow: 0 0 0 6px #fbbf2466; }',
         '    .message.me { justify-content: flex-end; }',
         '    .bubble { max-width: min(78%, 760px); padding: 12px 15px; border-radius: 20px; line-height: 1.5; position: relative; overflow-wrap: anywhere; box-shadow: 0 1px 3px #0f172a12; }',
@@ -191,6 +190,8 @@ def build_html(
         '    .bubble.other { background: #e2e8f0; color: #172033; border-bottom-left-radius: 6px; border-bottom-right-radius: 20px; }',
         '    .meta { font-size: 12px; color: #64748b; margin-top: 6px; }',
         '    .bubble.me .meta { color: #dbeafe; }',
+        '    a.meta-date { color: inherit; text-decoration: none; border-bottom: 1px dashed #cbd5e1; }',
+        '    a.meta-date:hover { color: #2563eb; text-decoration: underline; }',
         '    .attachment { margin-top: 8px; font-size: 13px; color: #334155; }',
         '    .attachment img { max-width: 100%; border-radius: 12px; margin-top: 4px; }',
         '    .attachment video { max-width: 100%; max-height: 480px; border-radius: 12px; margin-top: 4px; }',
@@ -225,10 +226,6 @@ def build_html(
         '        <div id="messageResultCount" class="message-result-count" aria-live="polite"></div>',
         '        <span id="randomStatus" aria-live="polite"></span>',
         '      </div>',
-        '    </section>',
-        '    <section class="jump-bar" id="jumpBar" hidden>',
-        '      <span id="jumpStatus" aria-live="polite"></span>',
-        '      <button type="button" id="showAllMessagesButton">Show all messages</button>',
         '    </section>',
     ]
 
@@ -328,6 +325,7 @@ def build_html(
         ).casefold()
         if message_date:
             all_message_dates.add(message_date)
+        meta_inner = _message_meta_inner(sender, display_date, message_date, message_time, index)
 
         if index < batch_size:
             html_content.append(
@@ -342,7 +340,7 @@ def build_html(
             html_content.append(f'        <div>{text}</div>')
             if attachments_html:
                 html_content.append(f'        {attachments_html}')
-            html_content.append(f'        <div class="meta">{sender} • {html.escape(display_date)}</div>')
+            html_content.append(f'        <div class="meta">{meta_inner}</div>')
             html_content.append('      </div>')
             html_content.append('    </div>')
         else:
@@ -355,7 +353,7 @@ def build_html(
                 's': html.escape(searchable_text, quote=True),
                 'x': text,
                 'who': sender,
-                'dt': html.escape(display_date),
+                'md': meta_inner,
                 'atts': attachments_html,
             })
 
@@ -408,7 +406,7 @@ def build_html(
         '            ? highlightText(m.x, activeCriteria.termHtml) : m.x;',
         '          markup += "<div class=\\"message " + m.cls + "\\" data-date=\\"" + m.d + "\\" data-time=\\"" + m.t + "\\" data-msg-idx=\\"" + m.i + "\\" data-attachment-count=\\"" + m.a + "\\" data-search-text=\\"" + m.s + "\\" data-text-html=\\"" + m.x + "\\\">" +',
         '            "<div class=\\"bubble " + m.cls + "\\"><div>" + textPart + "</div>" + m.atts +',
-        '            "<div class=\\"meta\\">" + m.who + " • " + m.dt + "</div></div></div>";',
+        '            "<div class=\\"meta\\">" + m.md + "</div></div></div>";',
         '        }',
         '        const template = document.createElement("template");',
         '        template.innerHTML = markup;',
@@ -460,6 +458,11 @@ def build_html(
         '      Object.keys(messageQueryFields).forEach(function(key) {',
         '        if (messageQuery.has(key)) document.getElementById(messageQueryFields[key]).value = messageQuery.get(key);',
         '      });',
+        '      const dayParam = messageQuery.get("day");',
+        '      if (dayParam) {',
+        '        document.getElementById("messageDateFrom").value = dayParam;',
+        '        document.getElementById("messageDateTo").value = dayParam;',
+        '      }',
         '      function highlightText(source, termHtml) {',
         '        const lower = source.toLocaleLowerCase();',
         '        let result = "";',
@@ -607,7 +610,6 @@ def build_html(
         '      if (jumpParam !== null) {',
         '        const jumpIndex = parseInt(jumpParam, 10);',
         '        if (!isNaN(jumpIndex) && jumpIndex >= 0 && jumpIndex < totalMessages) {',
-        '          const renderLimit = Math.min(totalMessages, jumpIndex + 26);',
         '          const findJumpTarget = function() {',
         '            for (const el of messageItems) {',
         '              if (Number(el.dataset.msgIdx) === jumpIndex) return el;',
@@ -615,28 +617,13 @@ def build_html(
         '            return null;',
         '          };',
         '          let jumpTarget = findJumpTarget();',
-        '          while (!jumpTarget && messageItems.length < renderLimit && pending.length) {',
+        '          while (!jumpTarget && pending.length) {',
         '            renderChunk(BATCH_SIZE);',
         '            jumpTarget = findJumpTarget();',
         '          }',
         '          if (jumpTarget) {',
-        '            const lowIndex = jumpIndex - 25;',
-        '            const highIndex = jumpIndex + 25;',
-        '            messageItems.forEach(function(el) {',
-        '              const idx = Number(el.dataset.msgIdx);',
-        '              el.classList.toggle("jump-hidden", idx < lowIndex || idx > highIndex);',
-        '            });',
         '            jumpTarget.classList.add("jump-target");',
         '            jumpTarget.scrollIntoView({ block: "center" });',
-        '            document.getElementById("jumpBar").hidden = false;',
-        '            document.getElementById("jumpStatus").textContent =',
-        '              "Jumped to message #" + (jumpIndex + 1) + ", showing 25 messages on each side.";',
-        '            document.getElementById("showAllMessagesButton").addEventListener("click", function() {',
-        '              messageItems.forEach(function(el) {',
-        '                el.classList.remove("jump-hidden", "jump-target");',
-        '              });',
-        '              document.getElementById("jumpBar").hidden = true;',
-        '            });',
         '          }',
         '        }',
         '      }',
@@ -725,6 +712,16 @@ def _split_message_datetime(value):
     if len(text) >= 16 and text[10] == 'T':
         return text[:10], text[11:16]
     return '', ''
+
+
+def _message_meta_inner(sender, display_date, message_date, message_time, index):
+    """Meta line content for one message, with the date as a link to that day."""
+    if message_date:
+        date_text = html.escape(message_date)
+        href = f'?day={html.escape(message_date, quote=True)}&msg={index}'
+        date_link = f'<a class="meta-date" href="{href}" title="Show only {date_text}">{date_text}</a>'
+        return f'{sender} • {date_link} {html.escape(message_time)}'
+    return f'{sender} • {html.escape(display_date)}'
 
 
 def format_phone_number(phone_number):
@@ -1785,6 +1782,8 @@ def build_search_index(
         '    .random-day-control button:disabled { opacity: .55; cursor: not-allowed; }',
         '    #randomDayStatus { color: #64748b; font-size: 13px; }',
         '    .results-count { font-size: 14px; color: #64748b; margin-bottom: 12px; }',
+        '    td .cell-link { color: #334155; font-size: 14px; font-weight: 400; text-decoration: none; border-bottom: 1px dashed #94a3b8; cursor: pointer; }',
+        '    td .cell-link:hover { color: #2563eb; border-bottom: 1px solid #2563eb; }',
         '    .table-wrap { overflow-x: auto; border-radius: 14px; box-shadow: 0 4px 18px #0f172a0d; }',
         '    table { width: 100%; border-collapse: collapse; background: white; }',
         '    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5ea; }',
@@ -2040,6 +2039,28 @@ def build_search_index(
         '        const week = Math.ceil(((date - jan4) / 86400000 - 3 + jan4Day) / 7) + 1;',
         '        return isoYear + "-W" + String(week).padStart(2, "0");',
         '      }',
+        '      function padSearchDay(value) { return String(value).padStart(2, "0"); }',
+        '      function formatSearchDate(date) {',
+        '        return date.getUTCFullYear() + "-" + padSearchDay(date.getUTCMonth() + 1) + "-" + padSearchDay(date.getUTCDate());',
+        '      }',
+        '      function isoWeekRange(weekKey) {',
+        '        const parts = String(weekKey).split("-W").map(Number);',
+        '        if (parts.length !== 2 || !parts[1]) return null;',
+        '        const jan4 = new Date(Date.UTC(parts[0], 0, 4));',
+        '        const firstMonday = new Date(jan4);',
+        '        firstMonday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7));',
+        '        const monday = new Date(firstMonday);',
+        '        monday.setUTCDate(firstMonday.getUTCDate() + (parts[1] - 1) * 7);',
+        '        const sunday = new Date(monday);',
+        '        sunday.setUTCDate(monday.getUTCDate() + 6);',
+        '        return [formatSearchDate(monday), formatSearchDate(sunday)];',
+        '      }',
+        '      function monthRange(monthKey) {',
+        '        const parts = String(monthKey).split("-").map(Number);',
+        '        if (parts.length !== 2 || !parts[1]) return null;',
+        '        const lastDate = new Date(Date.UTC(parts[0], parts[1], 0));',
+        '        return [monthKey + "-01", formatSearchDate(lastDate)];',
+        '      }',
         '      function formatElapsed(seconds) {',
         '        const total = Math.max(0, Math.round(seconds));',
         '        const days = Math.floor(total / 86400);',
@@ -2196,6 +2217,14 @@ def build_search_index(
         '        const minTotal = Number(minTotalInput.value) || 1;',
         '        const messageFiltersActive = Boolean(messageTerm || dateFrom || dateTo || timeFrom || timeTo || minTotal > 1);',
         '        let visibleCount = 0;',
+        '        const buildRangeHref = function(file, start, end, index) {',
+        '          const rangeParams = new URLSearchParams();',
+        '          if (start === end) rangeParams.set("day", start);',
+        '          else { rangeParams.set("dateFrom", start); rangeParams.set("dateTo", end); }',
+        '          if (messageTerm) rangeParams.set("text", messageTerm);',
+        '          if (index >= 0) rangeParams.set("msg", String(index));',
+        '          return file + "?" + rangeParams.toString();',
+        '        };',
         '        ',
         '        conversationItems.forEach(function(item) {',
         '          const nameMatches = !searchTerm || item.getAttribute("data-name").includes(searchTerm);',
@@ -2214,17 +2243,48 @@ def build_search_index(
         '          }).filter(Boolean).sort();',
         '          item.querySelector(".filtered-message-count").textContent = matchingMessages.length.toLocaleString();',
         '          item.querySelector(".filtered-attachment-count").textContent = filteredAttachments.toLocaleString();',
-        '          item.querySelector(".filtered-first-date").textContent = matchingDates.length ? matchingDates[0] : "—";',
-        '          item.querySelector(".filtered-last-date").textContent = matchingDates.length ? matchingDates[matchingDates.length - 1] : "—";',
         '          item.setAttribute("data-sort-messages", matchingMessages.length);',
         '          item.setAttribute("data-sort-attachments", filteredAttachments);',
         '          item.setAttribute("data-sort-first-date", matchingDates.length ? matchingDates[0] : "");',
         '          item.setAttribute("data-sort-last-date", matchingDates.length ? matchingDates[matchingDates.length - 1] : "");',
+        '          const rowFile = item.querySelector("a[data-conversation-file]").dataset.conversationFile;',
+        '          const indexForRange = function(start, end) {',
+        '            for (let position = 0; position < matchingMessages.length; position++) {',
+        '              const day = matchingMessages[position][1];',
+        '              if (day >= start && day <= end) return messages.indexOf(matchingMessages[position]);',
+        '            }',
+        '            return -1;',
+        '          };',
+        '          const setCellLink = function(selector, label, count, range) {',
+        '            const span = item.querySelector(selector);',
+        '            if (!span) return;',
+        '            const cellText = label + (count === null ? "" : " (" + count.toLocaleString() + ")");',
+        '            if (range) {',
+        '              const anchor = span.querySelector("a.cell-link") || document.createElement("a");',
+        '              anchor.className = "cell-link";',
+        '              anchor.textContent = cellText;',
+        '              anchor.href = buildRangeHref(rowFile, range[0], range[1], indexForRange(range[0], range[1]));',
+        '              anchor.title = range[0] === range[1]',
+        '                ? "Open this conversation on " + range[0]',
+        '                : "Open this conversation from " + range[0] + " to " + range[1];',
+        '              span.textContent = "";',
+        '              span.appendChild(anchor);',
+        '            } else {',
+        '              span.textContent = cellText;',
+        '            }',
+        '          };',
+        '          const firstDay = matchingDates.length ? matchingDates[0] : "";',
+        '          const lastDay = matchingDates.length ? matchingDates[matchingDates.length - 1] : "";',
+        '          setCellLink(".filtered-first-date", firstDay || "—", null, firstDay ? [firstDay, firstDay] : null);',
+        '          setCellLink(".filtered-last-date", lastDay || "—", null, lastDay ? [lastDay, lastDay] : null);',
         '          if (item.querySelector(".filtered-busiest-day")) {',
         '            const rowMetrics = computeFilteredMetrics(matchingMessages);',
-        '            item.querySelector(".filtered-busiest-day").textContent = rowMetrics.busiestDay[0] + " (" + rowMetrics.busiestDay[1].toLocaleString() + ")";',
-        '            item.querySelector(".filtered-busiest-week").textContent = rowMetrics.busiestWeek[0] + " (" + rowMetrics.busiestWeek[1].toLocaleString() + ")";',
-        '            item.querySelector(".filtered-busiest-month").textContent = rowMetrics.busiestMonth[0] + " (" + rowMetrics.busiestMonth[1].toLocaleString() + ")";',
+        '            const daySpan = rowMetrics.busiestDay[0];',
+        '            setCellLink(".filtered-busiest-day", daySpan, rowMetrics.busiestDay[1], daySpan === "—" ? null : [daySpan, daySpan]);',
+        '            const weekSpan = isoWeekRange(rowMetrics.busiestWeek[0]);',
+        '            setCellLink(".filtered-busiest-week", rowMetrics.busiestWeek[0], rowMetrics.busiestWeek[1], weekSpan);',
+        '            const monthSpan = monthRange(rowMetrics.busiestMonth[0]);',
+        '            setCellLink(".filtered-busiest-month", rowMetrics.busiestMonth[0], rowMetrics.busiestMonth[1], monthSpan);',
         '            item.querySelector(".filtered-longest-gap").textContent = rowMetrics.longestGap === null ? "—" : formatElapsed(rowMetrics.longestGap);',
         '            item.querySelector(".filtered-active-streak").textContent = rowMetrics.activeStreak.toLocaleString() + " days";',
         '            item.querySelector(".filtered-reply-sent").textContent = rowMetrics.sentMedian === null ? "—" : formatReplyMinutes(rowMetrics.sentMedian);',
@@ -3180,7 +3240,7 @@ def build_attachments_page(
         '    <header class="page-header">',
         f'      <p class="eyebrow">Media archive • {html.escape(time_zone)}</p>',
         '      <h1>Attachments</h1>',
-        '      <p>Every photo, video, and file from the archive in chronological order. Click a thumbnail to enlarge it, and use "View in conversation" to jump to the message with 25 messages of context on each side.</p>',
+        '      <p>Every photo, video, and file from the archive in chronological order. Click a thumbnail to enlarge it, and use "View in conversation" to open the conversation at that message.</p>',
         '    </header>',
     ]
 

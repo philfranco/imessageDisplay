@@ -77,15 +77,15 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('data-msg-idx="0"', content)
         self.assertIn('data-msg-idx="2"', content)
         self.assertIn('data-msg-idx=\\"" + m.i + "\\"', content)
-        self.assertIn('<section class="jump-bar" id="jumpBar" hidden>', content)
-        self.assertIn('id="showAllMessagesButton"', content)
         self.assertIn('const jumpParam = messageQuery.get("msg");', content)
-        self.assertIn('const renderLimit = Math.min(totalMessages, jumpIndex + 26);', content)
-        self.assertIn('el.classList.toggle("jump-hidden", idx < lowIndex || idx > highIndex);', content)
         self.assertIn('jumpTarget.classList.add("jump-target");', content)
         self.assertIn('jumpTarget.scrollIntoView({ block: "center" });', content)
-        self.assertIn('.message.jump-hidden { display: none; }', content)
         self.assertIn('.message.jump-target .bubble', content)
+        # The 25-message window and its bar are gone; links filter the page instead.
+        self.assertNotIn('jump-bar', content)
+        self.assertNotIn('showAllMessagesButton', content)
+        self.assertNotIn('jump-hidden', content)
+        self.assertNotIn('renderLimit', content)
         self.assertIn('<a href="attachments.html">Attachments</a>', content)
 
     def test_dark_mode_toggle_shared_across_pages(self):
@@ -378,9 +378,84 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertIn('message[3] || 0', content)
         self.assertIn('item.querySelector(".filtered-message-count").textContent', content)
         self.assertIn('item.querySelector(".filtered-attachment-count").textContent', content)
-        self.assertIn('item.querySelector(".filtered-first-date").textContent', content)
+        self.assertIn('setCellLink(".filtered-first-date"', content)
         self.assertIn('item.setAttribute("data-sort-messages", matchingMessages.length)', content)
         self.assertIn('item.setAttribute("data-sort-attachments", filteredAttachments)', content)
+
+    def test_search_date_cells_open_day_week_and_month_views(self):
+        path = build_search_index([('Alex', 'Alex', self.messages)], self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        # The cell text is the link itself: one reused anchor per cell, no extra markup.
+        self.assertIn('const setCellLink = function(selector, label, count, range) {', content)
+        self.assertIn('const anchor = span.querySelector("a.cell-link") || document.createElement("a");', content)
+        self.assertIn('anchor.className = "cell-link";', content)
+        self.assertIn('span.appendChild(anchor);', content)
+        self.assertIn('setCellLink(".filtered-first-date", firstDay || "—", null, firstDay ? [firstDay, firstDay] : null);', content)
+        self.assertIn('setCellLink(".filtered-last-date", lastDay || "—", null, lastDay ? [lastDay, lastDay] : null);', content)
+        self.assertIn(
+            'setCellLink(".filtered-busiest-day", daySpan, rowMetrics.busiestDay[1], daySpan === "—" ? null : [daySpan, daySpan]);',
+            content,
+        )
+        self.assertIn('setCellLink(".filtered-busiest-week", rowMetrics.busiestWeek[0], rowMetrics.busiestWeek[1], weekSpan);', content)
+        self.assertIn('setCellLink(".filtered-busiest-month", rowMetrics.busiestMonth[0], rowMetrics.busiestMonth[1], monthSpan);', content)
+
+        # One day uses the day param; a week or month sends a date range.
+        self.assertIn('const buildRangeHref = function(file, start, end, index) {', content)
+        self.assertIn('if (start === end) rangeParams.set("day", start);', content)
+        self.assertIn('else { rangeParams.set("dateFrom", start); rangeParams.set("dateTo", end); }', content)
+        self.assertIn('if (messageTerm) rangeParams.set("text", messageTerm);', content)
+        self.assertIn('if (index >= 0) rangeParams.set("msg", String(index));', content)
+        self.assertIn('const day = matchingMessages[position][1];', content)
+        self.assertIn('if (day >= start && day <= end) return messages.indexOf(matchingMessages[position]);', content)
+
+        # Week labels (2024-W01) and month labels (2024-01) expand to real date spans.
+        self.assertIn('function isoWeekRange(weekKey) {', content)
+        self.assertIn('const parts = String(weekKey).split("-W").map(Number);', content)
+        self.assertIn('monday.setUTCDate(firstMonday.getUTCDate() + (parts[1] - 1) * 7);', content)
+        self.assertIn('sunday.setUTCDate(monday.getUTCDate() + 6);', content)
+        self.assertIn('function monthRange(monthKey) {', content)
+        self.assertIn('const lastDate = new Date(Date.UTC(parts[0], parts[1], 0));', content)
+        self.assertIn('return [monthKey + "-01", formatSearchDate(lastDate)];', content)
+
+        # The text keeps its normal look, with a dashed underline showing it is clickable.
+        self.assertIn('td .cell-link { color: #334155; font-size: 14px; font-weight: 400;', content)
+        self.assertIn('td .cell-link:hover { color: #2563eb; border-bottom: 1px solid #2563eb; }', content)
+        self.assertIn('html.dark td .cell-link { color: #cbd5e1; border-bottom-color: #4b5563; }', content)
+
+    def test_conversation_page_day_param_filters_to_one_day(self):
+        path = build_html('Alex', self.messages, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn('const dayParam = messageQuery.get("day");', content)
+        self.assertIn('document.getElementById("messageDateFrom").value = dayParam;', content)
+        self.assertIn('document.getElementById("messageDateTo").value = dayParam;', content)
+
+    def test_conversation_page_dates_are_day_links(self):
+        path = build_html('Alex', self.messages, self.output_dir)
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        # Every message's date is a link to that day in the same conversation,
+        # carrying the message index so the page opens on that message.
+        self.assertIn(
+            '<a class="meta-date" href="?day=2024-01-01&msg=0" title="Show only 2024-01-01">2024-01-01</a> 03:30',
+            content,
+        )
+        self.assertIn('<a class="meta-date" href="?day=2025-02-03&msg=2" title="Show only 2025-02-03">2025-02-03</a> 05:15', content)
+
+        # Lazy chunks reuse the prebuilt meta line, so no extra work per message.
+        self.assertIn('"<div class=\\"meta\\">" + m.md + "</div></div></div>"', content)
+
+        # The date keeps the meta line's look; a dashed underline shows it is clickable.
+        self.assertIn('a.meta-date { color: inherit; text-decoration: none; border-bottom: 1px dashed #cbd5e1; }', content)
+        self.assertIn('a.meta-date:hover { color: #2563eb; text-decoration: underline; }', content)
+        self.assertIn('html.dark a.meta-date { border-bottom-color: #4b5563; }', content)
 
     def test_birthdays_calendar_uses_outgoing_direct_greetings_and_shows_conflicts(self):
         conversations = [
@@ -732,6 +807,8 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertEqual(pending[0]['x'], 'message 2000')
         self.assertEqual(pending[0]['i'], 2000)
         self.assertEqual(pending[4]['d'], '2024-01-01')
+        # Lazy entries carry the same clickable date, built with their own index.
+        self.assertIn('<a class="meta-date" href="?day=2024-01-01&msg=2000"', pending[0]['md'])
 
         dates_start = content.index('id="allDates">') + len('id="allDates">')
         dates_end = content.index('</script>', dates_start)

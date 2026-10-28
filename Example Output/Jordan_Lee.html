@@ -48,10 +48,6 @@
     .message-filter-actions span { color: #64748b; font-size: 13px; }
     .message { display: flex; margin-bottom: 14px; }
     .message.filtered-out { display: none; }
-    .jump-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; padding: 12px 16px; border: 1px solid #f59e0b; border-radius: 12px; background: #fef3c7; color: #78350f; font-size: 13px; font-weight: 600; }
-    .jump-bar[hidden] { display: none; }
-    .jump-bar button { border: 0; border-radius: 8px; padding: 9px 14px; color: #fff; background: #b45309; font: inherit; font-weight: 600; cursor: pointer; }
-    .message.jump-hidden { display: none; }
     .message.jump-target .bubble { outline: 3px solid #f59e0b; box-shadow: 0 0 0 6px #fbbf2466; }
     .message.me { justify-content: flex-end; }
     .bubble { max-width: min(78%, 760px); padding: 12px 15px; border-radius: 20px; line-height: 1.5; position: relative; overflow-wrap: anywhere; box-shadow: 0 1px 3px #0f172a12; }
@@ -59,6 +55,8 @@
     .bubble.other { background: #e2e8f0; color: #172033; border-bottom-left-radius: 6px; border-bottom-right-radius: 20px; }
     .meta { font-size: 12px; color: #64748b; margin-top: 6px; }
     .bubble.me .meta { color: #dbeafe; }
+    a.meta-date { color: inherit; text-decoration: none; border-bottom: 1px dashed #cbd5e1; }
+    a.meta-date:hover { color: #2563eb; text-decoration: underline; }
     .attachment { margin-top: 8px; font-size: 13px; color: #334155; }
     .attachment img { max-width: 100%; border-radius: 12px; margin-top: 4px; }
     .attachment video { max-width: 100%; max-height: 480px; border-radius: 12px; margin-top: 4px; }
@@ -86,13 +84,16 @@
     html.dark .bubble.me { background: #1d4ed8; color: #fff; }
     html.dark .meta { color: #9ca3af; }
     html.dark .bubble.me .meta { color: #bfdbfe; }
+    html.dark a.meta-date { border-bottom-color: #4b5563; }
+    html.dark a.meta-date:hover { color: #60a5fa; }
     html.dark .attachment, html.dark .attachment-meta { color: #cbd5e1; }
     html.dark .att-media { background: #0b0d10; border-color: #3a414d; }
     html.dark .att-media .attachment { background: #1c2025; color: #cbd5e1; }
     html.dark .att-info { color: #e5e7eb; }
     html.dark mark { background: #fbbf24; color: #111827; }
-    html.dark .jump-bar { background: #3b2a12; border-color: #b45309; color: #fde68a; }
     html.dark .year-controls button, html.dark .year-edit, html.dark .collapse-toggle { background: #1c2025; border-color: #3a414d; color: #e5e7eb; }
+    html.dark td .cell-link { color: #cbd5e1; border-bottom-color: #4b5563; }
+    html.dark td .cell-link:hover { color: #60a5fa; border-bottom-color: #60a5fa; }
     html.dark .activity-day { background: #21262d; box-shadow: inset 0 0 0 1px #3a414d; }
     html.dark table { background: #1c2025; }
     html.dark th { background: #262b33; color: #cbd5e1; }
@@ -153,10 +154,6 @@
         <div id="messageResultCount" class="message-result-count" aria-live="polite"></div>
         <span id="randomStatus" aria-live="polite"></span>
       </div>
-    </section>
-    <section class="jump-bar" id="jumpBar" hidden>
-      <span id="jumpStatus" aria-live="polite"></span>
-      <button type="button" id="showAllMessagesButton">Show all messages</button>
     </section>
     <section class="activity-card" aria-label="Conversation daily message activity">
       <div class="activity-heading"><h2>Messages per day in this conversation</h2>
@@ -1716,49 +1713,49 @@
     <div class="message me" data-msg-idx="0" data-date="2022-09-14" data-time="09:00" data-attachment-count="0" data-search-text="happy birthday, jordan! me 2022-09-14 09:00:00">
       <div class="bubble me">
         <div>Happy birthday, Jordan!</div>
-        <div class="meta">Me • 2022-09-14 09:00:00</div>
+        <div class="meta">Me • <a class="meta-date" href="?day=2022-09-14&msg=0" title="Show only 2022-09-14">2022-09-14</a> 09:00</div>
       </div>
     </div>
     <div class="message other" data-msg-idx="1" data-date="2022-09-14" data-time="09:10" data-attachment-count="0" data-search-text="thanks! coffee soon? jordan 2022-09-14 09:10:00">
       <div class="bubble other">
         <div>Thanks! Coffee soon?</div>
-        <div class="meta">Jordan • 2022-09-14 09:10:00</div>
+        <div class="meta">Jordan • <a class="meta-date" href="?day=2022-09-14&msg=1" title="Show only 2022-09-14">2022-09-14</a> 09:10</div>
       </div>
     </div>
     <div class="message other" data-msg-idx="2" data-date="2023-06-10" data-time="08:00" data-attachment-count="0" data-search-text="happy birthday! hope today brings good things. jordan 2023-06-10 08:00:00">
       <div class="bubble other">
         <div>Happy birthday! Hope today brings good things.</div>
-        <div class="meta">Jordan • 2023-06-10 08:00:00</div>
+        <div class="meta">Jordan • <a class="meta-date" href="?day=2023-06-10&msg=2" title="Show only 2023-06-10">2023-06-10</a> 08:00</div>
       </div>
     </div>
     <div class="message me" data-msg-idx="3" data-date="2023-09-14" data-time="10:00" data-attachment-count="0" data-search-text="happy birthday! hope the new job is treating you well. me 2023-09-14 10:00:00">
       <div class="bubble me">
         <div>Happy birthday! Hope the new job is treating you well.</div>
-        <div class="meta">Me • 2023-09-14 10:00:00</div>
+        <div class="meta">Me • <a class="meta-date" href="?day=2023-09-14&msg=3" title="Show only 2023-09-14">2023-09-14</a> 10:00</div>
       </div>
     </div>
     <div class="message other" data-msg-idx="4" data-date="2024-06-10" data-time="08:30" data-attachment-count="0" data-search-text="happy birthday! sending you a big virtual cake. jordan 2024-06-10 08:30:00">
       <div class="bubble other">
         <div>Happy birthday! Sending you a big virtual cake.</div>
-        <div class="meta">Jordan • 2024-06-10 08:30:00</div>
+        <div class="meta">Jordan • <a class="meta-date" href="?day=2024-06-10&msg=4" title="Show only 2024-06-10">2024-06-10</a> 08:30</div>
       </div>
     </div>
     <div class="message me" data-msg-idx="5" data-date="2024-09-14" data-time="08:00" data-attachment-count="0" data-search-text="happy birthday, jordan! let us celebrate soon. me 2024-09-14 08:00:00">
       <div class="bubble me">
         <div>Happy birthday, Jordan! Let us celebrate soon.</div>
-        <div class="meta">Me • 2024-09-14 08:00:00</div>
+        <div class="meta">Me • <a class="meta-date" href="?day=2024-09-14&msg=5" title="Show only 2024-09-14">2024-09-14</a> 08:00</div>
       </div>
     </div>
     <div class="message me" data-msg-idx="6" data-date="2025-06-11" data-time="10:05" data-attachment-count="0" data-search-text="the concert was fantastic. me 2025-06-11 10:05:00">
       <div class="bubble me">
         <div>The concert was fantastic.</div>
-        <div class="meta">Me • 2025-06-11 10:05:00</div>
+        <div class="meta">Me • <a class="meta-date" href="?day=2025-06-11&msg=6" title="Show only 2025-06-11">2025-06-11</a> 10:05</div>
       </div>
     </div>
     <div class="message other" data-msg-idx="7" data-date="2025-06-11" data-time="10:16" data-attachment-count="0" data-search-text="agreed. next time we should get seats closer. jordan 2025-06-11 10:16:00">
       <div class="bubble other">
         <div>Agreed. Next time we should get seats closer.</div>
-        <div class="meta">Jordan • 2025-06-11 10:16:00</div>
+        <div class="meta">Jordan • <a class="meta-date" href="?day=2025-06-11&msg=7" title="Show only 2025-06-11">2025-06-11</a> 10:16</div>
       </div>
     </div>
     </main>
@@ -1793,7 +1790,7 @@
             ? highlightText(m.x, activeCriteria.termHtml) : m.x;
           markup += "<div class=\"message " + m.cls + "\" data-date=\"" + m.d + "\" data-time=\"" + m.t + "\" data-msg-idx=\"" + m.i + "\" data-attachment-count=\"" + m.a + "\" data-search-text=\"" + m.s + "\" data-text-html=\"" + m.x + "\">" +
             "<div class=\"bubble " + m.cls + "\"><div>" + textPart + "</div>" + m.atts +
-            "<div class=\"meta\">" + m.who + " • " + m.dt + "</div></div></div>";
+            "<div class=\"meta\">" + m.md + "</div></div></div>";
         }
         const template = document.createElement("template");
         template.innerHTML = markup;
@@ -1845,6 +1842,11 @@
       Object.keys(messageQueryFields).forEach(function(key) {
         if (messageQuery.has(key)) document.getElementById(messageQueryFields[key]).value = messageQuery.get(key);
       });
+      const dayParam = messageQuery.get("day");
+      if (dayParam) {
+        document.getElementById("messageDateFrom").value = dayParam;
+        document.getElementById("messageDateTo").value = dayParam;
+      }
       function highlightText(source, termHtml) {
         const lower = source.toLocaleLowerCase();
         let result = "";
@@ -1992,7 +1994,6 @@
       if (jumpParam !== null) {
         const jumpIndex = parseInt(jumpParam, 10);
         if (!isNaN(jumpIndex) && jumpIndex >= 0 && jumpIndex < totalMessages) {
-          const renderLimit = Math.min(totalMessages, jumpIndex + 26);
           const findJumpTarget = function() {
             for (const el of messageItems) {
               if (Number(el.dataset.msgIdx) === jumpIndex) return el;
@@ -2000,28 +2001,13 @@
             return null;
           };
           let jumpTarget = findJumpTarget();
-          while (!jumpTarget && messageItems.length < renderLimit && pending.length) {
+          while (!jumpTarget && pending.length) {
             renderChunk(BATCH_SIZE);
             jumpTarget = findJumpTarget();
           }
           if (jumpTarget) {
-            const lowIndex = jumpIndex - 25;
-            const highIndex = jumpIndex + 25;
-            messageItems.forEach(function(el) {
-              const idx = Number(el.dataset.msgIdx);
-              el.classList.toggle("jump-hidden", idx < lowIndex || idx > highIndex);
-            });
             jumpTarget.classList.add("jump-target");
             jumpTarget.scrollIntoView({ block: "center" });
-            document.getElementById("jumpBar").hidden = false;
-            document.getElementById("jumpStatus").textContent =
-              "Jumped to message #" + (jumpIndex + 1) + ", showing 25 messages on each side.";
-            document.getElementById("showAllMessagesButton").addEventListener("click", function() {
-              messageItems.forEach(function(el) {
-                el.classList.remove("jump-hidden", "jump-target");
-              });
-              document.getElementById("jumpBar").hidden = true;
-            });
           }
         }
       }

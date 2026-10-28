@@ -27,6 +27,8 @@
     .random-day-control button:disabled { opacity: .55; cursor: not-allowed; }
     #randomDayStatus { color: #64748b; font-size: 13px; }
     .results-count { font-size: 14px; color: #64748b; margin-bottom: 12px; }
+    td .cell-link { color: #334155; font-size: 14px; font-weight: 400; text-decoration: none; border-bottom: 1px dashed #94a3b8; cursor: pointer; }
+    td .cell-link:hover { color: #2563eb; border-bottom: 1px solid #2563eb; }
     .table-wrap { overflow-x: auto; border-radius: 14px; box-shadow: 0 4px 18px #0f172a0d; }
     table { width: 100%; border-collapse: collapse; background: white; }
     th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5ea; }
@@ -76,13 +78,16 @@
     html.dark .bubble.me { background: #1d4ed8; color: #fff; }
     html.dark .meta { color: #9ca3af; }
     html.dark .bubble.me .meta { color: #bfdbfe; }
+    html.dark a.meta-date { border-bottom-color: #4b5563; }
+    html.dark a.meta-date:hover { color: #60a5fa; }
     html.dark .attachment, html.dark .attachment-meta { color: #cbd5e1; }
     html.dark .att-media { background: #0b0d10; border-color: #3a414d; }
     html.dark .att-media .attachment { background: #1c2025; color: #cbd5e1; }
     html.dark .att-info { color: #e5e7eb; }
     html.dark mark { background: #fbbf24; color: #111827; }
-    html.dark .jump-bar { background: #3b2a12; border-color: #b45309; color: #fde68a; }
     html.dark .year-controls button, html.dark .year-edit, html.dark .collapse-toggle { background: #1c2025; border-color: #3a414d; color: #e5e7eb; }
+    html.dark td .cell-link { color: #cbd5e1; border-bottom-color: #4b5563; }
+    html.dark td .cell-link:hover { color: #60a5fa; border-bottom-color: #60a5fa; }
     html.dark .activity-day { background: #21262d; box-shadow: inset 0 0 0 1px #3a414d; }
     html.dark table { background: #1c2025; }
     html.dark th { background: #262b33; color: #cbd5e1; }
@@ -209,6 +214,28 @@
         const jan4Day = (jan4.getUTCDay() + 6) % 7;
         const week = Math.ceil(((date - jan4) / 86400000 - 3 + jan4Day) / 7) + 1;
         return isoYear + "-W" + String(week).padStart(2, "0");
+      }
+      function padSearchDay(value) { return String(value).padStart(2, "0"); }
+      function formatSearchDate(date) {
+        return date.getUTCFullYear() + "-" + padSearchDay(date.getUTCMonth() + 1) + "-" + padSearchDay(date.getUTCDate());
+      }
+      function isoWeekRange(weekKey) {
+        const parts = String(weekKey).split("-W").map(Number);
+        if (parts.length !== 2 || !parts[1]) return null;
+        const jan4 = new Date(Date.UTC(parts[0], 0, 4));
+        const firstMonday = new Date(jan4);
+        firstMonday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7));
+        const monday = new Date(firstMonday);
+        monday.setUTCDate(firstMonday.getUTCDate() + (parts[1] - 1) * 7);
+        const sunday = new Date(monday);
+        sunday.setUTCDate(monday.getUTCDate() + 6);
+        return [formatSearchDate(monday), formatSearchDate(sunday)];
+      }
+      function monthRange(monthKey) {
+        const parts = String(monthKey).split("-").map(Number);
+        if (parts.length !== 2 || !parts[1]) return null;
+        const lastDate = new Date(Date.UTC(parts[0], parts[1], 0));
+        return [monthKey + "-01", formatSearchDate(lastDate)];
       }
       function formatElapsed(seconds) {
         const total = Math.max(0, Math.round(seconds));
@@ -366,6 +393,14 @@
         const minTotal = Number(minTotalInput.value) || 1;
         const messageFiltersActive = Boolean(messageTerm || dateFrom || dateTo || timeFrom || timeTo || minTotal > 1);
         let visibleCount = 0;
+        const buildRangeHref = function(file, start, end, index) {
+          const rangeParams = new URLSearchParams();
+          if (start === end) rangeParams.set("day", start);
+          else { rangeParams.set("dateFrom", start); rangeParams.set("dateTo", end); }
+          if (messageTerm) rangeParams.set("text", messageTerm);
+          if (index >= 0) rangeParams.set("msg", String(index));
+          return file + "?" + rangeParams.toString();
+        };
         
         conversationItems.forEach(function(item) {
           const nameMatches = !searchTerm || item.getAttribute("data-name").includes(searchTerm);
@@ -384,17 +419,48 @@
           }).filter(Boolean).sort();
           item.querySelector(".filtered-message-count").textContent = matchingMessages.length.toLocaleString();
           item.querySelector(".filtered-attachment-count").textContent = filteredAttachments.toLocaleString();
-          item.querySelector(".filtered-first-date").textContent = matchingDates.length ? matchingDates[0] : "—";
-          item.querySelector(".filtered-last-date").textContent = matchingDates.length ? matchingDates[matchingDates.length - 1] : "—";
           item.setAttribute("data-sort-messages", matchingMessages.length);
           item.setAttribute("data-sort-attachments", filteredAttachments);
           item.setAttribute("data-sort-first-date", matchingDates.length ? matchingDates[0] : "");
           item.setAttribute("data-sort-last-date", matchingDates.length ? matchingDates[matchingDates.length - 1] : "");
+          const rowFile = item.querySelector("a[data-conversation-file]").dataset.conversationFile;
+          const indexForRange = function(start, end) {
+            for (let position = 0; position < matchingMessages.length; position++) {
+              const day = matchingMessages[position][1];
+              if (day >= start && day <= end) return messages.indexOf(matchingMessages[position]);
+            }
+            return -1;
+          };
+          const setCellLink = function(selector, label, count, range) {
+            const span = item.querySelector(selector);
+            if (!span) return;
+            const cellText = label + (count === null ? "" : " (" + count.toLocaleString() + ")");
+            if (range) {
+              const anchor = span.querySelector("a.cell-link") || document.createElement("a");
+              anchor.className = "cell-link";
+              anchor.textContent = cellText;
+              anchor.href = buildRangeHref(rowFile, range[0], range[1], indexForRange(range[0], range[1]));
+              anchor.title = range[0] === range[1]
+                ? "Open this conversation on " + range[0]
+                : "Open this conversation from " + range[0] + " to " + range[1];
+              span.textContent = "";
+              span.appendChild(anchor);
+            } else {
+              span.textContent = cellText;
+            }
+          };
+          const firstDay = matchingDates.length ? matchingDates[0] : "";
+          const lastDay = matchingDates.length ? matchingDates[matchingDates.length - 1] : "";
+          setCellLink(".filtered-first-date", firstDay || "—", null, firstDay ? [firstDay, firstDay] : null);
+          setCellLink(".filtered-last-date", lastDay || "—", null, lastDay ? [lastDay, lastDay] : null);
           if (item.querySelector(".filtered-busiest-day")) {
             const rowMetrics = computeFilteredMetrics(matchingMessages);
-            item.querySelector(".filtered-busiest-day").textContent = rowMetrics.busiestDay[0] + " (" + rowMetrics.busiestDay[1].toLocaleString() + ")";
-            item.querySelector(".filtered-busiest-week").textContent = rowMetrics.busiestWeek[0] + " (" + rowMetrics.busiestWeek[1].toLocaleString() + ")";
-            item.querySelector(".filtered-busiest-month").textContent = rowMetrics.busiestMonth[0] + " (" + rowMetrics.busiestMonth[1].toLocaleString() + ")";
+            const daySpan = rowMetrics.busiestDay[0];
+            setCellLink(".filtered-busiest-day", daySpan, rowMetrics.busiestDay[1], daySpan === "—" ? null : [daySpan, daySpan]);
+            const weekSpan = isoWeekRange(rowMetrics.busiestWeek[0]);
+            setCellLink(".filtered-busiest-week", rowMetrics.busiestWeek[0], rowMetrics.busiestWeek[1], weekSpan);
+            const monthSpan = monthRange(rowMetrics.busiestMonth[0]);
+            setCellLink(".filtered-busiest-month", rowMetrics.busiestMonth[0], rowMetrics.busiestMonth[1], monthSpan);
             item.querySelector(".filtered-longest-gap").textContent = rowMetrics.longestGap === null ? "—" : formatElapsed(rowMetrics.longestGap);
             item.querySelector(".filtered-active-streak").textContent = rowMetrics.activeStreak.toLocaleString() + " days";
             item.querySelector(".filtered-reply-sent").textContent = rowMetrics.sentMedian === null ? "—" : formatReplyMinutes(rowMetrics.sentMedian);

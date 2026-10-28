@@ -842,6 +842,84 @@ class HtmlFeatureTests(unittest.TestCase):
         self.assertNotIn('data-variant="solo"', content)
         self.assertNotIn('id="hideGroupStats"', content)
 
+    def test_top_words_year_carousel_shows_one_year_at_a_time(self):
+        stats = summarize_messages(self.messages)
+        stats['conversations'] = 1
+
+        path = build_index(
+            [('Alex', 'alex', self.messages)],
+            self.output_dir,
+            stats,
+        )
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        self.assertIn(
+            '<section class="stat-group year-nav" aria-label="Top Words and Senders By Year">',
+            content,
+        )
+        self.assertIn('<button type="button" class="year-prev" aria-label="Previous year">←</button>', content)
+        self.assertIn('<button type="button" class="year-next" aria-label="Next year">→</button>', content)
+        self.assertIn('<strong class="year-label"></strong>', content)
+        self.assertIn('<section class="year-item" data-year="2024" hidden>', content)
+        self.assertIn('<section class="year-item" data-year="2025"', content)
+        self.assertNotIn('<section class="year-item" data-year="2025" hidden>', content)
+        self.assertEqual(content.count('<section class="year-item" data-year='), 2)
+        self.assertIn('<h3>2024</h3>', content)
+        self.assertIn('<h3>2025</h3>', content)
+        self.assertIn('<section class="activity-card year-nav" aria-label="Daily message activity">', content)
+        self.assertIn('class="activity-year year-item" data-year="2024" hidden>', content)
+        self.assertIn('document.querySelectorAll(".year-nav").forEach', content)
+        self.assertIn('container.querySelectorAll(".year-item")', content)
+
+    def test_year_carousel_arrows_and_editable_year(self):
+        stats = summarize_messages(self.messages)
+        stats['conversations'] = 1
+
+        path = build_index(
+            [('Alex', 'alex', self.messages)],
+            self.output_dir,
+            stats,
+        )
+
+        with open(path, encoding='utf-8') as page:
+            content = page.read()
+
+        section_marker = '<section class="stat-group year-nav" aria-label="Top Words and Senders By Year">'
+        words_section = content[content.index(section_marker) + len(section_marker):]
+
+        # The arrows and year sit on their own row below the heading.
+        heading = words_section.index('<h2>Top Words and Senders by Year</h2>')
+        controls = words_section.index('<div class="year-controls">')
+        first_panel = words_section.index('<section class="year-item" data-year=')
+        self.assertLess(heading, controls)
+        self.assertLess(controls, first_panel)
+
+        prev = words_section.index('<button type="button" class="year-prev" aria-label="Previous year">←</button>')
+        label = words_section.index('<strong class="year-label"></strong>')
+        edit = words_section.index('<input class="year-edit"')
+        nxt = words_section.index('<button type="button" class="year-next" aria-label="Next year">→</button>')
+        self.assertLess(prev, label)
+        self.assertLess(label, edit)
+        self.assertLess(edit, nxt)
+
+        # No year heading above the tables; the year lives in the controls row.
+        self.assertNotIn('<h3>2024</h3>', words_section)
+        self.assertNotIn('<h3>2025</h3>', words_section)
+
+        # Clicking the year text turns it into a box the user can type in.
+        self.assertIn(
+            '<input class="year-edit" type="text" inputmode="numeric" size="4" maxlength="4" aria-label="Jump to a year" hidden>',
+            content,
+        )
+        self.assertEqual(content.count('<input class="year-edit"'), 2)
+        self.assertIn('label.addEventListener("click"', content)
+        self.assertIn('edit.addEventListener("keydown"', content)
+        self.assertIn('edit.addEventListener("blur"', content)
+        self.assertIn('section.dataset.year === typed', content)
+        self.assertIn('event.key === "Escape"', content)
+
 
 if __name__ == '__main__':
     unittest.main()

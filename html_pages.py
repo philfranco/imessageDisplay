@@ -35,7 +35,7 @@ DARK_CSS = '\n'.join([
     '    html.dark .page-header { box-shadow: none; }',
     '    html.dark .page-header p, html.dark .page-header p:last-child { color: #cbd5e1; }',
     '    html.dark .eyebrow { color: #93c5fd; }',
-    '    html.dark .stat-note, html.dark .results-count, html.dark .call-count, html.dark .message-result-count, html.dark .message-filter-actions span, html.dark .load-more, html.dark .activity-legend, html.dark .month-labels, html.dark .evidence, html.dark .wish-meta, html.dark .weekday, html.dark .stats-filter-label { color: #9ca3af; }',
+    '    html.dark .stat-note, html.dark .results-count, html.dark .call-count, html.dark .message-result-count, html.dark .message-filter-actions span, html.dark .load-more, html.dark .activity-legend, html.dark .month-labels, html.dark .evidence, html.dark .wish-meta, html.dark .weekday, html.dark .stats-filter-label, html.dark .year-label { color: #9ca3af; }',
     '    html.dark .message-filters, html.dark .search-filters, html.dark .stats-filter, html.dark .activity-card, html.dark .month, html.dark .att-grid, html.dark .att-card, html.dark .att-caption, html.dark .wish-card, html.dark .empty-state { background: #1c2025; border-color: #3a414d; color: #cbd5e1; }',
     '    html.dark label { color: #9ca3af; }',
     '    html.dark input, html.dark select { background: #121417; border: 1px solid #3a414d; color: #e5e7eb; }',
@@ -50,7 +50,7 @@ DARK_CSS = '\n'.join([
     '    html.dark .att-info { color: #e5e7eb; }',
     '    html.dark mark { background: #fbbf24; color: #111827; }',
     '    html.dark .jump-bar { background: #3b2a12; border-color: #b45309; color: #fde68a; }',
-    '    html.dark .year-controls button { background: #1c2025; border-color: #3a414d; color: #e5e7eb; }',
+    '    html.dark .year-controls button, html.dark .year-edit { background: #1c2025; border-color: #3a414d; color: #e5e7eb; }',
     '    html.dark .activity-day { background: #21262d; box-shadow: inset 0 0 0 1px #3a414d; }',
     '    html.dark table { background: #1c2025; }',
     '    html.dark th { background: #262b33; color: #cbd5e1; }',
@@ -1038,11 +1038,12 @@ def _activity_card_content(daily_counts, ids=None):
         return f'<button type="button" class="{cls}"{id_part} aria-label="{label}">{glyph}</button>'
 
     card = [
-        '<section class="activity-card" aria-label="Daily message activity">',
+        '<section class="activity-card year-nav" aria-label="Daily message activity">',
         '  <div class="activity-heading"><h2>Messages per day</h2>',
         '    <div class="year-controls">',
         f'      {control_button("year-prev", prev_id, "Previous year", "←")}',
-        f'      <strong class="activity-year-label"{label_id}></strong>',
+        f'      <strong class="activity-year-label year-label"{label_id}></strong>',
+        '      <input class="year-edit" type="text" inputmode="numeric" size="4" maxlength="4" aria-label="Jump to a year" hidden>',
         f'      {control_button("year-next", next_id, "Next year", "→")}',
         '    </div>',
         '  </div>',
@@ -1059,7 +1060,7 @@ def _activity_card_content(daily_counts, ids=None):
             default=0,
         )
         grid.append(
-            f'<section class="activity-year" data-year="{year}" '
+            f'<section class="activity-year year-item" data-year="{year}" '
             f'{" " if year == years[-1] else "hidden"}>'
             f'<h3>{year}</h3><div class="activity-scroll"><div class="month-labels">'
         )
@@ -1340,13 +1341,22 @@ def _message_stats_content(
         analytics_content.append('</tbody></table></div>')
     analytics_content.append('</section>')
     analytics_content.extend([
-        '<section class="stat-group" aria-label="Top Words and Senders By Year">',
-        '<h2>Top Words and Senders by Year</h2>',
+        '<section class="stat-group year-nav" aria-label="Top Words and Senders By Year">',
+        '  <div class="activity-heading"><h2>Top Words and Senders by Year</h2>',
+        '    <div class="year-controls">',
+        '      <button type="button" class="year-prev" aria-label="Previous year">←</button>',
+        '      <strong class="year-label"></strong>',
+        '      <input class="year-edit" type="text" inputmode="numeric" size="4" maxlength="4" aria-label="Jump to a year" hidden>',
+        '      <button type="button" class="year-next" aria-label="Next year">→</button>',
+        '    </div>',
+        '  </div>',
     ])
-    if not yearly_words:
+    word_years = sorted(yearly_words)
+    if not word_years:
         analytics_content.append('<p class="stat-note">No qualifying words recorded in the archive.</p>')
-    for year in sorted(yearly_words):
-        analytics_content.append(f'<h3>{year}</h3>')
+    for year in word_years:
+        visible = ' ' if year == word_years[-1] else ' hidden'
+        analytics_content.append(f'<section class="year-item" data-year="{year}"{visible}>')
         analytics_content.append('<div class="year-columns">')
         analytics_content.append(
             '<div class="table-wrap"><table class="stats-table">'
@@ -1371,6 +1381,7 @@ def _message_stats_content(
             )
         analytics_content.append('</tbody></table></div>')
         analytics_content.append('</div>')
+        analytics_content.append('</section>')
     analytics_content.append('</section>')
 
     content.extend(analytics_content)
@@ -1529,6 +1540,7 @@ def build_index(
         '    .activity-heading h2 { margin: 0; font-size: 19px; }',
         '    .year-controls { display: flex; align-items: center; gap: 10px; }',
         '    .year-controls button { padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; }',
+        '    .year-controls button:disabled { opacity: .4; cursor: default; }',
         '    .activity-year[hidden] { display: none; }',
         '    .activity-scroll { overflow-x: auto; padding: 12px 0 4px; }',
         '    .month-labels, .activity-grid { display: grid; grid-template-columns: repeat(53, 12px); gap: 3px; width: max-content; }',
@@ -1542,6 +1554,12 @@ def build_index(
         '    .activity-day.level-3 { background: #3b82f6; box-shadow: none; }',
         '    .activity-day.level-4 { background: #1e3a8a; box-shadow: none; }',
         '    .activity-legend { margin: 12px 0 0; color: #64748b; font-size: 12px; }',
+        '    .year-nav .activity-heading { margin-bottom: 8px; }',
+        '    .year-label { min-width: 48px; text-align: center; font-size: 16px; color: #334155; cursor: pointer; }',
+        '    .year-edit { width: 58px; padding: 7px 8px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #334155; font-size: 16px; text-align: center; }',
+        '    .year-edit:focus { outline: 2px solid #2563eb; outline-offset: 1px; }',
+        '    .year-item h3 { margin: 8px 0 12px; font-size: 18px; }',
+        '    .year-item[hidden] { display: none; }',
         '    .stats-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 18px; padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 1px 4px #0001; }',
         '    .stats-filter-label { display: flex; align-items: center; gap: 8px; color: #334155; font-size: 14px; font-weight: 600; cursor: pointer; }',
         '    .stats-filter-label input { width: 16px; height: 16px; accent-color: #2563eb; }',
@@ -1642,17 +1660,47 @@ def build_index(
         '          else if (event.key === "End") { event.preventDefault(); showPoint(points.length - 1); }',
         '        });',
         '      });',
-        '      document.querySelectorAll(".activity-card").forEach(function(card) {',
-        '        const years = Array.from(card.querySelectorAll(".activity-year"));',
+        '      document.querySelectorAll(".year-nav").forEach(function(container) {',
+        '        const years = Array.from(container.querySelectorAll(".year-item"));',
         '        let activeIndex = Math.max(0, years.length - 1);',
-        '        const label = card.querySelector(".activity-year-label");',
-        '        const prev = card.querySelector(".year-prev");',
-        '        const next = card.querySelector(".year-next");',
+        '        const label = container.querySelector(".year-label");',
+        '        const edit = container.querySelector(".year-edit");',
+        '        const prev = container.querySelector(".year-prev");',
+        '        const next = container.querySelector(".year-next");',
+        '        let cancelling = false;',
         '        function showYear() {',
         '          years.forEach(function(section, index) { section.hidden = index !== activeIndex; });',
         '          if (label) label.textContent = years.length ? years[activeIndex].dataset.year : "—";',
         '          if (prev) prev.disabled = activeIndex <= 0;',
         '          if (next) next.disabled = activeIndex >= years.length - 1;',
+        '        }',
+        '        function endEdit() {',
+        '          if (edit) edit.hidden = true;',
+        '          if (label) label.hidden = false;',
+        '        }',
+        '        function commitEdit() {',
+        '          const typed = edit.value.trim();',
+        '          const index = years.findIndex(function(section) { return section.dataset.year === typed; });',
+        '          if (index >= 0) activeIndex = index;',
+        '          showYear();',
+        '          endEdit();',
+        '        }',
+        '        if (label && edit) {',
+        '          label.addEventListener("click", function() {',
+        '            edit.value = label.textContent.trim();',
+        '            label.hidden = true;',
+        '            edit.hidden = false;',
+        '            edit.focus();',
+        '            edit.select();',
+        '          });',
+        '          edit.addEventListener("keydown", function(event) {',
+        '            if (event.key === "Enter") { commitEdit(); }',
+        '            else if (event.key === "Escape") { cancelling = true; endEdit(); }',
+        '          });',
+        '          edit.addEventListener("blur", function() {',
+        '            if (cancelling) { cancelling = false; return; }',
+        '            if (!edit.hidden) commitEdit();',
+        '          });',
         '        }',
         '        if (prev) prev.addEventListener("click", function() {',
         '          if (activeIndex > 0) { activeIndex--; showYear(); }',
